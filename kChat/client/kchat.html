@@ -1,0 +1,187 @@
+<head>
+  <title>kChat</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+</head>
+
+<body>
+  {{>home}}
+  {{>loginModal}}
+</body>
+
+<template name="loginModal">
+    <!-- LOGIN MODAL -->
+  <div id="loginModal" class="modal hide fade">
+    <div class="modal-header">
+      <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+      <h3>Login</h3>
+    </div>
+    <div class="modal-body">
+      <form id="formLoginUser">
+        <center>
+        <input id="usernameLogin" type="text" placeholder="Username"><br/>
+        <input id="passwordLogin" type="password" placeholder="Password"><br/>
+        <div id="loginErroMsg"></div>
+        </center>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <center>
+        <button id="chatnowLoginBtn" class="btn btn-success">Chat Now!</button>
+      </center>
+    </div>
+  </div>
+</template>
+
+<template name="home">
+    <!-- Part 1: Wrap all page content here -->
+    <div id="wrap">
+      <!-- Begin page content -->
+      <div class="container">
+
+        <div class="page-header">
+
+            <h1>kChat</h1>
+            <h4>"You Won't Feel Lonely Anymore!"</h4>
+
+            {{#if currentUser}}
+              <h6>Username: <i>{{user.username}}</i></h6>
+              <button id="logoutBtn" class="btn btn-inverse">Good Bye!</button>
+            {{else}}
+              <button href="#loginModal" class="btn btn-primary" data-toggle="modal">Hello!</button>
+            {{/if}}
+            <div class="btn-group" id="userOnlineDropdown">
+              <a class="btn btn-warning dropdown-toggle" data-toggle="dropdown" href="#">
+                Online Now?
+                <span class="caret"></span>
+              </a>
+              <ul class="dropdown-menu">
+                {{#if usersOnline.count}}
+                  {{#each usersOnline }}
+                      <center>{{username}}</center>
+                  {{/each}}
+                {{/if}}
+                <!-- dropdown menu links -->
+              </ul>
+            </div>
+        </div>
+
+
+        {{#if currentUser}}
+          {{#if user.Room.inRoom}}
+            {{> room }}
+          {{else}}
+            {{>lobby}}
+          {{/if}}
+        {{else}}
+          <div class="body-page">
+            <center>
+            <form id="formCreateUser">
+              <input id="username" type="text" placeholder="Username"><br/>
+              <input id="password1" type="password" placeholder="Password"><br/>
+              <input id="password2" type="password" placeholder="Confirm Password"><br/>
+              <div id="errorUsernameMsg"></div>
+            </form>
+            <button id="chatnowBtn" class="btn btn-success">Chat Now!</button>
+            </center>
+              <div class="well">
+                {{#if rooms.count}}
+                  <h4>{{rooms.count}} Available Room Now</h4>
+                  {{#each rooms }}
+                    <div id="roomTitle">
+                      {{roomTitle}}
+                    </div>
+                  {{/each}}
+                {{else}}
+                  <h4>0 Available Room Now :(</h4>
+                {{/if}}
+              </div>
+          </div>
+        {{/if}}
+
+      </div>
+
+      <div id="push"></div>
+    </div>
+
+    <div id="footer">
+      <div class="container">
+        <p class="muted credit">Developed by <a href="https://github.com/KiqueDev/" target="_blank">KiqueDev</a></p>
+      </div>
+    </div>
+</template>
+
+<template name="lobby">
+  <center>
+    <input id="roomTitleName" type="text" placeholder="Rooms Title" /><br/>
+    <div id="createRoomErroMsg"></div>
+    <button id="createRoomBtn" class="btn btn-primary">Create Room!</button><br/><br/>
+
+    <div class="well row-fluid roomsDisplay">
+        {{#if rooms.count}}
+          <h4>{{rooms.count}} Available Room Now</h4>
+          {{#each rooms }}
+            <div class="row-fluid">
+              <div class="span6">
+                {{roomTitle}}
+              </div>
+
+              <div class="span6">
+                <button class="btn btn-primary joinRoom" roomId="{{_id}}" roomTitle="{{roomTitle}}" people="{{peopleUsername}}">Join</button>
+                <button class="btn btn-info tooltip-{{_id}}" rel="tooltip" title="{{peopleUsername}}">Who's in?</button>
+                <button id="delete-{{_id}}" class="btn btn-danger deleteRoom" roomId="{{_id}}">x</button>
+              </div>
+            </div>
+            <div id="deleteAlert-{{_id}}" class="deleteAlert" style="display: none;">
+              <div class="alert alert-block alert-error fade in">
+                <h4 class="alert-heading">Delete Room</h4>
+                <p>Are you sure you want to delete this room: <b>{{roomTitle}}</b>?</p>
+                <p>
+                  <button class="btn btn-danger deleteConfirm" roomId="{{_id}}">Delete</button> 
+                  <button class="btn cancelDelete" roomId="{{_id}}">Cancel</button>
+                </p>
+              </div>
+            </div>
+
+            <br/>
+          {{/each}}
+        {{else}}
+          <h4>0 Available Room Now :(</h4>
+        {{/if}}
+    </div>
+  </center>
+
+</template>
+
+<template name="room">
+
+  <div class="well">
+    
+    <div>
+      <div id="roomsHeader"><b>{{user.Room.inRoomTitle}}</b></div>
+      <button id="exitRoom" class="btn btn-danger" roomId="{{user.Room.inRoomID}}">Exit Room</button>
+      
+    </div>
+
+    <div>
+      <div id="roomsChat"><b>Chatting With:  <i>{{ peopleInRoom.peopleUsername }}</i></b></div>
+     
+      <div id="msgLog">
+        {{#each messageCount}}
+          <pre><b>{{username}} ({{time}})</b>:   {{ message }}</pre>
+        {{/each}}
+      </div>
+
+      <div id="sendDiv">
+        <center>
+          <textarea class="field span6" rows="2" id="messageTextArea"></textarea>
+          <button id="sendMessage" class="btn btn-primary">Send</button>
+        </center>
+      </div>
+
+    </div>
+  </div>
+
+
+</template>
+
+
