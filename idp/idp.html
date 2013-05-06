@@ -1,0 +1,15 @@
+<head>
+  <title>idp</title>
+</head>
+
+<body>
+  {{> hello}}
+</body>
+
+<template name="hello">
+  {{loginButtons}}
+
+  <p>
+    {{#if user_email}}{{user_email}}{{/if}}
+  </p>
+</template>
