@@ -1,3 +1,19 @@
+room_princ = undefined;
+Deps.autorun(function () {
+    var u = Meteor.user();
+    if (u && u.Room) {
+        var inroom = Meteor.user().Room.inRoom;
+        if (inroom) {
+            var title = $("#roomtitle").text();
+            var creator = $("#roomcreator").text();
+            Principal.lookup([new CertAttr("room", title)],
+                             creator, function (p) {
+                                 room_princ = p;
+                             });
+        }
+    }
+});
+
 //HOME TEMPLATE
 Template.home.rooms = function() {
   return Rooms.find({ roomTitle: {$ne: ''} });
@@ -24,7 +40,6 @@ Template.room.peopleInRoom = function() {
 Template.room.messageCount = function() {
   return Messages.find({rID:Meteor.user().Room.inRoomID});
 };
-
 
 //LOBBY TEMPLATE
 Template.lobby.rooms = function() {
@@ -99,6 +114,17 @@ Template.lobby.events({
   }
 });
 
+Template.invite.events({
+    'click #invite': function (evt) {
+        var invitee = $("#invite_user").val();
+        idp.lookup(invitee, function (keys) {
+            var up = new Principal(keys);
+            Principal.add_access(up, room_princ, function () {
+                $("#invite_user").val("");
+            });
+        });
+    }
+});
 
 Template.room.events({
   'click #sendMessage': function(evt) {
@@ -109,7 +135,8 @@ Template.room.events({
       message:msg,
       userID:Meteor.userId(),
       username:Meteor.user().username,
-      time:getFormattedDate()
+      time:getFormattedDate(),
+      enc_princ: room_princ.serialize_keys()
     });
 
     $("#messageTextArea").val('');
@@ -145,7 +172,6 @@ Template.room.events({
 
 //FUNCTIONS
 function CreateUser(){
-  console.log("called");
   var user = $("#username").val().trim();
   var password1 = $("#password1").val().trim();
   var password2 = $("#password2").val().trim();
@@ -153,6 +179,10 @@ function CreateUser(){
     Accounts.createUser({username:user, password:password1}, function(error){
       if(error){
         $("#errorUsernameMsg").text('User Already Exist');
+      } else {
+          idp.get_keys(user, password1, function (keys) {
+              localStorage['user_princ_keys'] = keys;
+          });
       }
     });
   }else{
@@ -164,7 +194,7 @@ function CreateUser(){
 function LoginUser(){
   var username = $("#usernameLogin").val().trim();
   var password = $("#passwordLogin").val().trim();
-  Meteor.loginWithPassword(username, password,
+  Meteor.loginWithPassword({username: username}, password,
   function (error){
     if(error){
       //alert("Failed to login");
@@ -178,6 +208,10 @@ function LoginUser(){
       $('#usernameLogin').val('');
       $('#passwordLogin').val(''); 
       $("#loginErroMsg").text('');
+
+      idp.get_keys(username, password, function (keys) {
+          localStorage['user_princ_keys'] = keys;
+      });
     }
 
   });
@@ -185,6 +219,9 @@ function LoginUser(){
 
 function CreateRoom(){
   var roomtitle = $("#roomTitleName").val().trim();
+  Principal.create([new CertAttr("room", roomtitle)], function (p) {
+    room_princ = p;
+  });
   if(roomtitle.length !== 0 && roomtitle.length >= 4 && roomtitle.length <= 16 ){
     Rooms.insert({ roomTitle:roomtitle, peopleID:[], peopleUsername:[], createdByID:Meteor.userId() });
     $("#roomTitleName").val('');
@@ -202,7 +239,10 @@ function getFormattedDate() {
 }
 
 Meteor.startup(function() {
-
+  Annotations = {
+      messages: "message"
+      // on the messages collection, message is the sensitive field
+  };
 });
 
 Meteor.autorun(function(){

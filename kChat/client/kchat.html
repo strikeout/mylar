@@ -69,6 +69,7 @@
         {{#if currentUser}}
           {{#if user.Room.inRoom}}
             {{> room }}
+            {{> invite }}
           {{else}}
             {{>lobby}}
           {{/if}}
@@ -152,12 +153,25 @@
 
 </template>
 
+<template name="invite">
+  <div class="well">
+    <div>
+      Invite someone to this chat room:
+      <input type="text" id="invite_user" />
+      <button id="invite" class="btn" />
+  </div>
+</template>
+
 <template name="room">
 
   <div class="well">
     
     <div>
-      <div id="roomsHeader"><b>{{user.Room.inRoomTitle}}</b></div>
+      <div id="roomsHeader"><b id="roomtitle">{{user.Room.inRoomTitle}}</b>
+        <small>
+          created by <span id="roomcreator">{{user.Room.inRoomCreator}}</span>
+        </small>
+      </div>
       <button id="exitRoom" class="btn btn-danger" roomId="{{user.Room.inRoomID}}">Exit Room</button>
       
     </div>

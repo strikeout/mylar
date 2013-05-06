@@ -22,7 +22,10 @@ Accounts.onCreateUser(function(options, user) {
 
 Meteor.methods({
   UpdateUserRoomInfoToInside: function (roomID, roomTitle) {
-    Meteor.users.update( { _id:Meteor.userId() }, { $set:{ Room: {"inRoom":true , "inRoomID":roomID, "inRoomTitle":roomTitle} } } );
+    var roomCreator = Rooms.findOne({_id: roomID}).createdByID;
+    roomCreator = Meteor.users.findOne({_id: roomCreator}).username;
+    Meteor.users.update( { _id:Meteor.userId() }, { $set:{ Room: {"inRoom":true , "inRoomID":roomID, "inRoomTitle":roomTitle,
+                                                                 "inRoomCreator": roomCreator} } } );
     Rooms.update({_id:roomID},{$push:{peopleID:Meteor.userId() , peopleUsername:Meteor.user().username}});
   },
   UpdateUserRoomInfoToOutside: function (roomID) {
