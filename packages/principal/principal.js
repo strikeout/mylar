@@ -27,7 +27,7 @@ if (Meteor.isServer) {
             }
             var next_hops = WrappedKeys.find({
                 wrapped_for: from_princ
-            });
+            }).fetch();
             var chains = _.map(next_hops, function (wk) {
                 return [wk];
             });
@@ -43,7 +43,7 @@ if (Meteor.isServer) {
                     }
                     var new_wks = WrappedKeys.find({
                         wrapped_for: wk.principal
-                    });
+                    }).fetch();
                     _.each(new_wks, function (new_wk) {
                         if (!_.contains(chain, new_wk)) {
                             // We've found an extension for one of our chains,
@@ -62,21 +62,22 @@ if (Meteor.isServer) {
         },
 
         lookup: function (attrs, authority) {
-            var ext_princ = Principals.findOne({id: authority});
-            var princs = {ext_princ: []};
+            var princs = {};
+            princs[authority] = [];
             attrs.reverse();
             for (var i = 0; i < attrs.length; i++) {
                 var attr = attrs[i];
                 var new_princs = {};
-                _.each(princs, function (p, cert_lst) {
+                _.each(princs, function (cert_lst, p) {
                     var cs = Certs.find({
                         attr_name: attr.name,
                         attr_value: attr.value
-                    });
+                    }).fetch();
                     _.each(cs, function (cert) {
-                        if (!_.contains(_.keys(new_princs), cert.principal)) {
-                            cert_lst.append(cert);
-                            new_princs[cert.principal] = cert_lst;
+                        if (!_.contains(_.keys(new_princs), cert.subject)) {
+                            var new_lst = cert_lst.slice(0);
+                            new_lst.push(cert);
+                            new_princs[cert.subject] = new_lst;
                         }
                     });
                 });
@@ -88,6 +89,7 @@ if (Meteor.isServer) {
                 return undefined;
             }
             var p = _.keys(princs)[0];
+            princs[p].reverse();
             return {
                 "principal": p,
                 "certs": princs[p]
@@ -177,6 +179,7 @@ if (Meteor.isClient) {
             chain_verify: function (chain, on_complete) {
                 chain = _.map(chain, function (cert) {
                     var hash = sjcl.hash.sha256.hash(cert.m);
+                    var pk = cert.pk;
                     try {
                         pk.verify(hash, cert.sig);
                         return true;
@@ -189,7 +192,23 @@ if (Meteor.isClient) {
         };
     })();
 
-    test_crypto = crypto;
+    idp = (function () {
+        var idp = "localhost:3001";
+        var conn = Meteor.connect(idp);
+        return {
+            lookup: function (name, on_complete) {
+                conn.call("get_public", name, function (err, result) {
+                    var keys = Principal.deserialize_keys(result);
+                    on_complete(keys);
+                });
+            },
+            get_keys: function (name, pwd, on_complete) {
+                conn.call("get_keys", name, pwd, function (err, result) {
+                    on_complete(result);
+                });
+            }
+        };
+    })();
 }
 
 Principal = function (keys) {
@@ -203,7 +222,8 @@ Principal.prototype.public_keys = function () {
 };
 
 Principal.prototype._secret_keys = function () {
-    return { decrypt: keys.decrypt, sign: keys.sign };
+    var self = this;
+    return { decrypt: self.keys.decrypt, sign: self.keys.sign };
 };
 
 Principal.prototype._load_secret_keys = function (on_complete) {
@@ -211,14 +231,15 @@ Principal.prototype._load_secret_keys = function (on_complete) {
     if (self.keys.decrypt && self.keys.sign) {
         on_complete();
     } else {
-        Meteor.call("keychain", Principal.user().id, self.id, function (chain) {
-            var sk = Principal.user().keys.decrypt;
-            crypto.chain_decrypt(chain, sk, function (unwrapped) {
-                self.keys.decrypt = unwrapped.decrypt;
-                self.keys.sign = unwrapped.sign;
-                on_complete();
-            });
-        });
+        Meteor.call("keychain", Principal.user().id,
+                    self.id, function (err, chain) {
+                        var sk = Principal.user().keys.decrypt;
+                        crypto.chain_decrypt(chain, sk, function (unwrapped) {
+                            self.keys.decrypt = unwrapped.decrypt;
+                            self.keys.sign = unwrapped.sign;
+                            on_complete();
+                        });
+                    });
     }
 };
 
@@ -263,6 +284,23 @@ Principal.prototype.decrypt = function (ct, on_complete) {
     });
 };
 
+Principal.prototype.serialize_keys = function () {
+    var self = this;
+    var ser = {};
+    _.each(["encrypt", "verify"], function (k) {
+        if (self.keys[k]) {
+            ser[k] = crypto.serialize_public(self.keys[k]);
+        }
+    });
+    _.each(["sign", "decrypt"], function (k) {
+        if (self.keys[k]) {
+            ser[k] = crypto.serialize_private(self.keys[k]);
+        }
+    });
+    ser = EJSON.stringify(ser);
+    return ser;
+};
+
 // Assumes user's private keys are sitting in localStorage.
 // How did they get there? What happens if they're not there?
 Principal.user = function () {
@@ -291,18 +329,23 @@ Principal.deserialize_keys = function (ser) {
 // Creates a certificate for each of the attributes in cert_attrs,
 // signed by the current user.
 Principal.create = function (cert_attrs, on_complete) {
-    var up = Principal.user();
     crypto.generate_keys(function (keys) {
         var p = new Principal(keys);
         Principals.insert({
             id: p.id
         });
-        _.each(cert_attrs, function (attr) {
-            up.create_certificate(p, attr, function (cert) {
-                cert.store();
+        if (!_.isEmpty(cert_attrs)) {
+            var up = Principal.user();
+            _.each(cert_attrs, function (attr) {
+                up.create_certificate(p, attr, function (cert) {
+                    cert.store();
+                });
             });
-        });
-        on_complete(p);
+            Principal.add_access(up, p);
+        }
+        if (on_complete) {
+            on_complete(p);
+        }
     });
 };
 
@@ -324,7 +367,9 @@ Principal._add_access = function (princ1, princ2, on_complete) {
                 wrapped_for: princ1.id,
                 wrapped_key: wrapped
             });
-            on_complete();
+            if (on_complete) {
+                on_complete();
+            }
         });
     };
 };
@@ -332,13 +377,15 @@ Principal._add_access = function (princ1, princ2, on_complete) {
 Principal.lookup = function (attrs, authority, on_complete) {
     idp.lookup(authority, function (authority_pk) {
         var auth_princ = new Principal(authority_pk);
-        Meteor.call("lookup", attrs, auth_princ.id, function (result) {
+        Meteor.call("lookup", attrs, auth_princ.id, function (err, result) {
             var princ = result.principal;
             var certs = result.certs;
             var cert_attrs = _.zip(certs, attrs);
             var princ_keys = Principal.deserialize_keys(princ);
             var subj_keys = princ_keys;
-            var chain = _.map(cert_attrs, function (cert, attr) {
+            var chain = _.map(cert_attrs, function (data) {
+                var cert = data[0];
+                var attr = data[1];
                 var pk = crypto.deserialize_public(EJSON.parse(
                     cert.signer
                 ).verify, "ecdsa");

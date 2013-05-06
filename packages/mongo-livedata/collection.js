@@ -97,6 +97,8 @@ Meteor.Collection = function (name, options) {
         // of method writes to an object? (Note that 'undefined' is a valid
         // value meaning "remove it".)
         if (msg.msg === 'replace') {
+            console.log("replace from server");
+            console.log(msg);
           var replace = msg.replace;
           if (!replace) {
             if (doc)
@@ -109,6 +111,23 @@ Meteor.Collection = function (name, options) {
           }
           return;
         } else if (msg.msg === 'added') {
+          if (_.has(msg.fields, 'enc_princ')) {
+            var p = new Principal(Principal.deserialize_keys(
+                msg.fields.enc_princ
+            ));
+            var sens_fld = Annotations[msg.collection];
+            p.decrypt(msg.fields[sens_fld], function (pt) {
+                var doc = self._collection.findOne({_id: mongoId});
+                if (doc) {
+                    var set = {};
+                    set[sens_fld] = pt;
+                    self._collection.update(mongoId, {$set: set});
+                    doc[sens_fld] = pt;
+                } else {
+                    msg.fields[sens_fld] = pt;
+                }
+            });
+          }
           if (doc) {
             throw new Error("Expected not to find a document already present for an add");
           }
@@ -310,6 +329,15 @@ _.each(["insert", "update", "remove"], function (name) {
         throw new Error("insert requires an argument");
       // shallow-copy the document and generate an ID
       args[0] = _.extend({}, args[0]);
+
+      if (_.has(args[0], 'enc_princ')) {
+          var sens_fld = Annotations[self._name];
+          var p = new Principal(Principal.deserialize_keys(args[0].enc_princ));
+          p.encrypt(args[0][sens_fld], function (ct) {
+              args[0][sens_fld] = ct;
+          });
+      }
+
       if ('_id' in args[0]) {
         ret = args[0]._id;
         if (!(typeof ret === 'string'
