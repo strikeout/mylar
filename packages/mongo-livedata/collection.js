@@ -121,19 +121,28 @@ Meteor.Collection = function (name, options) {
 		Principal.lookup([new CertAttr("assignment", msg.fields.principal.name)], 
 				 msg.fields.principal.creator, 
 				 function (p) {
-				     p.decrypt(msg.fields[sens_fld], function (pt) {
-					 console.log("decrypt: plain= " + pt);
-					 var doc = self._collection.findOne({_id: mongoId});
-					 if (doc) {
-					     var set = {};
-					     set[sens_fld] = pt;
-					     self._collection.update(mongoId, {$set: set});
-					     doc[sens_fld] = pt;
-					 } else {
-					     msg.fields[sens_fld] = pt;
-					 }
+				     console.log("decrypt: " + sens_fld + " cipher = " +
+						 msg.fields[sens_fld]);
+				     var doc = self._collection.findOne({_id: mongoId});
+				     try {
+					 var json = JSON.parse(msg.fields[sens_fld]);
+					 // XXX double check json is really a cipher text??
+					 p.decrypt(msg.fields[sens_fld], function (pt) {
+					     console.log("decrypt: plain= " + pt);
+					     if (doc) {
+						 var set = {};
+						 set[sens_fld] = pt;
+						 self._collection.update(mongoId, {$set: set});
+						 doc[sens_fld] = pt;
+					     } else {
+						 msg.fields[sens_fld] = pt;
+					     }
+					     self._collection.insert(_.extend({_id: mongoId}, msg.fields));
+					 });
+				     } catch(e) {
+					 console.log("likely not encrypted senstive field");
 					 self._collection.insert(_.extend({_id: mongoId}, msg.fields));
-				     });
+				     }
 				 });
 	  } else {
               if (doc) {
@@ -335,13 +344,6 @@ _.each(["insert", "update", "remove"], function (name) {
       };
     }
     
-    var keys = undefined;
-    _.each(args, function(a) {
-	if (_.has(a, 'enc_princ')) {
-	    keys = a['enc_princ']
-	}
-    });
-
     if (name === "insert") {
       if (!args.length)
         throw new Error("insert requires an argument");
@@ -369,17 +371,17 @@ _.each(["insert", "update", "remove"], function (name) {
       args[0] = Meteor.Collection._rewriteSelector(args[0]);
     }
 
-    if (name == "update" && keys) {
-	// XXX haven't fixed update yet
+      if (name == "update" &&  typeof Annotations != 'undefined' && Annotations[self._name]) {
         var sens_fld = Annotations[self._name];
 	if (sens_fld) {
+	    conosole.log("update: " + sens_fld);
 	    updates = args[1]['$set'];
-	    if (_.has(updates, sens_fld)) {
-		var p = new Principal(Principal.deserialize_keys(keys));
-		p.encrypt(updates[sens_fld], function (ct) {
-		    updates[sens_fld] = ct;
-		});
-	    }
+	    // if (_.has(updates, sens_fld)) {
+	    // 	var p = new Principal(Principal.deserialize_keys(keys));
+	    // 	p.encrypt(updates[sens_fld], function (ct) {
+	    // 	    updates[sens_fld] = ct;
+	    // 	});
+	    // }
 	}
     }
 
