@@ -93,13 +93,17 @@ Meteor.Collection = function (name, options) {
         var mongoId = Meteor.idParse(msg.id);
         var doc = self._collection.findOne(mongoId);
 
+	console.log("msg: " + msg.msg );
+
         // Is this a "replace the whole doc" message coming from the quiescence
         // of method writes to an object? (Note that 'undefined' is a valid
         // value meaning "remove it".)
         if (msg.msg === 'replace') {
-            console.log("replace from server");
-            console.log(msg);
           var replace = msg.replace;
+	  console.log("replace: ");
+	  _.each(replace, function(r) {
+	      console.log(r);
+	  });
           if (!replace) {
             if (doc)
               self._collection.remove(mongoId);
@@ -111,27 +115,32 @@ Meteor.Collection = function (name, options) {
           }
           return;
         } else if (msg.msg === 'added') {
-          if (_.has(msg.fields, 'enc_princ')) {
-            var p = new Principal(Principal.deserialize_keys(
-                msg.fields.enc_princ
-            ));
-            var sens_fld = Annotations[msg.collection];
-            p.decrypt(msg.fields[sens_fld], function (pt) {
-                var doc = self._collection.findOne({_id: mongoId});
-                if (doc) {
-                    var set = {};
-                    set[sens_fld] = pt;
-                    self._collection.update(mongoId, {$set: set});
-                    doc[sens_fld] = pt;
-                } else {
-                    msg.fields[sens_fld] = pt;
-                }
-            });
-          }
-          if (doc) {
-            throw new Error("Expected not to find a document already present for an add");
-          }
-          self._collection.insert(_.extend({_id: mongoId}, msg.fields));
+            if (Meteor.isClient && typeof Annotations != 'undefined' && _.has(msg.fields, Annotations[msg.collection])) {
+		var sens_fld = Annotations[msg.collection];
+		console.log("lookup: " + msg.fields.principal.name + " principal " + msg.fields.principal.creator);
+		Principal.lookup([new CertAttr("assignment", msg.fields.principal.name)], 
+				 msg.fields.principal.creator, 
+				 function (p) {
+				     p.decrypt(msg.fields[sens_fld], function (pt) {
+					 console.log("decrypt: plain= " + pt);
+					 var doc = self._collection.findOne({_id: mongoId});
+					 if (doc) {
+					     var set = {};
+					     set[sens_fld] = pt;
+					     self._collection.update(mongoId, {$set: set});
+					     doc[sens_fld] = pt;
+					 } else {
+					     msg.fields[sens_fld] = pt;
+					 }
+					 self._collection.insert(_.extend({_id: mongoId}, msg.fields));
+				     });
+				 });
+	  } else {
+              if (doc) {
+		  throw new Error("Expected not to find a document already present for an add");
+              }
+              self._collection.insert(_.extend({_id: mongoId}, msg.fields));
+	  }
         } else if (msg.msg === 'removed') {
           if (!doc)
             throw new Error("Expected to find a document already present for removed");
@@ -309,6 +318,8 @@ _.each(["insert", "update", "remove"], function (name) {
     var callback;
     var ret;
 
+    console.log("collection method: " + name + " args= " + args);
+
     if (args.length && args[args.length - 1] instanceof Function)
       callback = args.pop();
 
@@ -323,19 +334,27 @@ _.each(["insert", "update", "remove"], function (name) {
           Meteor._debug(name + " failed: " + (err.reason || err.stack));
       };
     }
+    
+    var keys = undefined;
+    _.each(args, function(a) {
+	if (_.has(a, 'enc_princ')) {
+	    keys = a['enc_princ']
+	}
+    });
 
     if (name === "insert") {
       if (!args.length)
         throw new Error("insert requires an argument");
       // shallow-copy the document and generate an ID
       args[0] = _.extend({}, args[0]);
-
-      if (_.has(args[0], 'enc_princ')) {
-          var sens_fld = Annotations[self._name];
-          var p = new Principal(Principal.deserialize_keys(args[0].enc_princ));
+      if (Meteor.isClient && typeof Annotations != 'undefined' && Annotations[self._name]) {
+	  var sens_fld = Annotations[self._name];
+	  console.log("encrypt field " + sens_fld);
+          var p = new Principal(Principal.deserialize_keys(args[0].principal.keys));
           p.encrypt(args[0][sens_fld], function (ct) {
               args[0][sens_fld] = ct;
           });
+	  args[0].principal.keys = {};
       }
 
       if ('_id' in args[0]) {
@@ -348,6 +367,20 @@ _.each(["insert", "update", "remove"], function (name) {
       }
     } else {
       args[0] = Meteor.Collection._rewriteSelector(args[0]);
+    }
+
+    if (name == "update" && keys) {
+	// XXX haven't fixed update yet
+        var sens_fld = Annotations[self._name];
+	if (sens_fld) {
+	    updates = args[1]['$set'];
+	    if (_.has(updates, sens_fld)) {
+		var p = new Principal(Principal.deserialize_keys(keys));
+		p.encrypt(updates[sens_fld], function (ct) {
+		    updates[sens_fld] = ct;
+		});
+	    }
+	}
     }
 
     if (self._manager && self._manager !== Meteor.default_server) {
