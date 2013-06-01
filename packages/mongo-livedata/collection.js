@@ -98,12 +98,42 @@ Meteor.Collection = function (name, options) {
         // Is this a "replace the whole doc" message coming from the quiescence
         // of method writes to an object? (Note that 'undefined' is a valid
         // value meaning "remove it".)
-        if (msg.msg === 'replace') {
-          var replace = msg.replace;
-	  console.log("replace: ");
-	  _.each(replace, function(r) {
-	      console.log(r);
-	  });
+          if (msg.msg === 'replace') {
+              var replace = msg.replace;
+	      if (Meteor.isClient) {
+		  var fields = [];
+		  // XXX replace message don't identify collection
+		  if (typeof Annotations != 'undefined')
+		      fields = _.values(Annotations); 
+		  _.each(fields, function(field) {
+		      if (_.has(replace, field)) {
+			  console.log("sensitive replace: " + field);
+			  if (_.has(replace, 'principal')) {
+			      Principal.lookup([new CertAttr("assignment", replace.principal.name)], replace.principal.creator,  function (p) {
+				  console.log("decrypt: " + field + " cipher = " +
+					      replace.field);
+				  if (p) {
+				      console.log("principal: " + p.id);
+				      var doc = self._collection.findOne({_id: mongoId});
+				      try {
+					  // XXX double check json is really a cipher text??
+					  var json = JSON.parse(replace[field]);
+					  p.decrypt(replace[field], function (pt) {
+					      console.log("decrypt: plain= " + pt);
+					      replace[field] = pt;
+					  });
+					  
+				      } catch(e) {
+					  console.log("couldn't decrypt");
+				      }
+				  } else {
+				      console.log("no principal field?");
+				  }
+			      });
+			  }
+		      }
+		  });
+	      }
           if (!replace) {
             if (doc)
               self._collection.remove(mongoId);
@@ -117,16 +147,18 @@ Meteor.Collection = function (name, options) {
         } else if (msg.msg === 'added') {
             if (Meteor.isClient && typeof Annotations != 'undefined' && _.has(msg.fields, Annotations[msg.collection])) {
 		var sens_fld = Annotations[msg.collection];
-		console.log("lookup: " + msg.fields.principal.name + " principal " + msg.fields.principal.creator);
+		console.log("lookup: principal " + msg.fields.principal.name + " creator " + msg.fields.principal.creator);
 		Principal.lookup([new CertAttr("assignment", msg.fields.principal.name)], 
 				 msg.fields.principal.creator, 
 				 function (p) {
 				     console.log("decrypt: " + sens_fld + " cipher = " +
 						 msg.fields[sens_fld]);
+				     if (p) {
+					 console.log("principal: " + p.id);
 				     var doc = self._collection.findOne({_id: mongoId});
 				     try {
-					 var json = JSON.parse(msg.fields[sens_fld]);
 					 // XXX double check json is really a cipher text??
+					 var json = JSON.parse(msg.fields[sens_fld]);
 					 p.decrypt(msg.fields[sens_fld], function (pt) {
 					     console.log("decrypt: plain= " + pt);
 					     if (doc) {
@@ -141,6 +173,9 @@ Meteor.Collection = function (name, options) {
 					 });
 				     } catch(e) {
 					 console.log("likely not encrypted senstive field");
+					 self._collection.insert(_.extend({_id: mongoId}, msg.fields));
+				     }} else {
+					 console.log("couldn't find principal assignment: " + msg.fields.principal.name);
 					 self._collection.insert(_.extend({_id: mongoId}, msg.fields));
 				     }
 				 });
@@ -160,6 +195,7 @@ Meteor.Collection = function (name, options) {
           if (!_.isEmpty(msg.fields)) {
             var modifier = {};
             _.each(msg.fields, function (value, key) {
+		console.log("change key: " + key);
               if (value === undefined) {
                 if (!modifier.$unset)
                   modifier.$unset = {};
@@ -374,14 +410,17 @@ _.each(["insert", "update", "remove"], function (name) {
       if (name == "update" &&  typeof Annotations != 'undefined' && Annotations[self._name]) {
         var sens_fld = Annotations[self._name];
 	if (sens_fld) {
-	    conosole.log("update: " + sens_fld);
-	    updates = args[1]['$set'];
-	    // if (_.has(updates, sens_fld)) {
-	    // 	var p = new Principal(Principal.deserialize_keys(keys));
-	    // 	p.encrypt(updates[sens_fld], function (ct) {
-	    // 	    updates[sens_fld] = ct;
-	    // 	});
-	    // }
+	    console.log("update: " + sens_fld);
+	    // XXX handle only updates, not push
+	    var updates = args[1]['$set'];
+	    if (updates && _.has(updates, sens_fld)) {
+		console.log("encrypt: " + updates[sens_fld]);
+		var p = new Principal(Principal.deserialize_keys(args[2].principal.keys));
+		p.encrypt(updates[sens_fld], function (ct) {
+		    console.log("cipher = " + ct);
+	      	    updates[sens_fld] = ct;
+		});
+	    }
 	}
     }
 

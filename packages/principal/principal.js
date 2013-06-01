@@ -378,8 +378,8 @@ Principal._add_access = function (princ1, princ2, on_complete) {
 Principal.lookup = function (attrs, authority, on_complete) {
     console.log("lookup: " + authority);
     idp.lookup(authority, function (authority_pk) {
-	console.log("idp returns: " + authority_pk);
         var auth_princ = new Principal(authority_pk);
+	console.log("idp returns: " + auth_princ.id);
         Meteor.call("lookup", attrs, auth_princ.id, function (err, result) {
 	    if (err || !result) {
 		console.log("Principal lookup fails");
