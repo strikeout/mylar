@@ -1,6 +1,7 @@
 // manager, if given, is a LivedataClient or LivedataServer
 // XXX presently there is no way to destroy/clean up a Collection
 
+
 Meteor.Collection = function (name, options) {
   var self = this;
   if (options && options.methods) {
@@ -100,92 +101,27 @@ Meteor.Collection = function (name, options) {
         // value meaning "remove it".)
           if (msg.msg === 'replace') {
               var replace = msg.replace;
-	      if (Meteor.isClient) {
-		  var fields = [];
-		  // XXX replace message don't identify collection
-		  if (typeof Annotations != 'undefined')
-		      fields = _.values(Annotations); 
-		  _.each(fields, function(field) {
-		      if (_.has(replace, field)) {
-			  console.log("sensitive replace: " + field);
-			  if (_.has(replace, 'principal')) {
-			      Principal.lookup([new CertAttr("assignment", replace.principal.name)], replace.principal.creator,  function (p) {
-				  console.log("decrypt: " + field + " cipher = " +
-					      replace.field);
-				  if (p) {
-				      console.log("principal: " + p.id);
-				      var doc = self._collection.findOne({_id: mongoId});
-				      try {
-					  // XXX double check json is really a cipher text??
-					  var json = JSON.parse(replace[field]);
-					  p.decrypt(replace[field], function (pt) {
-					      console.log("decrypt: plain= " + pt);
-					      replace[field] = pt;
-					  });
-					  
-				      } catch(e) {
-					  console.log("couldn't decrypt");
-				      }
-				  } else {
-				      console.log("no principal field?");
-				  }
-			      });
-			  }
-		      }
-		  });
-	      }
-          if (!replace) {
-            if (doc)
-              self._collection.remove(mongoId);
-          } else if (!doc) {
-            self._collection.insert(replace);
-          } else {
-            // XXX check that replace has no $ ops
-            self._collection.update(mongoId, replace);
-          }
-          return;
-        } else if (msg.msg === 'added') {
-            if (Meteor.isClient && typeof Annotations != 'undefined' && _.has(msg.fields, Annotations[msg.collection])) {
-		var sens_fld = Annotations[msg.collection];
-		console.log("lookup: principal " + msg.fields.principal.name + " creator " + msg.fields.principal.creator);
-		Principal.lookup([new CertAttr("assignment", msg.fields.principal.name)], 
-				 msg.fields.principal.creator, 
-				 function (p) {
-				     console.log("decrypt: " + sens_fld + " cipher = " +
-						 msg.fields[sens_fld]);
-				     if (p) {
-					 console.log("principal: " + p.id);
-				     var doc = self._collection.findOne({_id: mongoId});
-				     try {
-					 // XXX double check json is really a cipher text??
-					 var json = JSON.parse(msg.fields[sens_fld]);
-					 p.decrypt(msg.fields[sens_fld], function (pt) {
-					     console.log("decrypt: plain= " + pt);
-					     if (doc) {
-						 var set = {};
-						 set[sens_fld] = pt;
-						 self._collection.update(mongoId, {$set: set});
-						 doc[sens_fld] = pt;
-					     } else {
-						 msg.fields[sens_fld] = pt;
-					     }
-					     self._collection.insert(_.extend({_id: mongoId}, msg.fields));
-					 });
-				     } catch(e) {
-					 console.log("likely not encrypted senstive field");
-					 self._collection.insert(_.extend({_id: mongoId}, msg.fields));
-				     }} else {
-					 console.log("couldn't find principal assignment: " + msg.fields.principal.name);
-					 self._collection.insert(_.extend({_id: mongoId}, msg.fields));
-				     }
-				 });
-	  } else {
-              if (doc) {
-		  throw new Error("Expected not to find a document already present for an add");
-              }
-              self._collection.insert(_.extend({_id: mongoId}, msg.fields));
-	  }
-        } else if (msg.msg === 'removed') {
+	      self.enc_update(msg, mongoId, function() {
+		  if (!replace) {
+		      if (doc)
+			  self._collection.remove(mongoId);
+		  } else if (!doc) {
+		      self._collection.insert(replace);
+		  } else {
+		      // XXX check that replace has no $ ops
+		      self._collection.update(mongoId, replace);
+		  }
+	      });
+              return;
+          } else if (msg.msg === 'added') {
+	      self.enc_add(msg, mongoId, function() {
+		  var doc = self._collection.findOne({_id: mongoId});
+		  if (doc) {
+		      throw new Error("Expected not to find a document already present for an add");
+		  }
+		  self._collection.insert(_.extend({_id: mongoId}, msg.fields));
+	      });
+          } else if (msg.msg === 'removed') {
           if (!doc)
             throw new Error("Expected to find a document already present for removed");
           self._collection.remove(mongoId);
@@ -247,6 +183,84 @@ Meteor.Collection = function (name, options) {
 ///
 /// Main collection API
 ///
+
+
+Meteor.Collection.prototype.enc_add = function(msg, mongoId, callback) {
+    var self = this;
+    if (Meteor.isClient && typeof Annotations != 'undefined' && _.has(msg.fields, Annotations[msg.collection])) {
+	var sens_fld = Annotations[msg.collection];
+	console.log("lookup: principal " + msg.fields.principal.name + " creator " + msg.fields.principal.creator);
+	Principal.lookup([new CertAttr("assignment", msg.fields.principal.name)], 
+			 msg.fields.principal.creator, 
+			 function (p) {
+			     console.log("decrypt: " + sens_fld + " cipher = " +
+					 msg.fields[sens_fld]);
+			     if (p) {
+				 console.log("principal: " + p.id);
+				 var doc = self._collection.findOne({_id: mongoId});
+				 try {
+				     // XXX double check json is really a cipher text??
+				     var json = JSON.parse(msg.fields[sens_fld]);
+				     p.decrypt(msg.fields[sens_fld], function (pt) {
+					 console.log("decrypt: plain= " + pt);
+					 if (doc) {
+					     var set = {};
+					     set[sens_fld] = pt;
+					     self._collection.update(mongoId, {$set: set});
+					     doc[sens_fld] = pt;
+					 } else {
+					     msg.fields[sens_fld] = pt;
+					 }
+					 self._collection.insert(_.extend({_id: mongoId}, msg.fields));
+				     });
+				 } catch(e) {
+				     console.log("likely not encrypted senstive field");
+				 }} else {
+				     console.log("couldn't find principal assignment: " + msg.fields.principal.name);
+				 }
+			 });
+    }  else {
+	callback();
+    }
+};
+
+Meteor.Collection.prototype.enc_update = function(replace, mongoId, callback) {
+    if (Meteor.isClient) {
+	var fields = [];
+	// XXX replace message don't identify collection
+	if (typeof Annotations != 'undefined')
+	    fields = _.values(Annotations); 
+	_.each(fields, function(field) {
+	    if (_.has(replace, field)) {
+		console.log("sensitive replace: " + field);
+		if (_.has(replace, 'principal')) {
+		    Principal.lookup([new CertAttr("assignment", replace.principal.name)], replace.principal.creator,  function (p) {
+			console.log("decrypt: " + field + " cipher = " +  replace.field);
+			if (p) {
+			    console.log("principal: " + p.id);
+			    var doc = self._collection.findOne({_id: mongoId});
+			    try {
+				// XXX double check json is really a cipher text??
+				var json = JSON.parse(replace[field]);
+				p.decrypt(replace[field], function (pt) {
+				    console.log("decrypt: plain= " + pt);
+				    replace[field] = pt;
+				});
+			    } catch(e) {
+				console.log("couldn't decrypt");
+			    }
+			} else {
+			    console.log("no principal field?");
+			}
+			callback();
+		    });
+		}
+	    }
+	});
+    } else {
+	callback();
+    }
+}
 
 
 _.extend(Meteor.Collection.prototype, {
