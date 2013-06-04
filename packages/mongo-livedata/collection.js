@@ -257,6 +257,8 @@ Meteor.Collection.prototype.enc_msg = function(container, callback) {
     var self = this;
     if (Meteor.isClient && container) {
 	var fields = [];
+	// since replacement don't have a collection name, collect all possible
+	// fields to encrypt:
 	if (typeof Annotations != 'undefined')
 	    fields = _.values(Annotations); 
 	r = intersect(fields, container);
