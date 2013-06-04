@@ -230,6 +230,29 @@ Meteor.Collection.prototype.enc_fields = function(container, fields, callback) {
     });
 }
 
+Meteor.Collection.prototype.enc_row = function(container, principal) {
+    var self = this;
+    if (Meteor.isClient && container) {
+	if (principal == undefined) {
+	    principal = container.principal;
+	}
+	var fields = [];
+	if (typeof Annotations != 'undefined')
+	    fields = _.values(Annotations); 
+	var r = intersect(fields, container);
+	_.each(r, function(f) {
+	    console.log("encrypt field " + f);
+            var p = new Principal(Principal.deserialize_keys(principal.keys));
+            p.encrypt(container[f], function (ct) {
+		container[f] = ct;
+            });
+	});
+	if (r.length > 0) {
+	    principal.keys = {};   // don't store the keys in the database
+	}
+    }
+}
+
 Meteor.Collection.prototype.enc_msg = function(container, callback) {
     var self = this;
     if (Meteor.isClient && container) {
@@ -383,16 +406,7 @@ _.each(["insert", "update", "remove"], function (name) {
         throw new Error("insert requires an argument");
       // shallow-copy the document and generate an ID
       args[0] = _.extend({}, args[0]);
-      if (Meteor.isClient && typeof Annotations != 'undefined' && Annotations[self._name]) {
-	  var sens_fld = Annotations[self._name];
-	  console.log("encrypt field " + sens_fld);
-          var p = new Principal(Principal.deserialize_keys(args[0].principal.keys));
-          p.encrypt(args[0][sens_fld], function (ct) {
-              args[0][sens_fld] = ct;
-          });
-	  args[0].principal.keys = {};
-      }
-
+      self.enc_row(args[0], undefined);
       if ('_id' in args[0]) {
         ret = args[0]._id;
         if (!(typeof ret === 'string'
@@ -405,22 +419,12 @@ _.each(["insert", "update", "remove"], function (name) {
       args[0] = Meteor.Collection._rewriteSelector(args[0]);
     }
 
-      if (name == "update" &&  typeof Annotations != 'undefined' && Annotations[self._name]) {
-        var sens_fld = Annotations[self._name];
-	if (sens_fld) {
-	    console.log("update: " + sens_fld);
-	    // XXX handle only updates, not push
-	    var updates = args[1]['$set'];
-	    if (updates && _.has(updates, sens_fld)) {
-		console.log("encrypt: " + updates[sens_fld]);
-		var p = new Principal(Principal.deserialize_keys(args[2].principal.keys));
-		p.encrypt(updates[sens_fld], function (ct) {
-		    console.log("cipher = " + ct);
-	      	    updates[sens_fld] = ct;
-		});
-	    }
-	}
-    }
+      if (name == "update") {
+	  // Does set have a principal argument necessary for encryption?
+	  // XXX handle only updates, not push
+	  if (args.length > 2) self.enc_row(args[1]['$set'], args[2].principal)
+	  else self.enc_row(args[1]['$set'], undefined)
+      }
 
     if (self._manager && self._manager !== Meteor.default_server) {
       // just remote to another endpoint, propagate return value or
