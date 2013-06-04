@@ -216,7 +216,7 @@ Meteor.Collection.prototype.enc_fields = function(container, fields, callback) {
 			console.log("decrypt: plain= " + pt);
 			container[f] = pt;
 			if (--ncallback == 0) 
-			    callback();   // XXX need to do this after last field decryped
+			    callback();
 		    });
 		} catch (e) {
 		    console.log("likely not encrypted senstive field: " + f);
