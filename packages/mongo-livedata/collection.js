@@ -101,24 +101,29 @@ Meteor.Collection = function (name, options) {
         // value meaning "remove it".)
           if (msg.msg === 'replace') {
               var replace = msg.replace;
-	      self.enc_update(msg, mongoId, function() {
+	      self.enc_msg(replace, function() {
+		  console.log("replace call back");
 		  if (!replace) {
 		      if (doc)
 			  self._collection.remove(mongoId);
 		  } else if (!doc) {
 		      self._collection.insert(replace);
 		  } else {
+		      console.log("replace callback: do replace");
 		      // XXX check that replace has no $ ops
 		      self._collection.update(mongoId, replace);
 		  }
 	      });
               return;
           } else if (msg.msg === 'added') {
-	      self.enc_add(msg, mongoId, function() {
+	      self.enc_msg(msg.fields, function() {
+		  console.log("callback");
 		  var doc = self._collection.findOne({_id: mongoId});
 		  if (doc) {
 		      throw new Error("Expected not to find a document already present for an add");
 		  }
+		  if (self.fields && self.fields.content) 
+		      console.log("callback: " + self.fields.content);
 		  self._collection.insert(_.extend({_id: mongoId}, msg.fields));
 	      });
           } else if (msg.msg === 'removed') {
@@ -184,84 +189,61 @@ Meteor.Collection = function (name, options) {
 /// Main collection API
 ///
 
-
-Meteor.Collection.prototype.enc_add = function(msg, mongoId, callback) {
-    var self = this;
-    if (Meteor.isClient && typeof Annotations != 'undefined' && _.has(msg.fields, Annotations[msg.collection])) {
-	var sens_fld = Annotations[msg.collection];
-	console.log("lookup: principal " + msg.fields.principal.name + " creator " + msg.fields.principal.creator);
-	Principal.lookup([new CertAttr("assignment", msg.fields.principal.name)], 
-			 msg.fields.principal.creator, 
-			 function (p) {
-			     console.log("decrypt: " + sens_fld + " cipher = " +
-					 msg.fields[sens_fld]);
-			     if (p) {
-				 console.log("principal: " + p.id);
-				 var doc = self._collection.findOne({_id: mongoId});
-				 try {
-				     // XXX double check json is really a cipher text??
-				     var json = JSON.parse(msg.fields[sens_fld]);
-				     p.decrypt(msg.fields[sens_fld], function (pt) {
-					 console.log("decrypt: plain= " + pt);
-					 if (doc) {
-					     var set = {};
-					     set[sens_fld] = pt;
-					     self._collection.update(mongoId, {$set: set});
-					     doc[sens_fld] = pt;
-					 } else {
-					     msg.fields[sens_fld] = pt;
-					 }
-					 self._collection.insert(_.extend({_id: mongoId}, msg.fields));
-				     });
-				 } catch(e) {
-				     console.log("likely not encrypted senstive field");
-				 }} else {
-				     console.log("couldn't find principal assignment: " + msg.fields.principal.name);
-				 }
-			 });
-    }  else {
-	callback();
-    }
+var intersect = function(a, b) {
+    r = [];
+    _.each(a, function(i) {
+	if (_.has(b, i)) {
+	    r.push(i);
+	}
+    });
+    return r;
 };
 
-Meteor.Collection.prototype.enc_update = function(replace, mongoId, callback) {
-    if (Meteor.isClient) {
+Meteor.Collection.prototype.enc_fields = function(container, fields, callback) {
+    var self = this;
+    console.log("enc_fields: lookup " + container.principal.attr + " " + container.principal.name);
+    Principal.lookup([new CertAttr(container.principal.attr, container.principal.name)], 
+		     container.principal.creator, function (p) {
+	if (p && p.id) {
+	    console.log("enc_fields: principal: " + p.id);
+	    _.each(fields, function(f) {
+		console.log("enc_fields: decrypt: " + f);
+		try {
+		    // XXX double check json is really a cipher text??
+		    var json = JSON.parse(container[f]);  
+		    p.decrypt(container[f], function (pt) {
+			console.log("decrypt: plain= " + pt);
+			container[f] = pt;
+			callback();   // XXX need to do this after last field decryped
+		    });
+		} catch (e) {
+		    console.log("likely not encrypted senstive field: " + f);
+		    callback();
+		}
+	    });
+	} else {
+	    console.log("couldn't find principal: " + container.principal.attr + " " + container.principal.name);
+	    callback();
+	}
+    });
+}
+
+Meteor.Collection.prototype.enc_msg = function(container, callback) {
+    var self = this;
+    if (Meteor.isClient && container) {
 	var fields = [];
-	// XXX replace message don't identify collection
 	if (typeof Annotations != 'undefined')
 	    fields = _.values(Annotations); 
-	_.each(fields, function(field) {
-	    if (_.has(replace, field)) {
-		console.log("sensitive replace: " + field);
-		if (_.has(replace, 'principal')) {
-		    Principal.lookup([new CertAttr("assignment", replace.principal.name)], replace.principal.creator,  function (p) {
-			console.log("decrypt: " + field + " cipher = " +  replace.field);
-			if (p) {
-			    console.log("principal: " + p.id);
-			    var doc = self._collection.findOne({_id: mongoId});
-			    try {
-				// XXX double check json is really a cipher text??
-				var json = JSON.parse(replace[field]);
-				p.decrypt(replace[field], function (pt) {
-				    console.log("decrypt: plain= " + pt);
-				    replace[field] = pt;
-				});
-			    } catch(e) {
-				console.log("couldn't decrypt");
-			    }
-			} else {
-			    console.log("no principal field?");
-			}
-			callback();
-		    });
-		}
-	    }
-	});
+	r = intersect(fields, container);
+	if (r.length > 0 && _.has(container, 'principal')) {
+	    self.enc_fields(container, r, callback);
+	} else {
+	    callback();
+	}
     } else {
 	callback();
     }
 }
-
 
 _.extend(Meteor.Collection.prototype, {
 
