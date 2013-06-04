@@ -205,6 +205,7 @@ Meteor.Collection.prototype.enc_fields = function(container, fields, callback) {
     Principal.lookup([new CertAttr(container.principal.attr, container.principal.name)], 
 		     container.principal.creator, function (p) {
 	if (p && p.id) {
+	    var ncallback = fields.length;
 	    console.log("enc_fields: principal: " + p.id);
 	    _.each(fields, function(f) {
 		console.log("enc_fields: decrypt: " + f);
@@ -214,11 +215,12 @@ Meteor.Collection.prototype.enc_fields = function(container, fields, callback) {
 		    p.decrypt(container[f], function (pt) {
 			console.log("decrypt: plain= " + pt);
 			container[f] = pt;
-			callback();   // XXX need to do this after last field decryped
+			if (--ncallback == 0) 
+			    callback();   // XXX need to do this after last field decryped
 		    });
 		} catch (e) {
 		    console.log("likely not encrypted senstive field: " + f);
-		    callback();
+		    if (--ncallback == 0) callback();
 		}
 	    });
 	} else {
