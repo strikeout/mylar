@@ -376,7 +376,7 @@ Principal._add_access = function (princ1, princ2, on_complete) {
 };
 
 Principal.lookup = function (attrs, authority, on_complete) {
-    console.log("lookup: " + authority);
+    console.log("Principal.lookup: " + authority);
     idp.lookup(authority, function (authority_pk) {
         var auth_princ = new Principal(authority_pk);
 	console.log("idp returns: " + auth_princ.id);

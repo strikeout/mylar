@@ -101,8 +101,7 @@ Meteor.Collection = function (name, options) {
         // value meaning "remove it".)
           if (msg.msg === 'replace') {
               var replace = msg.replace;
-	      self.enc_msg(replace, function() {
-		  console.log("replace call back");
+	      self.dec_msg(replace, function() {
 		  if (!replace) {
 		      if (doc)
 			  self._collection.remove(mongoId);
@@ -116,14 +115,11 @@ Meteor.Collection = function (name, options) {
 	      });
               return;
           } else if (msg.msg === 'added') {
-	      self.enc_msg(msg.fields, function() {
-		  console.log("callback");
+	      self.dec_msg(msg.fields, function() {
 		  var doc = self._collection.findOne({_id: mongoId});
 		  if (doc) {
 		      throw new Error("Expected not to find a document already present for an add");
 		  }
-		  if (self.fields && self.fields.content) 
-		      console.log("callback: " + self.fields.content);
 		  self._collection.insert(_.extend({_id: mongoId}, msg.fields));
 	      });
           } else if (msg.msg === 'removed') {
@@ -199,16 +195,16 @@ var intersect = function(a, b) {
     return r;
 };
 
-Meteor.Collection.prototype.enc_fields = function(container, fields, callback) {
+Meteor.Collection.prototype.dec_fields = function(container, fields, callback) {
     var self = this;
-    console.log("enc_fields: lookup " + container.principal.attr + " " + container.principal.name);
+    console.log("dec_fields: lookup " + container.principal.attr + " " + container.principal.name);
     Principal.lookup([new CertAttr(container.principal.attr, container.principal.name)], 
 		     container.principal.creator, function (p) {
 	if (p && p.id) {
 	    var ncallback = fields.length;
-	    console.log("enc_fields: principal: " + p.id);
+	    console.log("dec_fields: principal: " + p.id);
 	    _.each(fields, function(f) {
-		console.log("enc_fields: decrypt: " + f);
+		console.log("dec_fields: decrypt: " + f);
 		try {
 		    // XXX double check json is really a cipher text??
 		    var json = JSON.parse(container[f]);  
@@ -230,7 +226,7 @@ Meteor.Collection.prototype.enc_fields = function(container, fields, callback) {
     });
 }
 
-Meteor.Collection.prototype.enc_row = function(container, principal) {
+Meteor.Collection.prototype.enc_row = function(container, principal, callback) {
     var self = this;
     if (Meteor.isClient && container) {
 	if (principal == undefined) {
@@ -240,20 +236,34 @@ Meteor.Collection.prototype.enc_row = function(container, principal) {
 	if (typeof Annotations != 'undefined')
 	    fields = _.values(Annotations); 
 	var r = intersect(fields, container);
-	_.each(r, function(f) {
-	    console.log("encrypt field " + f);
-            var p = new Principal(Principal.deserialize_keys(principal.keys));
-            p.encrypt(container[f], function (ct) {
-		container[f] = ct;
-            });
-	});
-	if (r.length > 0) {
-	    principal.keys = {};   // don't store the keys in the database
+	var ncallback = r.length;
+	if (ncallback > 0) {
+	    Principal.lookup([new CertAttr(principal.attr, principal.name)], principal.creator,
+			     function (p) {
+				 if (p) {
+				     console.log("enc_row: principal: " + p.id);
+				     _.each(r, function(f) {
+					 console.log("encrypt field " + f);
+					 p.encrypt(container[f], function (ct) {
+					     console.log("encrypt ct= " + ct);
+					     container[f] = ct;
+					     if (--ncallback == 0) callback();
+					 });
+				     });
+				 } else {
+				     console.log("enc_row: couldn't find principal: " + principal.attr + " " + principal.name);
+				     if (--ncallback == 0) callback();
+				 }
+			     });
+	} else {
+	    callback();
 	}
+    } else {
+	callback();
     }
 }
 
-Meteor.Collection.prototype.enc_msg = function(container, callback) {
+Meteor.Collection.prototype.dec_msg = function(container, callback) {
     var self = this;
     if (Meteor.isClient && container) {
 	var fields = [];
@@ -263,7 +273,7 @@ Meteor.Collection.prototype.enc_msg = function(container, callback) {
 	    fields = _.values(Annotations); 
 	r = intersect(fields, container);
 	if (r.length > 0 && _.has(container, 'principal')) {
-	    self.enc_fields(container, r, callback);
+	    self.dec_fields(container, r, callback);
 	} else {
 	    callback();
 	}
@@ -402,13 +412,57 @@ _.each(["insert", "update", "remove"], function (name) {
           Meteor._debug(name + " failed: " + (err.reason || err.stack));
       };
     }
+
+      var f = function() {
+	  console.log("callback f running");
+	  if (self._manager && self._manager !== Meteor.default_server) {
+	      // just remote to another endpoint, propagate return value or
+	      // exception.
+
+	      var enclosing = Meteor._CurrentInvocation.get();
+	      var alreadyInSimulation = enclosing && enclosing.isSimulation;
+	      if (!alreadyInSimulation && name !== "insert") {
+		  // If we're about to actually send an RPC, we should throw an error if
+		  // this is a non-ID selector, because the mutation methods only allow
+		  // single-ID selectors. (If we don't throw here, we'll see flicker.)
+		  throwIfSelectorIsNotId(args[0], name);
+	      }
+
+	      if (callback) {
+		  // asynchronous: on success, callback should return ret
+		  // (document ID for insert, undefined for update and
+		  // remove), not the method's result.
+		  self._manager.apply(self._prefix + name, args, function (error, result) {
+		      callback(error, !error && ret);
+		  });
+	      } else {
+		  // synchronous: propagate exception
+		  self._manager.apply(self._prefix + name, args);
+	      }
+
+	  } else {
+	      // it's my collection.  descend into the collection object
+	      // and propagate any exception.
+	      try {
+		  self._collection[name].apply(self._collection, args);
+	      } catch (e) {
+		  if (callback) {
+		      callback(e);
+		      return null;
+		  }
+		  throw e;
+	      }
+
+	      // on success, return *ret*, not the manager's return value.
+	      callback && callback(null, ret);
+	  }
+      };
     
     if (name === "insert") {
       if (!args.length)
         throw new Error("insert requires an argument");
       // shallow-copy the document and generate an ID
       args[0] = _.extend({}, args[0]);
-      self.enc_row(args[0], undefined);
       if ('_id' in args[0]) {
         ret = args[0]._id;
         if (!(typeof ret === 'string'
@@ -417,6 +471,7 @@ _.each(["insert", "update", "remove"], function (name) {
       } else {
         ret = args[0]._id = self._makeNewID();
       }
+	self.enc_row(args[0], undefined, f);
     } else {
       args[0] = Meteor.Collection._rewriteSelector(args[0]);
     }
@@ -424,51 +479,9 @@ _.each(["insert", "update", "remove"], function (name) {
       if (name == "update") {
 	  // Does set have a principal argument necessary for encryption?
 	  // XXX handle only updates, not push
-	  if (args.length > 2) self.enc_row(args[1]['$set'], args[2].principal)
-	  else self.enc_row(args[1]['$set'], undefined)
+	  if (args.length > 2) self.enc_row(args[1]['$set'], args[2].principal, f)
+	  else self.enc_row(args[1]['$set'], undefined, f)
       }
-
-    if (self._manager && self._manager !== Meteor.default_server) {
-      // just remote to another endpoint, propagate return value or
-      // exception.
-
-      var enclosing = Meteor._CurrentInvocation.get();
-      var alreadyInSimulation = enclosing && enclosing.isSimulation;
-      if (!alreadyInSimulation && name !== "insert") {
-        // If we're about to actually send an RPC, we should throw an error if
-        // this is a non-ID selector, because the mutation methods only allow
-        // single-ID selectors. (If we don't throw here, we'll see flicker.)
-        throwIfSelectorIsNotId(args[0], name);
-      }
-
-      if (callback) {
-        // asynchronous: on success, callback should return ret
-        // (document ID for insert, undefined for update and
-        // remove), not the method's result.
-        self._manager.apply(self._prefix + name, args, function (error, result) {
-          callback(error, !error && ret);
-        });
-      } else {
-        // synchronous: propagate exception
-        self._manager.apply(self._prefix + name, args);
-      }
-
-    } else {
-      // it's my collection.  descend into the collection object
-      // and propagate any exception.
-      try {
-        self._collection[name].apply(self._collection, args);
-      } catch (e) {
-        if (callback) {
-          callback(e);
-          return null;
-        }
-        throw e;
-      }
-
-      // on success, return *ret*, not the manager's return value.
-      callback && callback(null, ret);
-    }
 
     // both sync and async, unless we threw an exception, return ret
     // (new document ID for insert, undefined otherwise).
