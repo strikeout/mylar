@@ -455,7 +455,7 @@ _.each(["insert", "update", "remove"], function (name) {
 
       var f = function() {
 	  console.log("callback f running");
-	  if (self._manager && self._manager !== Meteor.default_server) {
+	  if (self._connection && self._connection !== Meteor.default_server) {
 	      // just remote to another endpoint, propagate return value or
 	      // exception.
 
@@ -472,12 +472,12 @@ _.each(["insert", "update", "remove"], function (name) {
 		  // asynchronous: on success, callback should return ret
 		  // (document ID for insert, undefined for update and
 		  // remove), not the method's result.
-		  self._manager.apply(self._prefix + name, args, function (error, result) {
+		  self._connection.apply(self._prefix + name, args, function (error, result) {
 		      callback(error, !error && ret);
 		  });
 	      } else {
 		  // synchronous: propagate exception
-		  self._manager.apply(self._prefix + name, args);
+		  self._connection.apply(self._prefix + name, args);
 	      }
 
 	  } else {
@@ -522,48 +522,6 @@ _.each(["insert", "update", "remove"], function (name) {
 	  if (args.length > 2) self.enc_row(args[1]['$set'], args[2].principal, f)
 	  else self.enc_row(args[1]['$set'], undefined, f)
       }
-
-    if (self._connection && self._connection !== Meteor.default_server) {
-      // just remote to another endpoint, propagate return value or
-      // exception.
-
-      var enclosing = Meteor._CurrentInvocation.get();
-      var alreadyInSimulation = enclosing && enclosing.isSimulation;
-      if (!alreadyInSimulation && name !== "insert") {
-        // If we're about to actually send an RPC, we should throw an error if
-        // this is a non-ID selector, because the mutation methods only allow
-        // single-ID selectors. (If we don't throw here, we'll see flicker.)
-        throwIfSelectorIsNotId(args[0], name);
-      }
-
-      if (callback) {
-        // asynchronous: on success, callback should return ret
-        // (document ID for insert, undefined for update and
-        // remove), not the method's result.
-        self._connection.apply(self._prefix + name, args, function (error, result) {
-          callback(error, !error && ret);
-        });
-      } else {
-        // synchronous: propagate exception
-        self._connection.apply(self._prefix + name, args);
-      }
-
-    } else {
-      // it's my collection.  descend into the collection object
-      // and propagate any exception.
-      try {
-        self._collection[name].apply(self._collection, args);
-      } catch (e) {
-        if (callback) {
-          callback(e);
-          return null;
-        }
-        throw e;
-      }
-
-      // on success, return *ret*, not the connection's return value.
-      callback && callback(null, ret);
-    }
 
     // both sync and async, unless we threw an exception, return ret
     // (new document ID for insert, undefined otherwise).
