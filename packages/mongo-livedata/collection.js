@@ -66,6 +66,8 @@ Meteor.Collection = function (name, options) {
   self._collection = options._driver.open(name);
   self._name = name;
   self._decrypt_cb = [];   // callbacks for running decryptions
+  self._encrypted_fields = [];
+  self._principal_field = 'principal';
 
   if (name && self._connection.registerStore) {
     // OK, we're going to be a slave, replicating some remote
@@ -154,8 +156,8 @@ Meteor.Collection = function (name, options) {
 	      // so that dec_msg can decrypt changed fields.
 	      if (doc) {
 		  console.log("set principal");
-		  if (_.has(doc, 'principal')) {
-		      modifier.$set['principal'] = doc.principal;
+		  if (_.has(doc, self._principal_field)) {
+		      modifier.$set[self._principal_field] = doc.principal;
 		  }
 	      }
 	      self.dec_msg(modifier.$set, function() {
@@ -261,10 +263,7 @@ Meteor.Collection.prototype.enc_row = function(container, principal, callback) {
 	if (principal == undefined) {
 	    principal = container.principal;
 	}
-	var fields = [];
-	if (typeof Annotations != 'undefined')
-	    fields = _.values(Annotations); 
-	var r = intersect(fields, container);
+	var r = intersect(self._encrypted_fields, container);
 	var ncallback = r.length;
 	if (ncallback > 0) {
 	    Principal.lookup([new CertAttr(principal.attr, principal.name)], principal.creator,
@@ -306,13 +305,8 @@ Meteor.Collection.prototype.dec_msg = function(container, callback) {
     };
 
     if (Meteor.isClient && container) {
-	var fields = [];
-	// since replacement don't have a collection name, collect all possible
-	// fields to encrypt:
-	if (typeof Annotations != 'undefined')
-	    fields = _.values(Annotations); 
-	r = intersect(fields, container);
-	if (r.length > 0 && _.has(container, 'principal')) {
+	var r = intersect(self._encrypted_fields, container);
+	if (r.length > 0 && _.has(container, self._principal_field)) {
 	    self.dec_fields(container, r, callback2);
 	} else {
 	    callback2();
