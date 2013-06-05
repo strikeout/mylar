@@ -1127,15 +1127,8 @@ _.extend(Meteor._LivedataConnection.prototype, {
     // until all current server documents have been flushed to the local
     // database. We can use a write fence to implement this.
     _.each(msg.subs, function (subId) {
-      var subRecord = self._subscriptions[subId];
-      if (!subRecord)   // Unsubscribed already?
-        return;
-      var store = self._stores[subRecord.name];
-      if (!store)       // Nobody is listening yet?
-        return;
-
       self._runWhenAllServerDocsAreFlushed(function () {
-        store.runWhenDecrypted(function () {
+        ready_func = function() {
           var subRecord = self._subscriptions[subId];
           // Did we already unsubscribe?
           if (!subRecord)
@@ -1146,7 +1139,16 @@ _.extend(Meteor._LivedataConnection.prototype, {
           subRecord.readyCallback && subRecord.readyCallback();
           subRecord.ready = true;
           subRecord.readyDeps && subRecord.readyDeps.changed();
-        });
+        };
+
+        var subRecord = self._subscriptions[subId];
+        if (!subRecord)   // Unsubscribed already?
+          return;
+        var store = self._stores[subRecord.name];
+        if (!store)
+          ready_func();
+        else
+          store.runWhenDecrypted(ready_func);
       });
     });
   },
