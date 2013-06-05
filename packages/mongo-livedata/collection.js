@@ -1,18 +1,24 @@
-// manager, if given, is a LivedataClient or LivedataServer
+// connection, if given, is a LivedataClient or LivedataServer
 // XXX presently there is no way to destroy/clean up a Collection
 
 
 Meteor.Collection = function (name, options) {
   var self = this;
+  if (! (self instanceof Meteor.Collection))
+    throw new Error('use "new" to construct a Meteor.Collection');
   if (options && options.methods) {
     // Backwards compatibility hack with original signature (which passed
-    // "manager" directly instead of in options. (Managers must have a "methods"
+    // "connection" directly instead of in options. (Connections must have a "methods"
     // method.)
     // XXX remove before 1.0
-    options = {manager: options};
+    options = {connection: options};
+  }
+  // Backwards compatibility: "connection" used to be called "manager".
+  if (options && options.manager && !options.connection) {
+    options.connection = options.manager;
   }
   options = _.extend({
-    manager: undefined,
+    connection: undefined,
     idGeneration: 'STRING',
     transform: null,
     _driver: undefined,
@@ -44,13 +50,13 @@ Meteor.Collection = function (name, options) {
                   "the collection name to turn off this warning.)");
   }
 
-  // note: nameless collections never have a manager
-  self._manager = name && (options.manager ||
+  // note: nameless collections never have a connection
+  self._connection = name && (options.connection ||
                            (Meteor.isClient ?
                             Meteor.default_connection : Meteor.default_server));
 
   if (!options._driver) {
-    if (name && self._manager === Meteor.default_server &&
+    if (name && self._connection === Meteor.default_server &&
         Meteor._RemoteCollectionDriver)
       options._driver = Meteor._RemoteCollectionDriver;
     else
@@ -61,11 +67,11 @@ Meteor.Collection = function (name, options) {
   self._name = name;
   self._decrypt_cb = [];   // callbacks for running decryptions
 
-  if (name && self._manager.registerStore) {
+  if (name && self._connection.registerStore) {
     // OK, we're going to be a slave, replicating some remote
     // database, except possibly with some temporary divergence while
     // we have unacknowledged RPC's.
-    var ok = self._manager.registerStore(name, {
+    var ok = self._connection.registerStore(name, {
       // Called at the beginning of a batch of updates. batchSize is the number
       // of update calls to expect.
       //
@@ -197,10 +203,10 @@ Meteor.Collection = function (name, options) {
 
   // autopublish
   if (!options._preventAutopublish &&
-      self._manager && self._manager.onAutopublish)
-    self._manager.onAutopublish(function () {
+      self._connection && self._connection.onAutopublish)
+    self._connection.onAutopublish(function () {
       var handler = function () { return self.find(); };
-      self._manager.publish(null, handler, {is_auto: true});
+      self._connection.publish(null, handler, {is_auto: true});
     });
 };
 
@@ -517,6 +523,48 @@ _.each(["insert", "update", "remove"], function (name) {
 	  else self.enc_row(args[1]['$set'], undefined, f)
       }
 
+    if (self._connection && self._connection !== Meteor.default_server) {
+      // just remote to another endpoint, propagate return value or
+      // exception.
+
+      var enclosing = Meteor._CurrentInvocation.get();
+      var alreadyInSimulation = enclosing && enclosing.isSimulation;
+      if (!alreadyInSimulation && name !== "insert") {
+        // If we're about to actually send an RPC, we should throw an error if
+        // this is a non-ID selector, because the mutation methods only allow
+        // single-ID selectors. (If we don't throw here, we'll see flicker.)
+        throwIfSelectorIsNotId(args[0], name);
+      }
+
+      if (callback) {
+        // asynchronous: on success, callback should return ret
+        // (document ID for insert, undefined for update and
+        // remove), not the method's result.
+        self._connection.apply(self._prefix + name, args, function (error, result) {
+          callback(error, !error && ret);
+        });
+      } else {
+        // synchronous: propagate exception
+        self._connection.apply(self._prefix + name, args);
+      }
+
+    } else {
+      // it's my collection.  descend into the collection object
+      // and propagate any exception.
+      try {
+        self._collection[name].apply(self._collection, args);
+      } catch (e) {
+        if (callback) {
+          callback(e);
+          return null;
+        }
+        throw e;
+      }
+
+      // on success, return *ret*, not the connection's return value.
+      callback && callback(null, ret);
+    }
+
     // both sync and async, unless we threw an exception, return ret
     // (new document ID for insert, undefined otherwise).
     return ret;
@@ -648,13 +696,16 @@ Meteor.Collection.prototype._defineMutationMethods = function() {
   self._prefix = '/' + self._name + '/';
 
   // mutation methods
-  if (self._manager) {
+  if (self._connection) {
     var m = {};
 
     _.each(['insert', 'update', 'remove'], function (method) {
       m[self._prefix + method] = function (/* ... */) {
+        // All the methods do their own validation, instead of using check().
+        check(arguments, [Match.Any]);
         try {
           if (this.isSimulation) {
+
             // In a client simulation, you can do any mutation (even with a
             // complex selector).
             self._collection[method].apply(
@@ -698,7 +749,11 @@ Meteor.Collection.prototype._defineMutationMethods = function() {
         }
       };
     });
-    self._manager.methods(m);
+    // Minimongo on the server gets no stubs; instead, by default
+    // it wait()s until its result is ready, yielding.
+    // This matches the behavior of macromongo on the server better.
+    if (Meteor.isClient || self._connection === Meteor.default_server)
+      self._connection.methods(m);
   }
 };
 
