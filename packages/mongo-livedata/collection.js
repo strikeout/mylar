@@ -133,7 +133,7 @@ Meteor.Collection = function (name, options) {
           if (!_.isEmpty(msg.fields)) {
             var modifier = {};
             _.each(msg.fields, function (value, key) {
-		console.log("change key: " + key);
+		console.log("change key: " + key + value);
               if (value === undefined) {
                 if (!modifier.$unset)
                   modifier.$unset = {};
@@ -144,7 +144,17 @@ Meteor.Collection = function (name, options) {
                 modifier.$set[key] = value;
               }
             });
-            self._collection.update(mongoId, modifier);
+	      // lookup principal for the doc being changed, and add it to $set,
+	      // so that dec_msg can decrypt changed fields.
+	      if (doc) {
+		  console.log("set principal");
+		  if (_.has(doc, 'principal')) {
+		      modifier.$set['principal'] = doc.principal;
+		  }
+	      }
+	      self.dec_msg(modifier.$set, function() {
+		  self._collection.update(mongoId, modifier);
+	      });
           }
         } else {
           throw new Error("I don't know how to deal with this message");
