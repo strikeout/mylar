@@ -397,7 +397,9 @@ _.extend(Meteor._LivedataConnection.prototype, {
     // Wrap the input object in an object which makes any store method not
     // implemented by 'store' into a no-op.
     var store = {};
-    _.each(['update', 'beginUpdate', 'endUpdate', 'saveOriginals',
+    _.each(['update', 'beginUpdate', 'endUpdate',
+            'runWhenDecrypted',
+            'saveOriginals',
             'retrieveOriginals'], function (method) {
               store[method] = function () {
                 return (wrappedStore[method]
@@ -1125,17 +1127,26 @@ _.extend(Meteor._LivedataConnection.prototype, {
     // until all current server documents have been flushed to the local
     // database. We can use a write fence to implement this.
     _.each(msg.subs, function (subId) {
+      var subRecord = self._subscriptions[subId];
+      if (!subRecord)   // Unsubscribed already?
+        return;
+      var store = self._stores[subRecord.name];
+      if (!store)       // Nobody is listening yet?
+        return;
+
       self._runWhenAllServerDocsAreFlushed(function () {
-        var subRecord = self._subscriptions[subId];
-        // Did we already unsubscribe?
-        if (!subRecord)
-          return;
-        // Did we already receive a ready message? (Oops!)
-        if (subRecord.ready)
-          return;
-        subRecord.readyCallback && subRecord.readyCallback();
-        subRecord.ready = true;
-        subRecord.readyDeps && subRecord.readyDeps.changed();
+        store.runWhenDecrypted(function () {
+          var subRecord = self._subscriptions[subId];
+          // Did we already unsubscribe?
+          if (!subRecord)
+            return;
+          // Did we already receive a ready message? (Oops!)
+          if (subRecord.ready)
+            return;
+          subRecord.readyCallback && subRecord.readyCallback();
+          subRecord.ready = true;
+          subRecord.readyDeps && subRecord.readyDeps.changed();
+        });
       });
     });
   },

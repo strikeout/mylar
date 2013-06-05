@@ -59,6 +59,7 @@ Meteor.Collection = function (name, options) {
 
   self._collection = options._driver.open(name);
   self._name = name;
+  self._decrypt_cb = [];   // callbacks for running decryptions
 
   if (name && self._manager.registerStore) {
     // OK, we're going to be a slave, replicating some remote
@@ -154,6 +155,18 @@ Meteor.Collection = function (name, options) {
       // Called at the end of a batch of updates.
       endUpdate: function () {
         self._collection.resumeObservers();
+      },
+
+      runWhenDecrypted: function (f) {
+        var ndecrypts = self._decrypt_cb.length;
+        if (ndecrypts == 0) {
+          f();
+        } else {
+          var done = _.after(ndecrypts, f);
+          _.each(self._decrypt_cb, function (q) {
+            q.push(done);
+          });
+        }
       },
 
       // Called around method stub invocations to capture the original versions
@@ -265,6 +278,17 @@ Meteor.Collection.prototype.enc_row = function(container, principal, callback) {
 
 Meteor.Collection.prototype.dec_msg = function(container, callback) {
     var self = this;
+
+    var callback_q = [];
+    self._decrypt_cb.push(callback_q);
+    callback2 = function () {
+      callback();
+      self._decrypt_cb = _.without(self._decrypt_cb, callback_q);
+      _.each(callback_q, function (f) {
+        f();
+      });
+    };
+
     if (Meteor.isClient && container) {
 	var fields = [];
 	// since replacement don't have a collection name, collect all possible
@@ -273,12 +297,12 @@ Meteor.Collection.prototype.dec_msg = function(container, callback) {
 	    fields = _.values(Annotations); 
 	r = intersect(fields, container);
 	if (r.length > 0 && _.has(container, 'principal')) {
-	    self.dec_fields(container, r, callback);
+	    self.dec_fields(container, r, callback2);
 	} else {
-	    callback();
+	    callback2();
 	}
     } else {
-	callback();
+	callback2();
     }
 }
 
