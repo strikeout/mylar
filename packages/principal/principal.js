@@ -16,55 +16,37 @@ if (Meteor.isServer) {
 
     Meteor.methods({
         keychain: function (from_princ, to_princ) {
-	    console.log("keychain: from " + from_princ + " to " + to_princ);
-            function ret_chain(chain) {
-		console.log("found chain: ");
-                return _.map(chain, function (wk) {
-		    console.log("link: " + wk.principal);
-                    return wk.wrapped_key;
-                });
-            }
+	    // console.log("keychain: from " + from_princ + " to " + to_princ);
+            var frontier = [
+                             [ from_princ, [] ],
+                           ];
 
-            if (from_princ === to_princ) {
-                return [];
-            }
-            var next_hops = WrappedKeys.find({
-                wrapped_for: from_princ
-            }).fetch();
-            var chains = _.map(next_hops, function (wk) {
-                return [wk];
-            });
-            var keep_looking = true;
-            while (keep_looking) {
-                var new_chains = [];
+            while (frontier.length > 0) {
+                var new_frontier = [];
                 var found_chain;
-                keep_looking = false;
-                _.each(chains, function (chain) {
-                    var wk = _.last(chain);
-                    if (wk.principal === to_princ) {
-                        found_chain = ret_chain(chain);
+                _.each(frontier, function (node) {
+                    var frontier_node = node[0];
+                    var frontier_chain = node[1];
+
+                    if (frontier_node === to_princ) {
+                        found_chain = frontier_chain;
                     }
-                    var new_wks = WrappedKeys.find({
-                        wrapped_for: wk.principal
-                    }).fetch();
-                    _.each(new_wks, function (new_wk) {
-                        if (!_.contains(chain, new_wk)) {
-                            // We've found an extension for one of our chains,
-                            // so keep looping.
-                            keep_looking = true;
-                            chain.push(new_wk);
-                            new_chains.push(chain);
-                        }
+
+                    var next_hops = WrappedKeys.find({ wrapped_for: frontier_node }).fetch();
+                    _.each(next_hops, function (next_hop) {
+                        var new_chain = frontier_chain.concat([ next_hop.wrapped_key ]);
+                        new_frontier.push([ next_hop.principal, new_chain ]);
                     });
                 });
                 if (found_chain) {
-		    console.log("return chain: " + found_chain);
+                    // console.log("found chain: " + found_chain);
                     return found_chain;
                 }
-                chains = new_chains;
+                frontier = new_frontier;
             }
-	    console.log("return empty chain");
-	    return ret_chain([]);
+
+	    console.log("did not find a chain from " + from_princ + " to " + to_princ);
+	    return undefined;
         },
 
         lookup: function (attrs, authority) {
@@ -241,15 +223,16 @@ Principal.prototype._load_secret_keys = function (on_complete) {
         Meteor.call("keychain", Principal.user().id,
                     self.id, function (err, chain) {
 			console.log("keychain returns: " + chain);
-			if (chain.length == 0) { 
-			    on_complete();
-			} else {
+			if (chain) {
                             var sk = Principal.user().keys.decrypt;
                             crypto.chain_decrypt(chain, sk, function (unwrapped) {
 				self.keys.decrypt = unwrapped.decrypt;
 				self.keys.sign = unwrapped.sign;
 				on_complete();
                             });
+			} else {
+                            // Did not find a chain
+			    on_complete();
 			}
                     });
     }
