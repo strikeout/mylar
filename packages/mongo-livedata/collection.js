@@ -232,7 +232,9 @@ Meteor.Collection.prototype.dec_fields = function(container, fields, callback) {
     Principal.lookup([new CertAttr(container.principal.attr, container.principal.name)], 
 		     container.principal.creator, function (p) {
 	if (p && p.id) {
-	    var ncallback = fields.length;
+	    var cb = _.after(fields.length, function() {
+		callback();
+	    });
 	    console.log("dec_fields: principal: " + p.id);
 	    _.each(fields, function(f) {
 		console.log("dec_fields: decrypt: " + f);
@@ -242,12 +244,11 @@ Meteor.Collection.prototype.dec_fields = function(container, fields, callback) {
 		    p.decrypt(container[f], function (pt) {
 			console.log("decrypt: plain= " + pt);
 			container[f] = pt;
-			if (--ncallback == 0) 
-			    callback();
+			cb();
 		    });
 		} catch (e) {
 		    console.log("likely not encrypted senstive field: " + f);
-		    if (--ncallback == 0) callback();
+		    cb();
 		}
 	    });
 	} else {
@@ -264,25 +265,26 @@ Meteor.Collection.prototype.enc_row = function(container, principal, callback) {
 	    principal = container.principal;
 	}
 	var r = intersect(self._encrypted_fields, container);
-	var ncallback = r.length;
-	if (ncallback > 0) {
-	    Principal.lookup([new CertAttr(principal.attr, principal.name)], principal.creator,
-			     function (p) {
-				 if (p) {
-				     console.log("enc_row: principal: " + p.id);
-				     _.each(r, function(f) {
-					 console.log("encrypt field " + f);
-					 p.encrypt(container[f], function (ct) {
-					     console.log("encrypt ct= " + ct);
-					     container[f] = ct;
-					     if (--ncallback == 0) callback();
-					 });
-				     });
-				 } else {
-				     console.log("enc_row: couldn't find principal: " + principal.attr + " " + principal.name);
-				     if (--ncallback == 0) callback();
-				 }
-			     });
+	if (r.length > 0) {
+	    Principal.lookup([new CertAttr(principal.attr, principal.name)], principal.creator, function (p) {
+		if (p) {
+		    console.log("enc_row: principal: " + p.id);
+		    var cb = _.after(r.length, function() {
+			callback();
+		    });
+		    _.each(r, function(f) {
+			console.log("encrypt field " + f);
+			p.encrypt(container[f], function (ct) {
+			    console.log("encrypt ct= " + ct);
+			    container[f] = ct;
+			    cb();
+			});
+		    });
+		} else {
+		    console.log("enc_row: couldn't find principal: " + principal.attr + " " + principal.name);
+		    callback();
+		}
+	    });
 	} else {
 	    callback();
 	}
