@@ -242,7 +242,6 @@ Meteor.Collection.prototype.dec_fields = function(container, fields, callback) {
 		    // XXX double check json is really a cipher text??
 		    var json = JSON.parse(container[f]);  
 		    p.decrypt(container[f], function (pt) {
-			console.log("decrypt: plain= " + "Couldn't decrypt");
 			container[f] = pt;
 			cb();
 		    });
