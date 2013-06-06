@@ -67,6 +67,7 @@ Meteor.Collection = function (name, options) {
   self._name = name;
   self._decrypt_cb = [];   // callbacks for running decryptions
   self._encrypted_fields = [];
+  self._signed_fields = [];
   self._principal_field = 'principal';
 
   if (name && self._connection.registerStore) {
@@ -103,34 +104,34 @@ Meteor.Collection = function (name, options) {
         var mongoId = Meteor.idParse(msg.id);
         var doc = self._collection.findOne(mongoId);
 
-	console.log("msg: " + msg.msg );
+        console.log("msg: " + msg.msg );
 
         // Is this a "replace the whole doc" message coming from the quiescence
         // of method writes to an object? (Note that 'undefined' is a valid
         // value meaning "remove it".)
           if (msg.msg === 'replace') {
               var replace = msg.replace;
-	      self.dec_msg(replace, function() {
-		  if (!replace) {
-		      if (doc)
-			  self._collection.remove(mongoId);
-		  } else if (!doc) {
-		      self._collection.insert(replace);
-		  } else {
-		      console.log("replace callback: do replace");
-		      // XXX check that replace has no $ ops
-		      self._collection.update(mongoId, replace);
-		  }
-	      });
+              self.dec_msg(replace, function() {
+                  if (!replace) {
+                      if (doc)
+                          self._collection.remove(mongoId);
+                  } else if (!doc) {
+                      self._collection.insert(replace);
+                  } else {
+                      console.log("replace callback: do replace");
+                      // XXX check that replace has no $ ops
+                      self._collection.update(mongoId, replace);
+                  }
+              });
               return;
           } else if (msg.msg === 'added') {
-	      self.dec_msg(msg.fields, function() {
-		  var doc = self._collection.findOne({_id: mongoId});
-		  if (doc) {
-		      throw new Error("Expected not to find a document already present for an add");
-		  }
-		  self._collection.insert(_.extend({_id: mongoId}, msg.fields));
-	      });
+              self.dec_msg(msg.fields, function() {
+                  var doc = self._collection.findOne({_id: mongoId});
+                  if (doc) {
+                      throw new Error("Expected not to find a document already present for an add");
+                  }
+                  self._collection.insert(_.extend({_id: mongoId}, msg.fields));
+              });
           } else if (msg.msg === 'removed') {
           if (!doc)
             throw new Error("Expected to find a document already present for removed");
@@ -141,7 +142,7 @@ Meteor.Collection = function (name, options) {
           if (!_.isEmpty(msg.fields)) {
             var modifier = {};
             _.each(msg.fields, function (value, key) {
-		console.log("change key: " + key + value);
+                console.log("change key: " + key + value);
               if (value === undefined) {
                 if (!modifier.$unset)
                   modifier.$unset = {};
@@ -152,17 +153,17 @@ Meteor.Collection = function (name, options) {
                 modifier.$set[key] = value;
               }
             });
-	      // lookup principal for the doc being changed, and add it to $set,
-	      // so that dec_msg can decrypt changed fields.
-	      if (doc) {
-		  console.log("set principal");
-		  if (_.has(doc, self._principal_field)) {
-		      modifier.$set[self._principal_field] = doc.principal;
-		  }
-	      }
-	      self.dec_msg(modifier.$set, function() {
-		  self._collection.update(mongoId, modifier);
-	      });
+              // lookup principal for the doc being changed, and add it to $set,
+              // so that dec_msg can decrypt changed fields.
+              if (doc) {
+                  console.log("set principal");
+                  if (_.has(doc, self._principal_field)) {
+                      modifier.$set[self._principal_field] = doc.principal;
+                  }
+              }
+              self.dec_msg(modifier.$set, function() {
+                  self._collection.update(mongoId, modifier);
+              });
           }
         } else {
           throw new Error("I don't know how to deal with this message");
@@ -219,9 +220,9 @@ Meteor.Collection = function (name, options) {
 var intersect = function(a, b) {
     r = [];
     _.each(a, function(i) {
-	if (_.has(b, i)) {
-	    r.push(i);
-	}
+        if (_.has(b, i)) {
+            r.push(i);
+        }
     });
     return r;
 };
@@ -230,59 +231,96 @@ Meteor.Collection.prototype.dec_fields = function(container, fields, callback) {
     var self = this;
     console.log("dec_fields: lookup " + container.principal.attr + " " + container.principal.name);
     Principal.lookup([new CertAttr(container.principal.attr, container.principal.name)], 
-		     container.principal.creator, function (p) {
-	if (p && p.id) {
-	    var cb = _.after(fields.length, function() {
-		callback();
-	    });
-	    console.log("dec_fields: principal: " + p.id);
-	    _.each(fields, function(f) {
-		console.log("dec_fields: decrypt: " + f);
-		p.decrypt(container[f], function (pt) {
-		    container[f] = pt;
-		    cb();
-		});
-	    });
-	} else {
-	    console.log("couldn't find principal: " + container.principal.attr + " " + container.principal.name);
-	    callback();
-	}
+                     container.principal.creator, function (p) {
+        if (p && p.id) {
+            var cb = _.after(fields.length, function() {
+                callback();
+            });
+            console.log("dec_fields: principal: " + p.id);
+            _.each(fields, function(f) {
+                console.log("dec_fields: decrypt: " + f);
+                var maybe_decrypt = function () {
+                    if (_.indexOf(self._encrypted_fields, f) >= 0) {
+                        p.decrypt(container[f], function (pt) {
+                            container[f] = pt;
+                            cb();
+                        });
+                    } else {
+                        cb();
+                    }
+                }
+
+                if (_.indexOf(self._signed_fields, f) >= 0) {
+                    p.verify(container[f], container[f + '_signature'], function (ok) {
+                        if (ok) {
+                            console.log("VERIFIED OK");
+                            maybe_decrypt();
+                        } else {
+                            throw new Meteor.Error(500, "signature verification failed");
+                        }
+                    });
+                } else {
+                    maybe_decrypt();
+                }
+            });
+        } else {
+            console.log("couldn't find principal: " + container.principal.attr + " " + container.principal.name);
+            callback();
+        }
     });
 }
 
 Meteor.Collection.prototype.enc_row = function(container, principal, callback) {
     var self = this;
-    if (Meteor.isClient && container) {
-	if (principal == undefined) {
-	    principal = container.principal;
-	}
-	var r = intersect(self._encrypted_fields, container);
-	if (r.length > 0) {
-	    Principal.lookup([new CertAttr(principal.attr, principal.name)], principal.creator, function (p) {
-		if (p) {
-		    console.log("enc_row: principal: " + p.id);
-		    var cb = _.after(r.length, function() {
-			callback();
-		    });
-		    _.each(r, function(f) {
-			console.log("encrypt field " + f);
-			p.encrypt(container[f], function (ct) {
-			    console.log("encrypt ct= " + ct);
-			    container[f] = ct;
-			    cb();
-			});
-		    });
-		} else {
-		    console.log("enc_row: couldn't find principal: " + principal.attr + " " + principal.name);
-		    callback();
-		}
-	    });
-	} else {
-	    callback();
-	}
-    } else {
-	callback();
+    if (!Meteor.isClient || !container) {
+        callback();
+        return;
     }
+
+    if (principal == undefined) {
+        principal = container.principal;
+    }
+    var r = intersect(_.union(self._encrypted_fields, self._signed_fields), container);
+    if (r.length == 0) {
+        callback();
+        return;
+    }
+
+    var cb = _.after(r.length, function() {
+        callback();
+    });
+    Principal.lookup([new CertAttr(principal.attr, principal.name)], principal.creator, function (p) {
+        if (!p) {
+            console.log("enc_row: couldn't find principal: " + principal.attr + " " + principal.name);
+            callback();
+            return;
+        }
+
+        console.log("enc_row: principal: " + p.id);
+        _.each(r, function(f) {
+            console.log("encrypt field " + f);
+            var maybe_sign = function (x) {
+                container[f] = x;
+
+                if (_.indexOf(self._signed_fields, f) >= 0) {
+                    console.log("signing field " + f);
+                    p.sign(x, function (signature) {
+                        container[f + '_signature'] = signature;
+                        cb();
+                    });
+                } else {
+                    cb();
+                }
+            }
+
+            if (_.indexOf(self._encrypted_fields, f) >= 0) {
+                console.log("encrypting field " + f);
+                p.encrypt(container[f], maybe_sign);
+            } else {
+                maybe_sign(container[f]);
+            }
+        });
+    });
 }
 
 Meteor.Collection.prototype.dec_msg = function(container, callback) {
@@ -299,14 +337,14 @@ Meteor.Collection.prototype.dec_msg = function(container, callback) {
     };
 
     if (Meteor.isClient && container) {
-	var r = intersect(self._encrypted_fields, container);
-	if (r.length > 0 && _.has(container, self._principal_field)) {
-	    self.dec_fields(container, r, callback2);
-	} else {
-	    callback2();
-	}
+        var r = intersect(_.union(self._encrypted_fields, self._signed_fields), container);
+        if (r.length > 0) {
+            self.dec_fields(container, r, callback2);
+        } else {
+            callback2();
+        }
     } else {
-	callback2();
+        callback2();
     }
 }
 
@@ -442,48 +480,48 @@ _.each(["insert", "update", "remove"], function (name) {
     }
 
       var f = function() {
-	  console.log("callback f running");
-	  if (self._connection && self._connection !== Meteor.default_server) {
-	      // just remote to another endpoint, propagate return value or
-	      // exception.
+          console.log("callback f running");
+          if (self._connection && self._connection !== Meteor.default_server) {
+              // just remote to another endpoint, propagate return value or
+              // exception.
 
-	      var enclosing = Meteor._CurrentInvocation.get();
-	      var alreadyInSimulation = enclosing && enclosing.isSimulation;
-	      if (!alreadyInSimulation && name !== "insert") {
-		  // If we're about to actually send an RPC, we should throw an error if
-		  // this is a non-ID selector, because the mutation methods only allow
-		  // single-ID selectors. (If we don't throw here, we'll see flicker.)
-		  throwIfSelectorIsNotId(args[0], name);
-	      }
+              var enclosing = Meteor._CurrentInvocation.get();
+              var alreadyInSimulation = enclosing && enclosing.isSimulation;
+              if (!alreadyInSimulation && name !== "insert") {
+                  // If we're about to actually send an RPC, we should throw an error if
+                  // this is a non-ID selector, because the mutation methods only allow
+                  // single-ID selectors. (If we don't throw here, we'll see flicker.)
+                  throwIfSelectorIsNotId(args[0], name);
+              }
 
-	      if (callback) {
-		  // asynchronous: on success, callback should return ret
-		  // (document ID for insert, undefined for update and
-		  // remove), not the method's result.
-		  self._connection.apply(self._prefix + name, args, function (error, result) {
-		      callback(error, !error && ret);
-		  });
-	      } else {
-		  // synchronous: propagate exception
-		  self._connection.apply(self._prefix + name, args);
-	      }
+              if (callback) {
+                  // asynchronous: on success, callback should return ret
+                  // (document ID for insert, undefined for update and
+                  // remove), not the method's result.
+                  self._connection.apply(self._prefix + name, args, function (error, result) {
+                      callback(error, !error && ret);
+                  });
+              } else {
+                  // synchronous: propagate exception
+                  self._connection.apply(self._prefix + name, args);
+              }
 
-	  } else {
-	      // it's my collection.  descend into the collection object
-	      // and propagate any exception.
-	      try {
-		  self._collection[name].apply(self._collection, args);
-	      } catch (e) {
-		  if (callback) {
-		      callback(e);
-		      return null;
-		  }
-		  throw e;
-	      }
+          } else {
+              // it's my collection.  descend into the collection object
+              // and propagate any exception.
+              try {
+                  self._collection[name].apply(self._collection, args);
+              } catch (e) {
+                  if (callback) {
+                      callback(e);
+                      return null;
+                  }
+                  throw e;
+              }
 
-	      // on success, return *ret*, not the manager's return value.
-	      callback && callback(null, ret);
-	  }
+              // on success, return *ret*, not the manager's return value.
+              callback && callback(null, ret);
+          }
       };
     
     if (name === "insert") {
@@ -499,16 +537,16 @@ _.each(["insert", "update", "remove"], function (name) {
       } else {
         ret = args[0]._id = self._makeNewID();
       }
-	self.enc_row(args[0], undefined, f);
+        self.enc_row(args[0], undefined, f);
     } else {
       args[0] = Meteor.Collection._rewriteSelector(args[0]);
     }
 
       if (name == "update") {
-	  // Does set have a principal argument necessary for encryption?
-	  // XXX handle only updates, not push
-	  if (args.length > 2) self.enc_row(args[1]['$set'], args[2].principal, f)
-	  else self.enc_row(args[1]['$set'], undefined, f)
+          // Does set have a principal argument necessary for encryption?
+          // XXX handle only updates, not push
+          if (args.length > 2) self.enc_row(args[1]['$set'], args[2].principal, f)
+          else self.enc_row(args[1]['$set'], undefined, f)
       }
 
     // both sync and async, unless we threw an exception, return ret

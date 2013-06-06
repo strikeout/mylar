@@ -283,6 +283,22 @@ Principal.prototype.decrypt = function (ct, on_complete) {
     });
 };
 
+Principal.prototype.sign = function (msg, on_complete) {
+    var self = this;
+    self._load_secret_keys(function () {
+        if (self.keys.sign) {
+            crypto.sign(msg, self.keys.sign, on_complete);
+        } else {
+            on_complete();
+        }
+    });
+};
+
+Principal.prototype.verify = function (msg, sig, on_complete) {
+    var self = this;
+    crypto.verify(msg, sig, self.keys.verify, on_complete);
+};
+
 Principal.prototype.serialize_keys = function () {
     var self = this;
     var ser = {};
