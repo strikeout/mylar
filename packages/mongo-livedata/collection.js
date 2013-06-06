@@ -238,17 +238,10 @@ Meteor.Collection.prototype.dec_fields = function(container, fields, callback) {
 	    console.log("dec_fields: principal: " + p.id);
 	    _.each(fields, function(f) {
 		console.log("dec_fields: decrypt: " + f);
-		try {
-		    // XXX double check json is really a cipher text??
-		    var json = JSON.parse(container[f]);  
-		    p.decrypt(container[f], function (pt) {
-			container[f] = pt;
-			cb();
-		    });
-		} catch (e) {
-		    console.log("likely not encrypted senstive field: " + f);
+		p.decrypt(container[f], function (pt) {
+		    container[f] = pt;
 		    cb();
-		}
+		});
 	    });
 	} else {
 	    console.log("couldn't find principal: " + container.principal.attr + " " + container.principal.name);
