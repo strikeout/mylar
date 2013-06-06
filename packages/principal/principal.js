@@ -16,8 +16,11 @@ if (Meteor.isServer) {
 
     Meteor.methods({
         keychain: function (from_princ, to_princ) {
+	    console.log("keychain: from " + from_princ + " to " + to_princ);
             function ret_chain(chain) {
+		console.log("found chain: ");
                 return _.map(chain, function (wk) {
+		    console.log("link: " + wk.principal);
                     return wk.wrapped_key;
                 });
             }
@@ -55,10 +58,13 @@ if (Meteor.isServer) {
                     });
                 });
                 if (found_chain) {
+		    console.log("return chain: " + found_chain);
                     return found_chain;
                 }
                 chains = new_chains;
             }
+	    console.log("return empty chain");
+	    return ret_chain([]);
         },
 
         lookup: function (attrs, authority) {
@@ -234,12 +240,17 @@ Principal.prototype._load_secret_keys = function (on_complete) {
     } else {
         Meteor.call("keychain", Principal.user().id,
                     self.id, function (err, chain) {
-                        var sk = Principal.user().keys.decrypt;
-                        crypto.chain_decrypt(chain, sk, function (unwrapped) {
-                            self.keys.decrypt = unwrapped.decrypt;
-                            self.keys.sign = unwrapped.sign;
-                            on_complete();
-                        });
+			console.log("keychain returns: " + chain);
+			if (chain.length == 0) { 
+			    on_complete();
+			} else {
+                            var sk = Principal.user().keys.decrypt;
+                            crypto.chain_decrypt(chain, sk, function (unwrapped) {
+				self.keys.decrypt = unwrapped.decrypt;
+				self.keys.sign = unwrapped.sign;
+				on_complete();
+                            });
+			}
                     });
     }
 };
@@ -281,7 +292,11 @@ Principal.prototype.encrypt = function (pt, on_complete) {
 Principal.prototype.decrypt = function (ct, on_complete) {
     var self = this;
     self._load_secret_keys(function () {
-        crypto.decrypt(self.keys.decrypt, ct, on_complete);
+	if (self.keys.decrypt) {
+            crypto.decrypt(self.keys.decrypt, ct, on_complete);
+	} else {
+	    on_complete();
+	}
     });
 };
 
@@ -376,7 +391,7 @@ Principal._add_access = function (princ1, princ2, on_complete) {
 };
 
 Principal.lookup = function (attrs, authority, on_complete) {
-    console.log("Principal.lookup: " + authority);
+    console.log("Principal.lookup: " + authority + " attrs: " + attrs[0].name + " " + attrs[0].value);
     idp.lookup(authority, function (authority_pk) {
         var auth_princ = new Principal(authority_pk);
 	console.log("idp returns: " + auth_princ.id);
