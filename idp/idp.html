@@ -4,6 +4,7 @@
 
 <body>
   {{> hello}}
+  {{> config}}
 </body>
 
 <template name="hello">
@@ -12,4 +13,10 @@
   <p>
     {{#if user_email}}{{user_email}}{{/if}}
   </p>
+</template>
+<template name="config">
+    <p>Upload configuration file:
+    <input type="file" id="fileinput"/>
+    <button id="configure">run config</button>
+    </p>
 </template>

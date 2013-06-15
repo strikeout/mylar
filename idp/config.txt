@@ -1,0 +1,16 @@
+@create_groups
+staff
+student
+
+@create_users
+
+@group=staff
+alice@mit.edu:submit
+
+@group=student
+bob0@mit.edu:submit
+bob1@mit.edu:submit
+
+@create_assignments
+DP1
+Handson-1
