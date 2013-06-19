@@ -549,6 +549,10 @@ _.each(["insert", "update", "remove"], function (name) {
           else self.enc_row(args[1]['$set'], undefined, f)
       }
 
+      if (name == "remove") {
+          f();
+      }
+
     // both sync and async, unless we threw an exception, return ret
     // (new document ID for insert, undefined otherwise).
     return ret;
