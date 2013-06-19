@@ -126,7 +126,7 @@ if (Meteor.isServer) {
   Meteor.methods({
       get_public: function (name) {
           var user = Meteor.users.findOne({
-              'emails.address': name
+              'username': name
           });
           var keys = EJSON.parse(user.keys);
           return EJSON.stringify({
@@ -138,9 +138,28 @@ if (Meteor.isServer) {
       get_keys: function (name, pwd) {
           // TODO: check password
           var user = Meteor.users.findOne({
-              'emails.address': name
+              'username': name
           });
           return user.keys;
+      },
+      create_keys:  function (name, pwd, nkeys) {
+          var user = Meteor.users.findOne({
+              'username': name
+          });
+          if (user) {
+              if (!_.has(user, 'keys')) {
+                  Meteor.users.update(user._id, {$set: {
+                      keys: nkeys
+                  }});
+              }
+              return user.keys;
+          } else {
+              uid = Accounts.createUser({username:name, password:pwd});
+              Meteor.users.update(uid, {$set: {
+                  keys: nkeys
+              }});
+              return nkeys;
+          }
       }
   });
 }

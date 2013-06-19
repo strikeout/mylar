@@ -191,9 +191,17 @@ if (Meteor.isClient) {
                 });
             },
             get_keys: function (name, pwd, on_complete) {
-		console.log("get keys from idp");
+                console.log("get keys from idp");
                 conn.call("get_keys", name, pwd, function (err, result) {
                     on_complete(result);
+                });
+            },
+            create_keys: function (name, pwd, on_complete) {
+		        console.log("create keys from idp");
+                Principal.create([], function (nkeys) {
+                    conn.call("create_keys", name, pwd, nkeys.serialize_keys(), function (err, result) {
+                        on_complete(result);
+                    });
                 });
             }
         };

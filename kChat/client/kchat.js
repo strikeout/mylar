@@ -180,7 +180,7 @@ function CreateUser(){
       if(error){
         $("#errorUsernameMsg").text('User Already Exist');
       } else {
-          idp.get_keys(user, password1, function (keys) {
+          idp.create_keys(user, password1, function (keys) {
               localStorage['user_princ_keys'] = keys;
           });
       }
