@@ -131,12 +131,12 @@ Template.room.events({
     var msg= $("#messageTextArea").val();
 
     Messages.insert({
-      rID: Meteor.user().Room.inRoomID,
-      message:msg,
-      userID:Meteor.userId(),
-      username:Meteor.user().username,
-      time:getFormattedDate(),
-      enc_princ: room_princ.serialize_keys()
+        rID: Meteor.user().Room.inRoomID,
+        message:msg,
+        userID:Meteor.userId(),
+        username:Meteor.user().username,
+        time:getFormattedDate(),
+        enc_princ: room_princ.serialize_keys()
     });
 
     $("#messageTextArea").val('');
@@ -151,11 +151,12 @@ Template.room.events({
         var msg= $("#messageTextArea").val();
 
         Messages.insert({
-          rID: Meteor.user().Room.inRoomID,
-          message:msg,
-          userID:Meteor.userId(),
-          username:Meteor.user().username,
-          time:getFormattedDate()
+            rID: Meteor.user().Room.inRoomID,
+            message:msg,
+            userID:Meteor.userId(),
+            username:Meteor.user().username,
+            time:getFormattedDate(),
+            enc_princ: room_princ.serialize_keys()
         });
 
         $("#messageTextArea").val('');
