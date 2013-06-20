@@ -63,7 +63,7 @@ if (Meteor.isClient) {
                         var name = s[0];
                         var pw = s[1];
                         var user = {
-                            "name":name,
+                            "username":name,
                             "email":name,
                             "password":pw
                         };
