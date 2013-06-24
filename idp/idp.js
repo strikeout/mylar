@@ -9,7 +9,8 @@ if (Meteor.isClient) {
             if (!_.has(user, 'keys')) {
                 Principal.create([], function (p) {
                     Meteor.users.update(user._id, {$set: {
-                        keys: p.serialize_keys()
+                        keys: p.serialize_keys(),
+                        username:user.emails[0].address
                     }});
                 });
             }
@@ -128,6 +129,7 @@ if (Meteor.isServer) {
           var user = Meteor.users.findOne({
               'username': name
           });
+          console.log(user);
           var keys = EJSON.parse(user.keys);
           return EJSON.stringify({
               encrypt: keys.encrypt,
