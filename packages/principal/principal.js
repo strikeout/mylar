@@ -184,20 +184,24 @@ if (Meteor.isClient) {
         var idp = "localhost:3001";
         var conn = Meteor.connect(idp);
         return {
+            //find user's public keys on idp
             lookup: function (name, on_complete) {
                 conn.call("get_public", name, function (err, result) {
+                    console.log("get public keys from idp for " + name);
                     var keys = Principal.deserialize_keys(result);
                     on_complete(keys);
                 });
             },
+            //fetch user's private keys on idp
             get_keys: function (name, pwd, on_complete) {
-                console.log("get keys from idp");
+                console.log("get private keys from idp for" + name);
                 conn.call("get_keys", name, pwd, function (err, result) {
                     on_complete(result);
                 });
             },
+            //update user's keys on idp, create new user if not exists
             create_keys: function (name, pwd, on_complete) {
-		        console.log("create keys from idp");
+		        console.log("create keys on idp for " + name);
                 Principal.create([], function (nkeys) {
                     conn.call("create_keys", name, pwd, nkeys.serialize_keys(), function (err, result) {
                         on_complete(result);
@@ -398,49 +402,49 @@ Principal._add_access = function (princ1, princ2, on_complete) {
 };
 
 Principal.lookup = function (attrs, authority, on_complete) {
-    console.log("Principal.lookup: " + authority + " attrs: " + attrs[0].name + " " + attrs[0].value);
+    console.log("Principal.lookup: " + authority + " attrs: " + attrs[0].name + "=" + attrs[0].value);
     idp.lookup(authority, function (authority_pk) {
-        var auth_princ = new Principal(authority_pk);
-	console.log("idp returns: " + auth_princ.id);
-        Meteor.call("lookup", attrs, auth_princ.id, function (err, result) {
-	    if (err || !result) {
-		console.log("Principal lookup fails");
-		on_complete(undefined);
-		return;
-	    }
-            var princ = result.principal;
-            var certs = result.certs;
-            var cert_attrs = _.zip(certs, attrs);
-            var princ_keys = Principal.deserialize_keys(princ);
-            var subj_keys = princ_keys;
-            var chain = _.map(cert_attrs, function (data) {
-                var cert = data[0];
-                var attr = data[1];
-                var pk = crypto.deserialize_public(EJSON.parse(
-                    cert.signer
-                ).verify, "ecdsa");
-                var subject = new Principal(subj_keys);
-                var msg = Certificate.contents(subject, attr);
-                // Load up subject keys for the next cert
-                subj_keys = Principal.deserialize_keys(cert.signer);
-                return {
-                    pk: pk,
-                    sig: cert.signature,
-                    m: msg
-                };
-            });
-
-            // The last cert should be signed by authority
-            if (_.last(certs).signer !== auth_princ.id) {
+            var auth_princ = new Principal(authority_pk);
+            console.log("principal from idp: " + auth_princ.id);
+            Meteor.call("lookup", attrs, auth_princ.id, function (err, result) {
+                if (err || !result) {
+                console.log("Principal lookup fails");
                 on_complete(undefined);
-            } else {
-                crypto.chain_verify(chain, function (verified) {
-                    princ = new Principal(princ_keys);
-                    on_complete(verified ? princ : undefined);
-                });
-            }
-        });
-    });
+                return;
+                }
+                var princ = result.principal;
+                var certs = result.certs;
+                var cert_attrs = _.zip(certs, attrs);
+                var princ_keys = Principal.deserialize_keys(princ);
+                var subj_keys = princ_keys;
+                var chain = _.map(cert_attrs, function (data) {
+                    var cert = data[0];
+                    var attr = data[1];
+                    var pk = crypto.deserialize_public(EJSON.parse(
+                            cert.signer
+                            ).verify, "ecdsa");
+                    var subject = new Principal(subj_keys);
+                    var msg = Certificate.contents(subject, attr);
+                    // Load up subject keys for the next cert
+                    subj_keys = Principal.deserialize_keys(cert.signer);
+                    return {
+pk: pk,
+sig: cert.signature,
+m: msg
+};
+});
+
+// The last cert should be signed by authority
+if (_.last(certs).signer !== auth_princ.id) {
+    on_complete(undefined);
+} else {
+    crypto.chain_verify(chain, function (verified) {
+            princ = new Principal(princ_keys);
+            on_complete(verified ? princ : undefined);
+            });
+}
+});
+});
 };
 
 Certificate = function (subject, attr, signer, signature) {

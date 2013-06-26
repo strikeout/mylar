@@ -18,96 +18,7 @@ if (Meteor.isClient) {
         }
     };
 
-    Template.config.events({
-    "click #configure": function() {
-        
 
-        //parse file
-
-        var reader = new FileReader();
-
-        reader.onload = function(file) {
-            var text = file.target.result;
-            var lines = text.split("\n");
-            var state = {}
-            var pw = "submit";
-            for (var i = 0; i < lines.length; i++) {
-                var l = lines[i].split(',');
-                if (l == ''){
-                    continue;
-                }
-                if (l[0].indexOf('@') == 0){
-                //change state
-                    conf = l[0].split('=');
-                    switch(conf[0]){
-                        case '@group':
-                            state["group"] = conf[1];
-                        break;
-                        case '@create_users':
-                        case '@create_groups':
-                        case '@create_assignments':
-                            console.log("mode = " + conf[0]);
-                            state["mode"] = conf[0]
-                        break;
-                        default:
-                            console.log("error parsing file on line " + i);
-                    }
-                    continue;        
-                }
-                //perform action
-                switch(state["mode"]){
-                    case '@create_groups':
-                        console.log("create group " + lines[i]); 
-                    break;
-                    case '@create_users':
-                        var s = lines[i].split(":");
-                        var name = s[0];
-                        var pw = s[1];
-                        var user = {
-                            "username":name,
-                            "email":name,
-                            "password":pw
-                        };
-                        var result = Meteor.call("createUser",user,function(error,result){
-                        if(error){
-                            console.log("error creating user " + lines[i]);
-                            console.log(error);
-                        } else {
-                            Principal.create([], function (p) {
-                                Meteor.users.update(result.id, {$set: {
-                                    keys: p.serialize_keys()
-                                }});
-                                console.log("user " + result.id + " created successfully");
-                            });
-                             //var user = Meteor.users.findOne({"_id":result.id});
-                             //if (user) {
-                             //   if (!_.has(user, 'keys')) {
-                             //   }
-                             // } else {
-                             //   console.log("could not find recently created user with _id: " + result.id);
-                             //}
-                        }});
-
-                        //create users on local server
-                        //create users on idp
-                        //create principal on idp
-                    break;
-
-                    case '@create_assignments':
-                        console.log("create assignment " + lines[i]);
-                    break;
-                    default:
-                        console.log("error parsing file on line " + i + " state " + state["@mode"]);
-                        
-
-
-                }
-            }
-        };
-
-        reader.readAsText(document.getElementById("fileinput").files[0]);
-    },
-    });
 }
 
 if (Meteor.isServer) {
@@ -125,10 +36,16 @@ if (Meteor.isServer) {
   });
 
   Meteor.methods({
+      // look up a user's public key
+      //args: username
+      //returns: public keys corresponding to username, undefined if user doesn't exist
       get_public: function (name) {
           var user = Meteor.users.findOne({
               'username': name
           });
+          if(!user || !user.keys){
+            return undefined;
+          }
           console.log(user);
           var keys = EJSON.parse(user.keys);
           return EJSON.stringify({
@@ -137,6 +54,10 @@ if (Meteor.isServer) {
           });
       },
 
+
+      // look up a user's keys (private and public)
+      // args: username, password
+      // returns user's keys, undefined if user is not found
       get_keys: function (name, pwd) {
           // TODO: check password
           var user = Meteor.users.findOne({
@@ -144,11 +65,16 @@ if (Meteor.isServer) {
           });
           return user.keys;
       },
+      
+      // update keys for user, creates new user if user doesn't exsist
+      // args: username, password, new keys
+      // returns: new keys
       create_keys:  function (name, pwd, nkeys) {
           var user = Meteor.users.findOne({
               'username': name
           });
-          if (user) {
+          if (user) {//TODO: must check password!
+              console.log('update keys for '+name);
               if (!_.has(user, 'keys')) {
                   Meteor.users.update(user._id, {$set: {
                       keys: nkeys
@@ -156,10 +82,13 @@ if (Meteor.isServer) {
               }
               return user.keys;
           } else {
+              console.log('creating user '+name);
               uid = Accounts.createUser({username:name, password:pwd});
+              console.log('user id '+uid);
               Meteor.users.update(uid, {$set: {
                   keys: nkeys
               }});
+              console.log('keys added');
               return nkeys;
           }
       }
