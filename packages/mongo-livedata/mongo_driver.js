@@ -132,7 +132,7 @@ _Mongo = function (url) {
 	      {	  "_id": "search",
 		  "value": new MongoDB.Code(
 		      function(doc, enctext, token) { 
-                          var newtoken = token + doc['adjust']; // temporary placeholder 
+                          var newtoken = token + doc['adjust']; // temporary placeholder  
 			  return enctext.search(newtoken) != -1; 
                       }
 		  )
