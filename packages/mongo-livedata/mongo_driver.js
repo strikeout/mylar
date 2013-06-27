@@ -106,8 +106,6 @@ _Mongo = function (url) {
   if (!(/[\?&]native_?[pP]arser=/.test(url))) {
     options.db.native_parser = false;
   }
-
-  options.db.native_parser = true;
     
   MongoDB.connect(url, options, function(err, db) {
     if (err)
