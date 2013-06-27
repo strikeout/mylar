@@ -81,7 +81,6 @@ var replaceTypes = function (document, atomTransformer) {
   return ret;
 };
 
-
 _Mongo = function (url) {
   var self = this;
   self.collection_queue = [];
@@ -108,10 +107,13 @@ _Mongo = function (url) {
     options.db.native_parser = false;
   }
 
+  options.db.native_parser = true;
+    
   MongoDB.connect(url, options, function(err, db) {
     if (err)
       throw err;
     self.db = db;
+       
 
     // drain queue of pending callbacks
     var c;
@@ -120,8 +122,32 @@ _Mongo = function (url) {
         db.collection(c.name, c.callback);
       }).run();
     }
+            
+      // define a new MongoDB function
+      // for search on encrypted data
+      Fiber(function () {
+	  
+	  var sys_coll = self.db.collection("system.js");	  	  
+	  sys_coll.save(
+	      {	  "_id": "search",
+		  "value": new MongoDB.Code(
+		      function(doc, enctext, token) { 
+                          var newtoken = token + doc['adjust']; // temporary placeholder 
+			  return enctext.search(newtoken) != -1; 
+                      }
+		  )
+	      },
+	      {safe:true},
+	      function(err, doc) {
+		  Meteor._debug('error' + err + " doc " + doc);
+	      }
+	  );
+	  
+      }).run();  
+      
   });
 };
+
 
 // Returns the Mongo Collection object; may yield.
 _Mongo.prototype._getCollection = function(collectionName) {

@@ -66,7 +66,7 @@ Meteor.Collection = function (name, options) {
   self._collection = options._driver.open(name);
   self._name = name;
   self._decrypt_cb = [];   // callbacks for running decryptions
-  self._encrypted_fields = [];
+  self._encrypted_fields = {};
   self._signed_fields = [];
   self._principal_field = 'principal';
 
@@ -240,7 +240,7 @@ Meteor.Collection.prototype.dec_fields = function(container, fields, callback) {
             _.each(fields, function(f) {
                 console.log("dec_fields: decrypt: " + f);
                 var maybe_decrypt = function () {
-                    if (_.indexOf(self._encrypted_fields, f) >= 0) {
+                    if (self._encrypted_fields[f] != null) {
                         p.decrypt(container[f], function (pt) {
                             container[f] = pt;
                             cb();
@@ -313,7 +313,7 @@ Meteor.Collection.prototype.enc_row = function(container, principal, callback) {
                 }
             }
 
-            if (_.indexOf(self._encrypted_fields, f) >= 0) {
+            if (self._encrypted_fields[f] != null) {
                 console.log("encrypting field " + f);
                 p.encrypt(container[f], maybe_sign);
             } else {
