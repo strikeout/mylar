@@ -330,5 +330,89 @@ Principal = function (type, name) {
 	pk.verify = crypto.serialize_public(pk.verify);
 	self.id = EJSON.stringify(pk);
     };
+
+    idp = (function () {
+        var idp = "localhost:3001";
+        var conn = Meteor.connect(idp);
+        return {
+            //find user's public keys on idp
+            lookup: function (name, on_complete) {
+                conn.call("get_public", name, function (err, result) {
+                    console.log("get public keys from idp for " + name);
+                    var keys = Principal.deserialize_keys(result);
+                    on_complete(keys);
+                });
+            },
+            //fetch user's private keys on idp
+            get_keys: function (name, pwd, on_complete) {
+                console.log("get private keys from idp for" + name);
+                conn.call("get_keys", name, pwd, function (err, result) {
+                    on_complete(result);
+                });
+            },
+            //update user's keys on idp, create new user if not exists
+            create_keys: function (name, pwd, on_complete) {
+		console.log("create keys on idp for " + name);
+                Principal.create([], function (nkeys) { ??
+                    conn.call("create_keys", name, pwd, nkeys.serialize_keys(), function (err, result) {
+                        on_complete(result);
+                    });
+                });
+            }
+        };
+    })();
     
 }
+
+
+/*
+   Receives as input
+   subject : Principal
+   signer: id of signinig Principal
+   signature
+   verified 
+ */
+Certificate = function (subject, signer, signature) {
+    this.subject = subject; // Principal
+    this.signer = signer; // Principal id
+    this.signature = signature; // string
+    this.verified = false;
+};
+
+/*
+   This must have the following fields set:
+   id, type, name, pk
+*/
+Certificate.prototype.store = function (on_complete) {
+    var self = this;
+    Certs.insert({
+        subject_id: self.subject.id,
+	subject_type: self.subject.type,
+	subject_name: self.subject.name,
+	subject_pk: self.subject.keys.public_keys,
+	signer: self.signer.id,
+	signature: self.signature
+    });
+    if (on_complete) {
+        on_complete();
+    }
+};
+
+
+Certificate.prototype.verify = function (on_complete) {
+    var self = this;
+    var msg = Certificate.contents(self.subject);
+    var vk = self.signer.keys.verify;
+
+    function verified(passed) {
+        self.verified = passed;
+        on_complete(self.verified);
+    }
+
+    crypto.verify(msg, self.signature, vk, verified);
+};
+
+Certificate.contents = function (subject) {
+    return "(" + subject.id + ", " + subject.type + ", " + subject.name + ")"; ??? also public keys
+};
+
