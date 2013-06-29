@@ -5,6 +5,124 @@ Certs = new Meteor.Collection("certs");
 var crypto;
 
 
+
+PrincName = function (type, name) {
+    this.type = type;
+    this.name = name;
+};
+
+
+if (Meteor.isServer) {
+
+    var allow_all_writes = {
+        insert: function () { return true; },
+        update: function () { return true; }
+    };
+    
+    Principals.allow(allow_all_writes);
+    WrappedKeys.allow(allow_all_writes);
+    Certs.allow(allow_all_writes);
+
+    Meteor.methods({
+
+	/* Given from_princ and to_princ of type Principal, 
+	   finds a key chain from_princ to to_princ.
+	   TODO: Currently exhaustive search. */
+        keychain: function (from_princ, to_princ) {
+
+	    if (!from_princ.id || !from_princ.type) {
+		throw new Error("from principal in key chain must have at least id and type set");
+	    }
+
+	    if (!to_princ.id || !to_princ.type) {
+		throw new Error("to_princ in key chain must have at least id and type set");
+	    }
+
+	    console.log("keychain: from " + from_princ + " to " + to_princ);
+
+	    var frontier = [
+                             [ from_princ, [] ],
+                           ];
+
+            while (frontier.length > 0) {
+                var new_frontier = [];
+                var found_chain;
+                _.each(frontier, function (node) {
+                    var frontier_node = node[0];
+                    var frontier_chain = node[1];
+
+                    if (frontier_node.id === to_princ.id) {
+                        found_chain = frontier_chain;
+                    }
+
+                    var next_hops = WrappedKeys.find({ wrapped_for: frontier_node }).fetch();
+                    _.each(next_hops, function (next_hop) {
+                        var new_chain = frontier_chain.concat([ next_hop.wrapped_key ]);
+                        new_frontier.push([ next_hop.principal, new_chain ]);
+                    });
+                });
+                if (found_chain) {
+                    console.log("found chain: " + found_chain);
+                    return found_chain;
+                }
+                frontier = new_frontier;
+            }
+
+	    console.log("did not find a chain from " + from_princ + " to " + to_princ);
+	    return undefined;
+        },
+
+	/*
+	  Given a list of princNames,
+	  looks up a principal whose name is princName1,
+	  which is certified by some principal with princName2,
+	  ....
+	  which is certified by some principal with princNameN,
+	  which is certified by the user names authority.
+	  Returns a principal only if each of the
+	  certificates is valid.
+
+	  TODO: currently exhaustive lookup
+	*/
+        lookup: function (princnames, authority) {
+            var princs = {};
+            princs[authority] = [];
+            princnames.reverse();
+            for (var i = 0; i < princnames.length; i++) {
+                var princname = princnames[i];
+                var new_princs = {};
+                _.each(princs, function (cert_lst, p) {
+                    var cs = Certs.find({
+                        attr_type: princname.type,
+                        attr_name: princname.name
+                    }).fetch();
+                    _.each(cs, function (cert) {
+			?? cert subject??
+                        if (!_.contains(_.keys(new_princs), cert.subject)) {
+                            var new_lst = cert_lst.slice(0);
+                            new_lst.push(cert);
+                            new_princs[cert.subject] = new_lst;
+                        }
+                    });
+                });
+                princs = new_princs;
+            }
+
+            if (_.isEmpty(princs)) {
+                console.log("No principal found!");
+                return undefined;
+            }
+            var p = _.keys(princs)[0];
+            princs[p].reverse();
+            return {
+                "principal": p,
+                "certs": princs[p]
+            };
+        }
+    });
+}
+
+
 if (Meteor.isClient) {
     crypto = (function () {
         var curve = 192;
