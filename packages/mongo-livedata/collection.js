@@ -68,7 +68,6 @@ Meteor.Collection = function (name, options) {
   self._decrypt_cb = [];   // callbacks for running decryptions
   self._encrypted_fields = {};
   self._signed_fields = [];
-  self._principal_field = 'principal';
 
   if (name && self._connection.registerStore) {
     // OK, we're going to be a slave, replicating some remote
@@ -227,46 +226,51 @@ var intersect = function(a, b) {
     return r;
 };
 
+/* Given fields (set of encrypted or signed fields),
+   decrypt their values in container */
 Meteor.Collection.prototype.dec_fields = function(container, fields, callback) {
     var self = this;
-    console.log("dec_fields: lookup " + container.principal.attr + " " + container.principal.name);
-    Principal.lookup([new CertAttr(container.principal.attr, container.principal.name)], 
-                     container.principal.creator, function (p) {
-        if (p && p.id) {
-            var cb = _.after(fields.length, function() {
-                callback();
-            });
-            console.log("dec_fields: principal: " + p.id);
-            _.each(fields, function(f) {
-                console.log("dec_fields: decrypt: " + f);
-                var maybe_decrypt = function () {
-                    if (self._encrypted_fields[f] != null) {
-                        p.decrypt(container[f], function (pt) {
-                            container[f] = pt;
-                            cb();
-                        });
-                    } else {
-                        cb();
-                    }
-                }
+    console.log("dec_fields: lookup " + container.principal.type + " " + container.principal.name);
 
-                if (_.indexOf(self._signed_fields, f) >= 0) {
-                    p.verify(container[f], container[f + '_signature'], function (ok) {
-                        if (ok) {
-                            console.log("VERIFIED OK");
-                            maybe_decrypt();
-                        } else {
-                            throw new Meteor.Error(500, "signature verification failed");
-                        }
-                    });
-                } else {
-                    maybe_decrypt();
-                }
-            });
-        } else {
-            console.log("couldn't find principal: " + container.principal.attr + " " + container.principal.name);
-            callback();
-        }
+    _.each(fields, function(princ, f) {
+
+	Principal.lookupbyID(princ["_id"],  
+			     function (p) {
+				 if (p && p.id) {
+				     var cb = _.after(fields.length, function() {
+					 callback();
+				     });
+				     console.log("dec_fields: principal: " + p.id);
+				     
+				     console.log("dec_fields: decrypt: " + f);
+				     var maybe_decrypt = function () {
+					 if (self._encrypted_fields[f] != null) {
+					     p.decrypt(container[f], function (pt) {
+						 container[f] = pt;
+						 cb();
+					     });
+					 } else {
+					     cb();
+					 }
+				     }
+				     
+				     if (_.indexOf(self._signed_fields, f) >= 0) {
+					 p.verify(container[f], container[f + '_signature'], function (ok) {
+					     if (ok) {
+					     console.log("VERIFIED OK");
+						 maybe_decrypt();
+					     } else {
+						 throw new Meteor.Error(500, "signature verification failed");
+					     }
+					 });
+				     } else {
+					 maybe_decrypt();
+				     }
+				 });
+			    } else {
+				console.log("couldn't find principal: " + container.principal.attr + " " + container.principal.name);
+				callback();
+			    }
     });
 }
 
@@ -280,6 +284,8 @@ Meteor.Collection.prototype.enc_row = function(container, principal, callback) {
     if (principal == undefined) {
         principal = container.principal;
     }
+
+    /* r is the set of fields in this row that we need to increment or sign */
     var r = intersect(_.union(self._encrypted_fields, self._signed_fields), container);
     if (r.length == 0) {
         callback();
@@ -289,26 +295,28 @@ Meteor.Collection.prototype.enc_row = function(container, principal, callback) {
     var cb = _.after(r.length, function() {
         callback();
     });
-    Principal.lookup([new CertAttr(principal.attr, principal.name)], principal.creator, function (p) {
-        if (!p) {
-            console.log("enc_row: couldn't find principal: " + principal.attr + " " + principal.name);
-            callback();
-            return;
-        }
-
-        console.log("enc_row: principal: " + p.id);
-        _.each(r, function(f) {
+    _.each(r, function(princ, f) {
+	Principal.lookupByID(princ["_id"], function (p) {
+            if (!p) {
+		console.log("enc_row: couldn't find principal: " + principal.type + " " + principal.name);
+		callback();
+		return;
+            }
+	    
+            console.log("enc_row: principal: " + p.id);
+	    
             console.log("encrypt field " + f);
-            var maybe_sign = function (x) {
-                container[f] = x;
 
-                if (_.indexOf(self._signed_fields, f) >= 0) {
+	    var maybe_sign = function (x) {
+		container[f] = x;
+		
+		if (_.indexOf(self._signed_fields, f) >= 0) {
                     console.log("signing field " + f);
                     p.sign(x, function (signature) {
-                        container[f + '_signature'] = signature;
-                        cb();
+			container[f + '_signature'] = signature;
+			cb();
                     });
-                } else {
+		} else {
                     cb();
                 }
             }

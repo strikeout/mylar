@@ -4,9 +4,7 @@ Certs = new Meteor.Collection("certs");
 
 var crypto;
 
-
-
-PrincName = function (type, name) {
+PrincAttr = function (type, name) {
     this.type = type;
     this.name = name;
 };
@@ -26,7 +24,8 @@ if (Meteor.isServer) {
     Meteor.methods({
 
 	/* Given from_princ and to_princ of type Principal, 
-	   finds a key chain from_princ to to_princ.
+	   finds a key chain from_princ to to_princ. from_princ has access
+	   to to_princ thru this chain. 
 	   TODO: Currently exhaustive search. */
         keychain: function (from_princ, to_princ) {
 
@@ -73,36 +72,39 @@ if (Meteor.isServer) {
         },
 
 	/*
-	  Given a list of princNames,
-	  looks up a principal whose name is princName1,
-	  which is certified by some principal with princName2,
+	  Given a list of PrincAttr-s,
+	  looks up a principal whose attrs are PrincAttr1,
+	  which is certified by some principal with PrincAttr2,
 	  ....
-	  which is certified by some principal with princNameN,
-	  which is certified by the user names authority.
+	  which is certified by some principal with PrincAttrN,
+	  which is certified by Principal authority.
 	  Returns a principal only if each of the
 	  certificates is valid.
 
 	  TODO: currently exhaustive lookup
 	*/
-        lookup: function (princnames, authority) {
+        lookup: function (princattrs, authority) {
+
+	    // princs maps a Principal to its certificate 
+	    // initially the principal is authority with no certificate
             var princs = {};
-            princs[authority] = [];
-            princnames.reverse();
-            for (var i = 0; i < princnames.length; i++) {
-                var princname = princnames[i];
+            princs[authority] = "";
+            princattrs.reverse();
+	    
+            for (var i = 0; i < princattrs.length; i++) {
+		// current attribute
+		var princattr = princattrs[i];
                 var new_princs = {};
-                _.each(princs, function (cert_lst, p) {
+                _.each(princs, function (cert_unused, p) {
+		    // p is current authority
                     var cs = Certs.find({
-                        attr_type: princname.type,
-                        attr_name: princname.name
+                        subject_type: princname.type,
+                        subject_name: princname.name,
+			signer : p.id
                     }).fetch();
+		    // add each ceritificate to new_princs
                     _.each(cs, function (cert) {
-			?? cert subject??
-                        if (!_.contains(_.keys(new_princs), cert.subject)) {
-                            var new_lst = cert_lst.slice(0);
-                            new_lst.push(cert);
-                            new_princs[cert.subject] = new_lst;
-                        }
+                        new_princs[cert.subject_id] = cert;
                     });
                 });
                 princs = new_princs;
@@ -116,7 +118,7 @@ if (Meteor.isServer) {
             princs[p].reverse();
             return {
                 "principal": p,
-                "certs": princs[p]
+                "cert": princs[p]
             };
         }
     });
@@ -220,37 +222,44 @@ if (Meteor.isClient) {
             }
         };
     })();
-}
 
-// Creates a new principal
-Principal = function (type, name) {
-    var self = this;
-    
-    if (type == '')
-	throw new Error("Principal needs a type");
-
-    self.type = type;
-    self.name = name;
- 
-    crypto.generate_keys(function (keys) {
-	self.keys = keys;
-
+    // Constructs a new principal
+    // If keys is not defined, it generates random keys
+    Principal = function(type, name, keys) {
+	if (type == '')
+	    throw new Error("Principal needs a type");
+	
+	this.type = type;
+	this.name = name;
+	
+	if (!keys) {
+	    keys = crypto.generate_keys();
+	}
+	
+	this.keys = keys;
+        
 	/* Currently, id is public keys. 
 	 * If too long, generate a random id.
 	 */
-	self.set_id(keys); 
+	this.set_id(keys); 
+
+    }
+
+    // Creates a new node in the principal graph for the given principal
+    // Optional callback function on_complete.
+    Principal.create = function (princ, on_complete) {
 	
 	Principals.insert({
-	    '_id': self.id
-	    'type' : self.type,
-	    'name' : self.name,
-        });
-    });
-	
+	    '_id': princ.id
+	    'type' : princ.type,
+	    'name' : princ.name,
+	});
 
+    }
 
+       
     //TODO: all this should run at the client
-
+    
     // Gives princ1 access to princ2
     Principal.add_access = function (princ1, princ2, on_complete) {
 	
@@ -261,7 +270,7 @@ Principal = function (type, name) {
 	princ2._load_secret_keys(inner);
     };
     
-
+    
     // encrypt's the keys of princ2 with princ 1's keys and
     // stores these new wrapped keys
     Principal._add_access = function (princ1, princ2, on_complete) {
@@ -306,7 +315,7 @@ Principal = function (type, name) {
 				crypto.chain_decrypt(chain, sk, function (unwrapped) {
 				    self.keys.decrypt = unwrapped.decrypt;
 				    self.keys.sign = unwrapped.sign;
-				    on_complete();
+				    on_complete(self);
 				});
 			    } else {
 				// Did not find a chain
@@ -316,6 +325,71 @@ Principal = function (type, name) {
 	}
     };
     
+
+    Principal._erase_secret_keys = function() {
+	this.keys.sign = undefined;
+	this.keys.decrypt = undefined;
+    }
+    
+    Principal.lookupByID = function(id, on_complete) {
+	princ_info = Principal.findOne({_id : id});
+	if (!princ_info) {
+	    throw new Error("could not find principal");
+	}
+
+	var p = new Principal(princ_info["type"], princ_info["name"], _get_keys(id));
+	
+	p._load_secret_keys(on_complete);
+    }
+    
+    /*
+     Takes as input a list of PrincAttrs, an authority Principal 
+    */
+    Principal.lookup = function (attrs, authority, on_complete) {
+	console.log("Principal.lookup: " + authority + " attrs: " + attrs[0].type + "=" + attrs[0].name);
+	idp.lookup(authority, function (authority_pk) {
+            var auth_princ = new Principal(authority_pk);
+            console.log("principal from idp: " + auth_princ.id);
+            Meteor.call("lookup", attrs, auth_princ.id, function (err, result) {
+                if (err || !result) {
+                    console.log("Principal lookup fails");
+                    on_complete(undefined);
+                    return;
+                }
+                var princ = result.principal;
+                var certs = result.certs;
+                var cert_attrs = _.zip(certs, attrs);
+                var princ_keys = Principal.deserialize_keys(princ);
+                var subj_keys = princ_keys;
+                var chain = _.map(cert_attrs, function (data) {
+                    var cert = data[0];
+                    var attr = data[1];
+                    var pk = crypto.deserialize_public(EJSON.parse(
+                        cert.signer
+                    ).verify, "ecdsa");
+                    var subject = new Principal(subj_keys);
+                    var msg = Certificate.contents(subject, attr);
+                    // Load up subject keys for the next cert
+                    subj_keys = Principal.deserialize_keys(cert.signer);
+                    return {
+			pk: pk,
+			sig: cert.signature,
+			m: msg
+		    };
+		});
+		
+		// The last cert should be signed by authority
+		if (_.last(certs).signer !== auth_princ.id) {
+		    on_complete(undefined);
+		} else {
+		    crypto.chain_verify(chain, function (verified) {
+			princ = new Principal(princ_keys);
+			on_complete(verified ? princ : undefined);
+		    });
+		}
+	    });
+	});
+    };
     
     
     Principal.prototype.public_keys = function () {
@@ -330,6 +404,16 @@ Principal = function (type, name) {
 	pk.verify = crypto.serialize_public(pk.verify);
 	self.id = EJSON.stringify(pk);
     };
+
+    _get_keys = function(id) {
+	var pk = EJSON.parse(id);
+	return {
+	    encrypt: crypto.deserialize_public(pk.encrypt),
+	    decrypt: undefined,
+	    verify: crypto.deserialize_public(pk.verify),
+	    sign: undefined
+	}
+    }
 
     idp = (function () {
         var idp = "localhost:3001";
@@ -353,7 +437,7 @@ Principal = function (type, name) {
             //update user's keys on idp, create new user if not exists
             create_keys: function (name, pwd, on_complete) {
 		console.log("create keys on idp for " + name);
-                Principal.create([], function (nkeys) { ??
+                Principal.create([], function (nkeys) { 
                     conn.call("create_keys", name, pwd, nkeys.serialize_keys(), function (err, result) {
                         on_complete(result);
                     });
@@ -412,7 +496,7 @@ Certificate.prototype.verify = function (on_complete) {
     crypto.verify(msg, self.signature, vk, verified);
 };
 
-Certificate.contents = function (subject) {
-    return "(" + subject.id + ", " + subject.type + ", " + subject.name + ")"; ??? also public keys
+Certificate.contents = function (princ) {
+    return "(" + princ.id + ", " + princ.type + ", " + princ.name + ")"; 
 };
 
