@@ -147,9 +147,9 @@ Meteor.Collection = function (name, options) {
                   modifier.$unset = {};
                 modifier.$unset[key] = 1;
               } else {
-                if (!modifier.$set)
-                  modifier.$set = {};
-                modifier.$set[key] = value;
+                  if (!modifier.$set)
+                      modifier.$set = {};
+                  modifier.$set[key] = value;
               }
             });
               // lookup principal for the doc being changed, and add it to $set,
@@ -165,18 +165,18 @@ Meteor.Collection = function (name, options) {
               });
           }
         } else {
-          throw new Error("I don't know how to deal with this message");
+            throw new Error("I don't know how to deal with this message");
         }
-
+	  
       },
-
-      // Called at the end of a batch of updates.
-      endUpdate: function () {
-        self._collection.resumeObservers();
-      },
-
-      runWhenDecrypted: function (f) {
-        var ndecrypts = self._decrypt_cb.length;
+	
+	// Called at the end of a batch of updates.
+	endUpdate: function () {
+            self._collection.resumeObservers();
+	},
+	
+	runWhenDecrypted: function (f) {
+            var ndecrypts = self._decrypt_cb.length;
         if (ndecrypts == 0) {
           f();
         } else {
@@ -203,13 +203,13 @@ Meteor.Collection = function (name, options) {
 
   self._defineMutationMethods();
 
-  // autopublish
-  if (!options._preventAutopublish &&
-      self._connection && self._connection.onAutopublish)
-    self._connection.onAutopublish(function () {
-      var handler = function () { return self.find(); };
-      self._connection.publish(null, handler, {is_auto: true});
-    });
+    // autopublish
+    if (!options._preventAutopublish &&
+	self._connection && self._connection.onAutopublish)
+	self._connection.onAutopublish(function () {
+	    var handler = function () { return self.find(); };
+	    self._connection.publish(null, handler, {is_auto: true});
+	});
 };
 
 ///
@@ -266,11 +266,14 @@ Meteor.Collection.prototype.dec_fields = function(container, fields, callback) {
 				     } else {
 					 maybe_decrypt();
 				     }
-				 });
-			    } else {
-				console.log("couldn't find principal: " + container.principal.attr + " " + container.principal.name);
-				callback();
-			    }
+				 }
+				 else {
+				     console.log("couldn't find principal: " +
+						 container.principal.attr + " " +
+						 container.principal.name);
+				     callback();
+				 }
+			     });
     });
 }
 
@@ -325,7 +328,7 @@ Meteor.Collection.prototype.enc_row = function(container, principal, callback) {
                 console.log("encrypting field " + f);
                 p.encrypt(container[f], maybe_sign);
             } else {
-                maybe_sign(container[f]);
+                maybe_sign(container[f]); 
             }
         });
     });

@@ -250,7 +250,7 @@ if (Meteor.isClient) {
     Principal.create = function (princ, on_complete) {
 	
 	Principals.insert({
-	    '_id': princ.id
+	    '_id': princ.id,
 	    'type' : princ.type,
 	    'name' : princ.name,
 	});
@@ -406,6 +406,7 @@ if (Meteor.isClient) {
     };
 
     _get_keys = function(id) {
+	Meteor._debug("parsing" +  id);
 	var pk = EJSON.parse(id);
 	return {
 	    encrypt: crypto.deserialize_public(pk.encrypt),
