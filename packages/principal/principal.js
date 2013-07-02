@@ -10,6 +10,69 @@ PrincAttr = function (type, name) {
 };
 
 
+// for debugging purposes, it returns a string representing the princ graph
+princ_graph = function() {
+    var princs = Principals.find({}).fetch();
+    var res = "";
+    _.each(princs, function(princ) {
+	res = res + "{'type': " + princ["type"] + ", 'name': " +  princ["name"] + "}" +  " id "+ princ["_id"] + "\n";
+    });
+	return res;
+}
+
+wrapped_keys = function() {
+    var keys = WrappedKeys.find({}).fetch();
+    var res = "";
+    _.each(keys, function(doc) {
+	res = res + "princ: " + doc["principal"] + " wrapped_for " + doc["wrapped_for"] + "\n";
+    });
+    return res;
+}
+
+all_certs = function() {
+    var certs = Certs.find({}).fetch();
+	var res = "";
+    _.each(certs, function(doc) {
+	res = res + "subject: " + doc["subject_id"] + " type " + doc["subject_type"] + " name " + doc["subject_name"] + " SIGNER: " + doc["signer"] + "\n";
+    });
+    return res;
+}
+
+
+deserialize_keys = function (ser) {
+    var keys = EJSON.parse(ser);
+    if (keys.encrypt) {
+        keys.encrypt = crypto.deserialize_public(keys.encrypt, "elGamal");
+    }
+    if (keys.decrypt) {
+        keys.decrypt = crypto.deserialize_private(keys.decrypt, "elGamal");
+    }
+    if (keys.sign) {
+        keys.sign = crypto.deserialize_private(keys.sign, "ecdsa");
+    }
+    if (keys.verify) {
+        keys.verify = crypto.deserialize_public(keys.verify, "ecdsa");
+    }
+    return keys;
+};
+
+
+serialize_keys = function (keys) {
+    var ser = {};
+    _.each(["encrypt", "verify"], function (k) {
+        if (keys[k]) {
+            ser[k] = crypto.serialize_public(keys[k]);
+        }
+    });
+    _.each(["sign", "decrypt"], function (k) {
+        if (keys[k]) {
+            ser[k] = crypto.serialize_private(keys[k]);
+        }
+    });
+    ser = EJSON.stringify(ser);
+    return ser;
+};
+
 if (Meteor.isServer) {
 
     var allow_all_writes = {
@@ -21,6 +84,8 @@ if (Meteor.isServer) {
     WrappedKeys.allow(allow_all_writes);
     Certs.allow(allow_all_writes);
 
+  
+    
     Meteor.methods({
 
 	/* Given from_princ and to_princ of type Principal, 
@@ -77,7 +142,7 @@ if (Meteor.isServer) {
 	  which is certified by some principal with PrincAttr2,
 	  ....
 	  which is certified by some principal with PrincAttrN,
-	  which is certified by Principal authority.
+	  which is certified by authority - id of a principal
 	  Returns a principal only if each of the
 	  certificates is valid.
 
@@ -85,26 +150,40 @@ if (Meteor.isServer) {
 	*/
         lookup: function (princattrs, authority) {
 
-	    // princs maps a Principal to its certificate 
+	    console.log("============== STATE  ============= ");
+	    console.log("all princs are " + princ_graph());
+	    console.log("wrapped keys are " + wrapped_keys());
+	    console.log("certs are " + all_certs());
+	    console.log("==================================");
+	    
+	    console.log("lookup " + JSON.stringify(princattrs) + " auth " + authority);
+
+	    // princs maps a Principal id  to a chain of certificates
+	    // the last certificate in the chain has id as subject
+	    // the first certificate in the chain is signed by authority id
 	    // initially the principal is authority with no certificate
             var princs = {};
-            princs[authority] = "";
+            princs[authority] = [];
             princattrs.reverse();
+	    
+	    //TODO: why is this not checking the certificate chain?
 	    
             for (var i = 0; i < princattrs.length; i++) {
 		// current attribute
 		var princattr = princattrs[i];
                 var new_princs = {};
-                _.each(princs, function (cert_unused, p) {
+                _.each(princs, function (cert_lst, princid) {
 		    // p is current authority
                     var cs = Certs.find({
-                        subject_type: princname.type,
-                        subject_name: princname.name,
-			signer : p.id
+                        subject_type: princattr.type,
+                        subject_name: princattr.name,
+			signer : princid
                     }).fetch();
-		    // add each ceritificate to new_princs
+		    // add each certificate to new_princs
                     _.each(cs, function (cert) {
-                        new_princs[cert.subject_id] = cert;
+			var new_lst = cert_lst.slice(0);
+                        new_lst.push(cert);
+                        new_princs[cert.subject_id] = new_lst;
                     });
                 });
                 princs = new_princs;
@@ -116,6 +195,7 @@ if (Meteor.isServer) {
             }
             var p = _.keys(princs)[0];
             princs[p].reverse();
+	    console.log("lookup: found");
             return {
                 "principal": p,
                 "cert": princs[p]
@@ -129,7 +209,6 @@ if (Meteor.isClient) {
     crypto = (function () {
         var curve = 192;
         return {
-
             serialize_public: function (key) {
                 return sjcl.codec.hex.fromBits(
                     key._point.toBits()
@@ -224,7 +303,7 @@ if (Meteor.isClient) {
     })();
 
     // Constructs a new principal
-    // If keys is not defined, it generates random keys
+    // keys is optional, and is generated randomly if missing
     Principal = function(type, name, keys) {
 	if (type == '')
 	    throw new Error("Principal needs a type");
@@ -241,13 +320,17 @@ if (Meteor.isClient) {
 	/* Currently, id is public keys. 
 	 * If too long, generate a random id.
 	 */
-	this.set_id(keys); 
+	this.set_id(); 
 
     }
 
     // Creates a new node in the principal graph for the given principal
-    // Optional callback function on_complete.
-    Principal.create = function (princ, on_complete) {
+    // If authority is specified:
+    //   -- makes princ certified by authority
+    //   -- authority must have secret keys loaded
+    Principal.create = function (princ, authority) {
+
+	console.log("CREATE princ: " + princ.name + " keys " + princ.keys  + " id " + princ.id);
 	
 	Principals.insert({
 	    '_id': princ.id,
@@ -255,14 +338,24 @@ if (Meteor.isClient) {
 	    'name' : princ.name,
 	});
 
-    }
+	if (authority) {
+	    console.log("creating certificate ");
+	    if (!authority.keys || !authority.keys.sign || !authority.keys.decrypt) {
+		throw new Error("authority does not have secret keys loaded");
+		return;
+	    } 
+	    authority.create_certificate(princ).store();
+	
+	} 
 
+    }
        
     //TODO: all this should run at the client
     
     // Gives princ1 access to princ2
     Principal.add_access = function (princ1, princ2, on_complete) {
-	
+
+	console.log("add_access princ1 " + princ1 + " princ2 " + princ2);
 	// need to load secret keys for princ2 and then add access to princ1
 	// we do these in reverse order due to callbacks
 	
@@ -279,12 +372,15 @@ if (Meteor.isClient) {
             keys.decrypt = crypto.serialize_private(keys.decrypt);
             keys.sign = crypto.serialize_private(keys.sign);
             wrapped = princ1.encrypt(EJSON.stringify(keys));
-	
+	 
+	    
             WrappedKeys.insert({
 		principal: princ2.id,
 		wrapped_for: princ1.id,
 		wrapped_key: wrapped
             });
+
+	    console.log("done with add access");
 	    
 	    if (on_complete) {
 		on_complete();
@@ -293,6 +389,16 @@ if (Meteor.isClient) {
 	};
     };
     
+    Principal.prototype.create_certificate = function (princ) {
+	var self = this;
+	var msg = Certificate.contents(princ);
+        var sig = crypto.sign(msg, self.keys.sign);
+	
+	return new Certificate(princ, self.id, sig);
+    };
+    
+
+
     Principal.prototype._secret_keys = function () {
 	var self = this;
 	return { decrypt: self.keys.decrypt, sign: self.keys.sign };
@@ -305,8 +411,10 @@ if (Meteor.isClient) {
     Principal.prototype._load_secret_keys = function (on_complete) {
 	var self = this;
 	if (self.keys.decrypt && self.keys.sign) {
+	    console.log("already decrypted");
             on_complete();
 	} else {
+	    console.log("need to invoke key chain");
             Meteor.call("keychain", Principal.user().princ,
 			self, function (err, chain) {
 			    console.log("keychain returns: " + chain);
@@ -343,66 +451,87 @@ if (Meteor.isClient) {
     }
     
     /*
-     Takes as input a list of PrincAttrs, an authority Principal 
+     Takes as input a list of PrincAttrs, and the username of a user -- authority
     */
     Principal.lookup = function (attrs, authority, on_complete) {
-	console.log("Principal.lookup: " + authority + " attrs: " + attrs[0].type + "=" + attrs[0].name);
+	console.log("attrs " + JSON.stringify(attrs));
+	console.log("Principal.lookup: " + authority + " attrs[0]: " + attrs[0].type + "=" + attrs[0].name);
+	
 	idp.lookup(authority, function (authority_pk) {
-            var auth_princ = new Principal(authority_pk);
-            console.log("principal from idp: " + auth_princ.id);
-            Meteor.call("lookup", attrs, auth_princ.id, function (err, result) {
+	    var auth_id =  get_id(authority_pk);
+	    console.log("keys of " + authority + " from idp are " + get_id(authority_pk));
+
+	    Meteor.call("lookup", attrs, auth_id, function (err, result) {
+	
                 if (err || !result) {
                     console.log("Principal lookup fails");
                     on_complete(undefined);
                     return;
                 }
+	
                 var princ = result.principal;
-                var certs = result.certs;
-                var cert_attrs = _.zip(certs, attrs);
-                var princ_keys = Principal.deserialize_keys(princ);
+                var certs = result["cert"];
+		
+	        var cert_attrs = _.zip(certs, attrs);
+	        var princ_keys = deserialize_keys(princ);
                 var subj_keys = princ_keys;
+	
                 var chain = _.map(cert_attrs, function (data) {
                     var cert = data[0];
                     var attr = data[1];
-                    var pk = crypto.deserialize_public(EJSON.parse(
-                        cert.signer
-                    ).verify, "ecdsa");
-                    var subject = new Principal(subj_keys);
-                    var msg = Certificate.contents(subject, attr);
+	
+                    var pk = crypto.deserialize_public(EJSON.parse(cert.signer).verify,
+						       "ecdsa");
+		    console.log("signer's pk is " + EJSON.parse(cert.signer));
+                    var subject = new Principal(attr.type, attr.name, subj_keys);
+                    var msg = Certificate.contents(subject);
                     // Load up subject keys for the next cert
-                    subj_keys = Principal.deserialize_keys(cert.signer);
+                    subj_keys = deserialize_keys(cert.signer);
                     return {
 			pk: pk,
 			sig: cert.signature,
 			m: msg
 		    };
 		});
-		
+
 		// The last cert should be signed by authority
-		if (_.last(certs).signer !== auth_princ.id) {
+		if (_.last(certs).signer !== auth_id) {
+		    console.log("last cert is not signed by authority");
 		    on_complete(undefined);
 		} else {
-		    crypto.chain_verify(chain, function (verified) {
-			princ = new Principal(princ_keys);
-			on_complete(verified ? princ : undefined);
-		    });
+		    var verified = crypto.chain_verify(chain);
+		    if (verified) {
+			console.log("chain verifies");
+			princ = new Principal(attrs[0].type, attrs[0].name, princ_keys);
+			on_complete(princ);
+		    } else {
+			console.log("chain does not verify");
+			on_complete(undefined);
+		    }
 		}
 	    });
 	});
     };
+
     
     
     Principal.prototype.public_keys = function () {
 	var self = this;
 	return { encrypt: self.keys.encrypt, verify: self.keys.verify };
     };
+
+    /* Given an object keys, returns the id of a princ with those keys */
+    get_id = function (keys) {
+	var pk = {};
+	pk.encrypt = crypto.serialize_public(keys.encrypt);
+	pk.verify = crypto.serialize_public(keys.verify);
+	return EJSON.stringify(pk);
+    }
     
-    Principal.prototype.set_id = function (keys) {
+    Principal.prototype.set_id = function () {
 	var self = this;
-	var pk = self.public_keys();
-	pk.encrypt = crypto.serialize_public(pk.encrypt);
-	pk.verify = crypto.serialize_public(pk.verify);
-	self.id = EJSON.stringify(pk);
+	self.id = get_id(self.keys);
+	console.log("EJSON is " + self.id);
     };
 
     _get_keys = function(id) {
@@ -416,6 +545,39 @@ if (Meteor.isClient) {
 	}
     }
 
+    
+    Principal.prototype.encrypt = function (pt, on_complete) {
+	var self = this;
+	crypto.encrypt(self.keys.encrypt, pt, on_complete);
+    };
+    
+    Principal.prototype.decrypt = function (ct, on_complete) {
+	var self = this;
+	self._load_secret_keys(function () {
+	    if (self.keys.decrypt) {
+		crypto.decrypt(self.keys.decrypt, ct, on_complete);
+	    } else {
+	    on_complete();
+	    }
+	});
+    };
+    
+    Principal.prototype.sign = function (msg, on_complete) {
+	var self = this;
+	self._load_secret_keys(function () {
+        if (self.keys.sign) {
+            crypto.sign(msg, self.keys.sign, on_complete);
+        } else {
+            on_complete();
+        }
+	});
+    };
+    
+    Principal.prototype.verify = function (msg, sig, on_complete) {
+    var self = this;
+	crypto.verify(msg, sig, self.keys.verify, on_complete);
+    };
+    
     idp = (function () {
         var idp = "localhost:3001";
         var conn = Meteor.connect(idp);
@@ -424,7 +586,8 @@ if (Meteor.isClient) {
             lookup: function (name, on_complete) {
                 conn.call("get_public", name, function (err, result) {
                     console.log("get public keys from idp for " + name);
-                    var keys = Principal.deserialize_keys(result);
+                    var keys = deserialize_keys(result);
+		    console.log("deserialize");
                     on_complete(keys);
                 });
             },
@@ -438,11 +601,11 @@ if (Meteor.isClient) {
             //update user's keys on idp, create new user if not exists
             create_keys: function (name, pwd, on_complete) {
 		console.log("create keys on idp for " + name);
-                Principal.create([], function (nkeys) { 
-                    conn.call("create_keys", name, pwd, nkeys.serialize_keys(), function (err, result) {
-                        on_complete(result);
-                    });
-                });
+		var nkeys = crypto.generate_keys();
+                conn.call("create_keys", name, pwd, serialize_keys(nkeys),
+			  function (err, result) {
+                              on_complete(result);
+			  });
             }
         };
     })();
@@ -458,6 +621,7 @@ if (Meteor.isClient) {
    verified 
  */
 Certificate = function (subject, signer, signature) {
+
     this.subject = subject; // Principal
     this.signer = signer; // Principal id
     this.signature = signature; // string
@@ -468,20 +632,18 @@ Certificate = function (subject, signer, signature) {
    This must have the following fields set:
    id, type, name, pk
 */
-Certificate.prototype.store = function (on_complete) {
+Certificate.prototype.store = function () {
     var self = this;
+    console.log("in store");
     Certs.insert({
         subject_id: self.subject.id,
 	subject_type: self.subject.type,
 	subject_name: self.subject.name,
-	subject_pk: self.subject.keys.public_keys,
-	signer: self.signer.id,
+	signer: self.signer,
 	signature: self.signature
     });
-    if (on_complete) {
-        on_complete();
-    }
-};
+    console.log("storing a new cert; certs is now " + all_certs());
+ };
 
 
 Certificate.prototype.verify = function (on_complete) {
@@ -497,6 +659,7 @@ Certificate.prototype.verify = function (on_complete) {
     crypto.verify(msg, self.signature, vk, verified);
 };
 
+//TODO: verify consistency public keys and id
 Certificate.contents = function (princ) {
     return "(" + princ.id + ", " + princ.type + ", " + princ.name + ")"; 
 };

@@ -6,14 +6,14 @@ if (Meteor.isClient) {
     Template.hello.user_email = function () {
         var user = Meteor.users.findOne();
         if (user) {
-            if (!_.has(user, 'keys')) {
-                Principal.create([], function (p) {
-                    Meteor.users.update(user._id, {$set: {
-                        keys: p.serialize_keys(),
-                        username:user.emails[0].address
-                    }});
-                });
-            }
+	    // TODO: more inconsistency in idp: why would we need this for??
+	    if (!_.has(user, 'keys')) {
+		var user_princ = new Principal("user", user.emails[0].address);
+                Meteor.users.update(user._id, {$set: {
+                    keys: serialize_keys(user_princ.keys),
+                    username:user.emails[0].address
+                }});
+            } 
             return user.emails[0].address;
         }
     };
@@ -40,14 +40,22 @@ if (Meteor.isServer) {
       //args: username
       //returns: public keys corresponding to username, undefined if user doesn't exist
       get_public: function (name) {
-          var user = Meteor.users.findOne({
+          var users = Meteor.users.find({
               'username': name
-          });
+          }).fetch();
+	  var sz = _.size(users);
+	  if (sz != 1) {
+	      console.log("found " + sz + " user called " + name);
+	      return undefined;
+	  }
+	  var user = users[0];
           if(!user || !user.keys){
             return undefined;
           }
-          console.log(user);
+          console.log("idp: get_public for " + name);
+	  console.log("before parse , keys are " + user.keys);
           var keys = EJSON.parse(user.keys);
+	  console.log("after parse;");
           return EJSON.stringify({
               encrypt: keys.encrypt,
               verify: keys.verify
@@ -74,8 +82,11 @@ if (Meteor.isServer) {
               'username': name
           });
           if (user) {//TODO: must check password!
-              console.log('update keys for '+name);
+	      if (!nkeys) {
+		  throw new Error("nkeys is null");
+	      }
               if (!_.has(user, 'keys')) {
+		  console.log("NEW KEYS for " + name + " keys " + nkeys);
                   Meteor.users.update(user._id, {$set: {
                       keys: nkeys
                   }});
@@ -85,12 +96,14 @@ if (Meteor.isServer) {
               console.log('creating user '+name);
               uid = Accounts.createUser({username:name, password:pwd});
               console.log('user id '+uid);
+	      console.log("NEW KEYS for " + name + " keys " + nkeys);
               Meteor.users.update(uid, {$set: {
                   keys: nkeys
               }});
-              console.log('keys added');
+              console.log('keys added for ' + name);
               return nkeys;
           }
       }
+
   });
 }

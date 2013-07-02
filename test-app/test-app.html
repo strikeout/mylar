@@ -1,0 +1,29 @@
+<head>
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="-1">
+  <title>Test</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+</head>
+
+<body>
+  {{>mytest}}
+</body>
+
+
+<template name="mytest">
+  <div id="message">
+  <h1>Running test...</h1>
+  </div>
+  <div id="running">
+    <textarea class="field span6"  rows ="2" id="status"/>
+  </div>
+  <div>
+    {{runtest}}
+    </div>
+</template>
+
+
+
+
+
+
