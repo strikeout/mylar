@@ -24,7 +24,9 @@ wrapped_keys = function() {
     var keys = WrappedKeys.find({}).fetch();
     var res = "";
     _.each(keys, function(doc) {
-	res = res + "princ: " + doc["principal"] + " wrapped_for " + doc["wrapped_for"] + "\n";
+	res = res + "principal: " + doc["principal"]
+	          + " wrapped_for " + doc["wrapped_for"]
+	          + "wrapped_key" + doc["wrapped_key"] +  "\n";
     });
     return res;
 }
@@ -94,6 +96,12 @@ if (Meteor.isServer) {
 	   TODO: Currently exhaustive search. */
         keychain: function (from_princ, to_princ) {
 
+	    console.log("================= wrapped keys ======= ");
+	    console.log(wrapped_keys());
+	    console.log("=========================================");
+	    	 
+	    console.log("KEYCHAIN: from " + JSON.stringify(from_princ) + " to " + JSON.stringify(to_princ));
+
 	    if (!from_princ.id || !from_princ.type) {
 		throw new Error("from principal in key chain must have at least id and type set");
 	    }
@@ -102,36 +110,38 @@ if (Meteor.isServer) {
 		throw new Error("to_princ in key chain must have at least id and type set");
 	    }
 
-	    console.log("keychain: from " + from_princ + " to " + to_princ);
-
+	    // frontier is a list of principal id-s and
+	    // the wrapped keys to reach them starting from from_princ
 	    var frontier = [
-                             [ from_princ, [] ],
+                             [ from_princ.id, [] ],
                            ];
 
             while (frontier.length > 0) {
                 var new_frontier = [];
                 var found_chain;
                 _.each(frontier, function (node) {
-                    var frontier_node = node[0];
+                    var frontier_id = node[0];
                     var frontier_chain = node[1];
-
-                    if (frontier_node.id === to_princ.id) {
+		    
+		    console.log("compare ids " + frontier_id + " to " + to_princ.id);
+                    if (frontier_id === to_princ.id) {
                         found_chain = frontier_chain;
+			console.log("found chain: " + found_chain);
+			return found_chain;
                     }
-
-                    var next_hops = WrappedKeys.find({ wrapped_for: frontier_node }).fetch();
+		    
+                    var next_hops = WrappedKeys.find({ wrapped_for: frontier_id }).fetch();
+		    console.log("next hops are " + JSON.stringify(next_hops));
                     _.each(next_hops, function (next_hop) {
+			console.log("next hop wrapped key is " + next_hop.wrapped_key);
                         var new_chain = frontier_chain.concat([ next_hop.wrapped_key ]);
+			console.log("next hop princ is " + next_hop.principal);
                         new_frontier.push([ next_hop.principal, new_chain ]);
                     });
                 });
-                if (found_chain) {
-                    console.log("found chain: " + found_chain);
-                    return found_chain;
-                }
                 frontier = new_frontier;
             }
-
+	    
 	    console.log("did not find a chain from " + from_princ + " to " + to_princ);
 	    return undefined;
         },
@@ -151,9 +161,9 @@ if (Meteor.isServer) {
         lookup: function (princattrs, authority) {
 
 	    console.log("============== STATE  ============= ");
-	    console.log("all princs are " + princ_graph());
-	    console.log("wrapped keys are " + wrapped_keys());
-	    console.log("certs are " + all_certs());
+	//    console.log("all princs are " + princ_graph());
+	//    console.log("wrapped keys are " + wrapped_keys());
+	//    console.log("certs are " + all_certs());
 	    console.log("==================================");
 	    
 	    console.log("lookup " + JSON.stringify(princattrs) + " auth " + authority);
@@ -355,7 +365,7 @@ if (Meteor.isClient) {
     // Gives princ1 access to princ2
     Principal.add_access = function (princ1, princ2, on_complete) {
 
-	console.log("add_access princ1 " + princ1 + " princ2 " + princ2);
+	console.log("add_access princ1 " + princ1.name + " to princ2 " + princ2.name);
 	// need to load secret keys for princ2 and then add access to princ1
 	// we do these in reverse order due to callbacks
 	
@@ -369,10 +379,15 @@ if (Meteor.isClient) {
     Principal._add_access = function (princ1, princ2, on_complete) {
 	return function () {
             var keys = princ2._secret_keys();
-            keys.decrypt = crypto.serialize_private(keys.decrypt);
+	    if (!keys) {
+		throw new Error("princ2 should have secret keys loaded");
+	    }
+	    keys.decrypt = crypto.serialize_private(keys.decrypt);
             keys.sign = crypto.serialize_private(keys.sign);
-            wrapped = princ1.encrypt(EJSON.stringify(keys));
-	 
+            var wrapped = princ1.encrypt(EJSON.stringify(keys));
+
+	    console.log("wrapped keys to INSERT " + wrapped + " keys " + EJSON.stringify(keys));
+	    console.log("princ1's public keys " + crypto.serialize_public(princ1.keys.encrypt));
 	    
             WrappedKeys.insert({
 		principal: princ2.id,
@@ -381,6 +396,7 @@ if (Meteor.isClient) {
             });
 
 	    console.log("done with add access");
+	    console.log("wrapped keys are " + wrapped_keys());
 	    
 	    if (on_complete) {
 		on_complete();
@@ -403,31 +419,50 @@ if (Meteor.isClient) {
 	var self = this;
 	return { decrypt: self.keys.decrypt, sign: self.keys.sign };
     };
+
     
+    // Assumes user's private keys are sitting in localStorage.
+    // How did they get there? What happens if they're not there?
+    Principal.prototype.user = function () {
+	var keys = Principal.deserialize_keys(localStorage['user_princ_keys']);
+	return new Principal(keys);
+    };
+
     
     // loads secret keys for the principal self.id
-    // by finding a chain to the current principal Principal.user()
-    // and using the users secret key to decrypt the chain
+    // by finding a chain to the current user and decrypts the secret keys
     Principal.prototype._load_secret_keys = function (on_complete) {
 	var self = this;
 	if (self.keys.decrypt && self.keys.sign) {
-	    console.log("already decrypted");
+	    console.log("secret keys available");
             on_complete();
 	} else {
-	    console.log("need to invoke key chain");
-            Meteor.call("keychain", Principal.user().princ,
-			self, function (err, chain) {
+	    var auth = new Principal("user", Meteor.user().username,
+				     deserialize_keys(localStorage['user_princ_keys']));
+	    
+	    console.log("no sk keys:  invoke key chain");
+
+	    // hack: rpc cannot stringify keys with json
+	    var auth2 = new Principal(auth.type, auth.name, auth.keys);
+	    auth2.keys = {};
+	    var self2 = new Principal(self.type, self.name, self.keys);
+	    self2.keys = {};
+            Meteor.call("keychain", auth2,
+			self2, function (err, chain) {
 			    console.log("keychain returns: " + chain);
 			    if (chain) {
-				var sk = Principal.user().keys.decrypt;
-				crypto.chain_decrypt(chain, sk, function (unwrapped) {
-				    self.keys.decrypt = unwrapped.decrypt;
-				    self.keys.sign = unwrapped.sign;
+				var sk = auth.keys.decrypt;
+				var unwrapped = crypto.chain_decrypt(chain, sk);
+				self.keys.decrypt = unwrapped.decrypt;
+				self.keys.sign = unwrapped.sign;
+				if (on_complete) {
 				    on_complete(self);
-				});
-			    } else {
+				}
+			    }
+			    else {
 				// Did not find a chain
-				on_complete();
+				throw new Error("keychain not found");
+				
 			    }
 			});
 	}
@@ -458,6 +493,7 @@ if (Meteor.isClient) {
 	console.log("Principal.lookup: " + authority + " attrs[0]: " + attrs[0].type + "=" + attrs[0].name);
 	
 	idp.lookup(authority, function (authority_pk) {
+	    console.log("get_id compute");
 	    var auth_id =  get_id(authority_pk);
 	    console.log("keys of " + authority + " from idp are " + get_id(authority_pk));
 
@@ -503,10 +539,14 @@ if (Meteor.isClient) {
 		    if (verified) {
 			console.log("chain verifies");
 			princ = new Principal(attrs[0].type, attrs[0].name, princ_keys);
-			on_complete(princ);
+			if (on_complete) {
+			    on_complete(princ);
+			}
 		    } else {
 			console.log("chain does not verify");
-			on_complete(undefined);
+			if (on_complete) {
+			    on_complete(undefined);
+			}
 		    }
 		}
 	    });
@@ -531,7 +571,6 @@ if (Meteor.isClient) {
     Principal.prototype.set_id = function () {
 	var self = this;
 	self.id = get_id(self.keys);
-	console.log("EJSON is " + self.id);
     };
 
     _get_keys = function(id) {
@@ -545,32 +584,31 @@ if (Meteor.isClient) {
 	}
     }
 
-    
-    Principal.prototype.encrypt = function (pt, on_complete) {
+
+    // requires public key to be set
+    Principal.prototype.encrypt = function (pt) {
 	var self = this;
-	crypto.encrypt(self.keys.encrypt, pt, on_complete);
+	return crypto.encrypt(self.keys.encrypt, pt);
     };
-    
-    Principal.prototype.decrypt = function (ct, on_complete) {
+
+    // requires keys.decrypt to be set
+    Principal.prototype.decrypt = function (ct) {
 	var self = this;
-	self._load_secret_keys(function () {
-	    if (self.keys.decrypt) {
-		crypto.decrypt(self.keys.decrypt, ct, on_complete);
-	    } else {
-	    on_complete();
-	    }
-	});
+	if (self.keys.decrypt) {
+	    return crypto.decrypt(self.keys.decrypt, ct);
+	} else {
+	    throw new Error("cannot decrypt without decrypt key");
+	}
     };
-    
-    Principal.prototype.sign = function (msg, on_complete) {
+
+    // requires sign key to be set
+    Principal.prototype.sign = function (msg) {
 	var self = this;
-	self._load_secret_keys(function () {
         if (self.keys.sign) {
-            crypto.sign(msg, self.keys.sign, on_complete);
+            return crypto.sign(msg, self.keys.sign);
         } else {
-            on_complete();
+            throw new Error("cannot sign with missing keys");
         }
-	});
     };
     
     Principal.prototype.verify = function (msg, sig, on_complete) {
@@ -582,8 +620,9 @@ if (Meteor.isClient) {
         var idp = "localhost:3001";
         var conn = Meteor.connect(idp);
         return {
-            //find user's public keys on idp
+            //find user's public keys on idp, returns keys deserialized
             lookup: function (name, on_complete) {
+		console.log("idp_lookup called");
                 conn.call("get_public", name, function (err, result) {
                     console.log("get public keys from idp for " + name);
                     var keys = deserialize_keys(result);

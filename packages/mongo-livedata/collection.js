@@ -253,11 +253,11 @@ Meteor.Collection.prototype.dec_fields = function(container, fields, callback) {
 					     cb();
 					 }
 				     }
-				     
+			
 				     if (_.indexOf(self._signed_fields, f) >= 0) {
 					 p.verify(container[f], container[f + '_signature'], function (ok) {
 					     if (ok) {
-					     console.log("VERIFIED OK");
+						 console.log("VERIFIED OK");
 						 maybe_decrypt();
 					     } else {
 						 throw new Meteor.Error(500, "signature verification failed");
@@ -265,7 +265,8 @@ Meteor.Collection.prototype.dec_fields = function(container, fields, callback) {
 					 });
 				     } else {
 					 maybe_decrypt();
-				     }
+				     } 
+				     maybe_decrypt();
 				 }
 				 else {
 				     console.log("couldn't find principal: " +
@@ -278,6 +279,8 @@ Meteor.Collection.prototype.dec_fields = function(container, fields, callback) {
 }
 
 Meteor.Collection.prototype.enc_row = function(container, principal, callback) {
+
+    console.log("enc row");
     var self = this;
     if (!Meteor.isClient || !container) {
         callback();
@@ -288,7 +291,7 @@ Meteor.Collection.prototype.enc_row = function(container, principal, callback) {
         principal = container.principal;
     }
 
-    /* r is the set of fields in this row that we need to increment or sign */
+    /* r is the set of fields in this row that we need to encrypt or sign */
     var r = intersect(_.union(self._encrypted_fields, self._signed_fields), container);
     if (r.length == 0) {
         callback();
@@ -491,7 +494,6 @@ _.each(["insert", "update", "remove"], function (name) {
     }
 
       var f = function() {
-          console.log("callback f running");
           if (self._connection && self._connection !== Meteor.default_server) {
               // just remote to another endpoint, propagate return value or
               // exception.

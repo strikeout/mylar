@@ -40,6 +40,7 @@ if (Meteor.isServer) {
       //args: username
       //returns: public keys corresponding to username, undefined if user doesn't exist
       get_public: function (name) {
+	  console.log("idp get_public");
           var users = Meteor.users.find({
               'username': name
           }).fetch();
