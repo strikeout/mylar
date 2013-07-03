@@ -4,6 +4,8 @@ Certs = new Meteor.Collection("certs");
 
 var crypto;
 
+var debug = false;
+
 PrincAttr = function (type, name) {
     this.type = type;
     this.name = name;
@@ -95,12 +97,9 @@ if (Meteor.isServer) {
 	   to to_princ thru this chain. 
 	   TODO: Currently exhaustive search. */
         keychain: function (from_princ, to_princ) {
-
-	    console.log("================= wrapped keys ======= ");
-	    console.log(wrapped_keys());
-	    console.log("=========================================");
 	    	 
-	    console.log("KEYCHAIN: from " + JSON.stringify(from_princ) + " to " + JSON.stringify(to_princ));
+	    if (debug) 
+		console.log("KEYCHAIN: from " + JSON.stringify(from_princ) + " to " + JSON.stringify(to_princ));
 
 	    if (!from_princ.id || !from_princ.type) {
 		throw new Error("from principal in key chain must have at least id and type set");
@@ -116,29 +115,29 @@ if (Meteor.isServer) {
                              [ from_princ.id, [] ],
                            ];
 
+	    var found_chain;
             while (frontier.length > 0) {
                 var new_frontier = [];
-                var found_chain;
+
                 _.each(frontier, function (node) {
                     var frontier_id = node[0];
                     var frontier_chain = node[1];
 		    
-		    console.log("compare ids " + frontier_id + " to " + to_princ.id);
-                    if (frontier_id === to_princ.id) {
+	            if (frontier_id === to_princ.id) {
                         found_chain = frontier_chain;
-			console.log("found chain: " + found_chain);
 			return found_chain;
                     }
 		    
                     var next_hops = WrappedKeys.find({ wrapped_for: frontier_id }).fetch();
-		    console.log("next hops are " + JSON.stringify(next_hops));
                     _.each(next_hops, function (next_hop) {
-			console.log("next hop wrapped key is " + next_hop.wrapped_key);
                         var new_chain = frontier_chain.concat([ next_hop.wrapped_key ]);
-			console.log("next hop princ is " + next_hop.principal);
                         new_frontier.push([ next_hop.principal, new_chain ]);
                     });
                 });
+
+		if (found_chain) {
+		    return found_chain;
+		}
                 frontier = new_frontier;
             }
 	    
@@ -159,14 +158,9 @@ if (Meteor.isServer) {
 	  TODO: currently exhaustive lookup
 	*/
         lookup: function (princattrs, authority) {
-
-	    console.log("============== STATE  ============= ");
-	//    console.log("all princs are " + princ_graph());
-	//    console.log("wrapped keys are " + wrapped_keys());
-	//    console.log("certs are " + all_certs());
-	    console.log("==================================");
 	    
-	    console.log("lookup " + JSON.stringify(princattrs) + " auth " + authority);
+	    if (debug)
+		console.log("lookup " + JSON.stringify(princattrs) + " auth " + authority);
 
 	    // princs maps a Principal id  to a chain of certificates
 	    // the last certificate in the chain has id as subject
@@ -205,7 +199,6 @@ if (Meteor.isServer) {
             }
             var p = _.keys(princs)[0];
             princs[p].reverse();
-	    console.log("lookup: found");
             return {
                 "principal": p,
                 "cert": princs[p]
@@ -340,7 +333,7 @@ if (Meteor.isClient) {
     //   -- authority must have secret keys loaded
     Principal.create = function (princ, authority) {
 
-	console.log("CREATE princ: " + princ.name + " keys " + princ.keys  + " id " + princ.id);
+	if (debug) console.log("CREATE princ: " + princ.name + " keys " + princ.keys  + " id " + princ.id);
 	
 	Principals.insert({
 	    '_id': princ.id,
@@ -349,7 +342,6 @@ if (Meteor.isClient) {
 	});
 
 	if (authority) {
-	    console.log("creating certificate ");
 	    if (!authority.keys || !authority.keys.sign || !authority.keys.decrypt) {
 		throw new Error("authority does not have secret keys loaded");
 		return;
@@ -365,7 +357,7 @@ if (Meteor.isClient) {
     // Gives princ1 access to princ2
     Principal.add_access = function (princ1, princ2, on_complete) {
 
-	console.log("add_access princ1 " + princ1.name + " to princ2 " + princ2.name);
+	if (debug) console.log("add_access princ1 " + princ1.name + " to princ2 " + princ2.name);
 	// need to load secret keys for princ2 and then add access to princ1
 	// we do these in reverse order due to callbacks
 	
@@ -385,9 +377,6 @@ if (Meteor.isClient) {
 	    keys.decrypt = crypto.serialize_private(keys.decrypt);
             keys.sign = crypto.serialize_private(keys.sign);
             var wrapped = princ1.encrypt(EJSON.stringify(keys));
-
-	    console.log("wrapped keys to INSERT " + wrapped + " keys " + EJSON.stringify(keys));
-	    console.log("princ1's public keys " + crypto.serialize_public(princ1.keys.encrypt));
 	    
             WrappedKeys.insert({
 		principal: princ2.id,
@@ -395,9 +384,6 @@ if (Meteor.isClient) {
 		wrapped_key: wrapped
             });
 
-	    console.log("done with add access");
-	    console.log("wrapped keys are " + wrapped_keys());
-	    
 	    if (on_complete) {
 		on_complete();
 	    }
@@ -434,13 +420,13 @@ if (Meteor.isClient) {
     Principal.prototype._load_secret_keys = function (on_complete) {
 	var self = this;
 	if (self.keys.decrypt && self.keys.sign) {
-	    console.log("secret keys available");
+	    if (debug) console.log("secret keys available");
             on_complete();
 	} else {
 	    var auth = new Principal("user", Meteor.user().username,
 				     deserialize_keys(localStorage['user_princ_keys']));
 	    
-	    console.log("no sk keys:  invoke key chain");
+	    if (debug) console.log("no sk keys:  invoke key chain");
 
 	    // hack: rpc cannot stringify keys with json
 	    var auth2 = new Principal(auth.type, auth.name, auth.keys);
@@ -449,7 +435,7 @@ if (Meteor.isClient) {
 	    self2.keys = {};
             Meteor.call("keychain", auth2,
 			self2, function (err, chain) {
-			    console.log("keychain returns: " + chain);
+			    if (debug) console.log("keychain returns: " + chain);
 			    if (chain) {
 				var sk = auth.keys.decrypt;
 				var unwrapped = crypto.chain_decrypt(chain, sk);
@@ -489,13 +475,11 @@ if (Meteor.isClient) {
      Takes as input a list of PrincAttrs, and the username of a user -- authority
     */
     Principal.lookup = function (attrs, authority, on_complete) {
-	console.log("attrs " + JSON.stringify(attrs));
-	console.log("Principal.lookup: " + authority + " attrs[0]: " + attrs[0].type + "=" + attrs[0].name);
+
+	if (debug) console.log("Principal.lookup: " + authority + " attrs[0]: " + attrs[0].type + "=" + attrs[0].name);
 	
 	idp.lookup(authority, function (authority_pk) {
-	    console.log("get_id compute");
 	    var auth_id =  get_id(authority_pk);
-	    console.log("keys of " + authority + " from idp are " + get_id(authority_pk));
 
 	    Meteor.call("lookup", attrs, auth_id, function (err, result) {
 	
@@ -518,7 +502,6 @@ if (Meteor.isClient) {
 	
                     var pk = crypto.deserialize_public(EJSON.parse(cert.signer).verify,
 						       "ecdsa");
-		    console.log("signer's pk is " + EJSON.parse(cert.signer));
                     var subject = new Principal(attr.type, attr.name, subj_keys);
                     var msg = Certificate.contents(subject);
                     // Load up subject keys for the next cert
@@ -537,7 +520,7 @@ if (Meteor.isClient) {
 		} else {
 		    var verified = crypto.chain_verify(chain);
 		    if (verified) {
-			console.log("chain verifies");
+			if (debug) console.log("chain verifies");
 			princ = new Principal(attrs[0].type, attrs[0].name, princ_keys);
 			if (on_complete) {
 			    on_complete(princ);
@@ -588,7 +571,11 @@ if (Meteor.isClient) {
     // requires public key to be set
     Principal.prototype.encrypt = function (pt) {
 	var self = this;
-	return crypto.encrypt(self.keys.encrypt, pt);
+	if (self.keys.encrypt) {
+	    return crypto.encrypt(self.keys.encrypt, pt);
+	} else {
+	    throw new Error("encrypt key must be set");
+	}
     };
 
     // requires keys.decrypt to be set
@@ -611,9 +598,13 @@ if (Meteor.isClient) {
         }
     };
     
-    Principal.prototype.verify = function (msg, sig, on_complete) {
-    var self = this;
-	crypto.verify(msg, sig, self.keys.verify, on_complete);
+    Principal.prototype.verify = function (msg, sig) {
+	var self = this;
+	if (self.keys.verify) {
+	    return crypto.verify(msg, sig, self.keys.verify);
+	} else {
+	    throw new Error("verify key must be set");
+	}
     };
     
     idp = (function () {
@@ -622,24 +613,21 @@ if (Meteor.isClient) {
         return {
             //find user's public keys on idp, returns keys deserialized
             lookup: function (name, on_complete) {
-		console.log("idp_lookup called");
                 conn.call("get_public", name, function (err, result) {
-                    console.log("get public keys from idp for " + name);
+                    if (debug) console.log("get public keys from idp for " + name);
                     var keys = deserialize_keys(result);
-		    console.log("deserialize");
                     on_complete(keys);
                 });
             },
             //fetch user's private keys on idp
             get_keys: function (name, pwd, on_complete) {
-                console.log("get private keys from idp for" + name);
                 conn.call("get_keys", name, pwd, function (err, result) {
                     on_complete(result);
                 });
             },
             //update user's keys on idp, create new user if not exists
             create_keys: function (name, pwd, on_complete) {
-		console.log("create keys on idp for " + name);
+		if (debug) console.log("create keys on idp for " + name);
 		var nkeys = crypto.generate_keys();
                 conn.call("create_keys", name, pwd, serialize_keys(nkeys),
 			  function (err, result) {
@@ -673,7 +661,6 @@ Certificate = function (subject, signer, signature) {
 */
 Certificate.prototype.store = function () {
     var self = this;
-    console.log("in store");
     Certs.insert({
         subject_id: self.subject.id,
 	subject_type: self.subject.type,
@@ -681,7 +668,7 @@ Certificate.prototype.store = function () {
 	signer: self.signer,
 	signature: self.signature
     });
-    console.log("storing a new cert; certs is now " + all_certs());
+
  };
 
 
