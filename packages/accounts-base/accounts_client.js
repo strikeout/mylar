@@ -164,7 +164,9 @@ Accounts._makeClientLoggedIn = function(userId, token) {
 };
 
 Meteor.logout = function (callback) {
-    localStorage['user_princ'] = undefined;
+    localStorage['user_princ_name'] = undefined;
+    localStorage['user_princ_keys'] = undefined;
+    
     Meteor.apply('logout', [], {wait: true}, function(error, result) {
     if (error) {
       callback && callback(error);

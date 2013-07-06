@@ -35,7 +35,8 @@ Meteor.loginWithPassword = function (selector, password, callback) {
 	if (!keys) {
 	    throw new Error("idp error, cannot login this user");
 	}
-	localStorage['user_princ']= {keys: keys, username: uname};
+	localStorage['user_princ_keys']= keys;
+	localStorage['user_princ_name'] = name;
 	
 	request.user = selector;
 	
@@ -65,36 +66,41 @@ Meteor.loginWithPassword = function (selector, password, callback) {
 };
 
 Meteor.userPrinc = function () {
-    var p = localStorage['user_princ'];
+    var pname = localStorage['user_princ_name'];
+    var pkeys = localStorage['user_princ_keys'];
     
-    if (!p || !p['username'] || !p['keys']) {
+    if (!pname || !pkeys) {
+	console.log("USERPRINC UNDEFINED");
 	return undefined;
     }
 
-    return new Principal('user', p['username'], p['keys']);
+    return new Principal('user', pname, deserialize_keys(pkeys));
     
 }
 
 // Attempt to log in as a new user.
 Accounts.createUser = function (options, callback) {
-  options = _.clone(options); // we'll be modifying options
-
-  if (!options.password)
-    throw new Error("Must set options.password");
-  var verifier = Meteor._srp.generateVerifier(options.password);
-  // strip old password, replacing with the verifier object
-  delete options.password;
-  options.srp = verifier;
-
-    if (!options.username)
-	throw new Error("Meteor-enc needs username when creating account");
+    options = _.clone(options); // we'll be modifying options
 
     var uname = options.username;
     var pwd = options.password;
 
+    if (!pwd)
+	throw new Error("Must set options.password");
+    
+    if (!uname) {
+	throw new Error("Meteor-enc needs username when creating account");
+    }
+
+    var verifier = Meteor._srp.generateVerifier(options.password);
+    // strip old password, replacing with the verifier object
+    delete options.password;
+    options.srp = verifier;
+    
     idp.create_keys(uname, pwd, function(keys) {
-	localStorage['user_princ'] = {keys : keys, username: uname};
-	var user_princ = new Principal('user', uname, pwd);
+	localStorage['user_princ_name'] = uname;
+	localStorage['user_princ_keys'] = keys;
+	var user_princ = new Principal('user', uname, deserialize_keys(keys));
 	Principal.create(user_princ);
 	
 	Accounts.callLoginMethod({
