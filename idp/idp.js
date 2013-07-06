@@ -1,4 +1,3 @@
-isidp = true;
 
 if (Meteor.isClient) {
     Deps.autorun(function () {
@@ -56,9 +55,8 @@ if (Meteor.isServer) {
             return undefined;
           }
           console.log("idp: get_public for " + name);
-	  console.log("before parse , keys are " + user.keys);
           var keys = EJSON.parse(user.keys);
-	  console.log("after parse;");
+
           return EJSON.stringify({
               encrypt: keys.encrypt,
               verify: keys.verify
@@ -101,13 +99,11 @@ if (Meteor.isServer) {
               return user.keys;
           } else {
               console.log('creating keys for  '+name);
-              uid = Accounts.createUser({username:name, password:pwd});
-              console.log('user id '+uid);
+       
 	      console.log("NEW KEYS for " + name + " keys " + nkeys);
-              Meteor.users.update(uid, {$set: {
-                  keys: nkeys
-              }});
-              console.log('keys added for ' + name);
+	      Meteor.users.insert({username: name , keys: nkeys});
+	      console.log('keys added for ' + name);
+	      
               return nkeys;
           }
       }

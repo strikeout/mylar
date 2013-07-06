@@ -91,7 +91,7 @@ Accounts.createUser = function (options, callback) {
 
     var uname = options.username;
     var pwd = options.password;
-    
+
     idp.create_keys(uname, pwd, function(keys) {
 	localStorage['user_princ'] = {keys : keys, username: uname};
 	var user_princ = new Principal('user', uname, pwd);
