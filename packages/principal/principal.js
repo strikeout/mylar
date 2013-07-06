@@ -327,11 +327,35 @@ if (Meteor.isClient) {
 
     }
 
+    // creates a principal of type and name
+    // as certified by principal authority
+    // and stores it in the principal graph
+    // as certified by creator
+    // naturally, creator gets access to this principal
+    // runs callback cb upon completion
+    // returns the principal created
+    Principal.create = function(type, name, creator, cb) {
+
+	if (!type || !name || !creator) {
+	    throw new Error("cannot create principal with invalid (type, name, creator) : ("
+			    + type + ", " + name + ", " + creator +")");
+	}
+
+	if (!creator.keys.sign) {
+	    throw new Error("creator " + creator.name + " does not have sign keys available");
+	}
+	
+	var p = new Principal(type, name);
+	Principal._store(p, creator);
+	Principal.add_access(creator, p, cb);
+	return p;
+    }
+
     // Creates a new node in the principal graph for the given principal
     // If authority is specified:
     //   -- makes princ certified by authority
     //   -- authority must have secret keys loaded
-    Principal.create = function (princ, authority) {
+    Principal._store = function (princ, authority) {
 
 	if (debug) console.log("CREATE princ: " + princ.name + " keys " + princ.keys  + " id " + princ.id);
 	
@@ -494,10 +518,10 @@ if (Meteor.isClient) {
 	
         idp.lookup(uname, function (keys) {
 	    if (!keys) {
-		console.log("no keys found for " + invitee);
+		console.log("no keys found for " + uname);
 		return;
 	    }
-	    cb(new Principal("user", invitee, keys));
+	    cb(new Principal("user", uname, keys));
         });
     }
     

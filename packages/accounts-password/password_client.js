@@ -65,19 +65,6 @@ Meteor.loginWithPassword = function (selector, password, callback) {
     });
 };
 
-Meteor.userPrinc = function () {
-    var pname = localStorage['user_princ_name'];
-    var pkeys = localStorage['user_princ_keys'];
-    
-    if (!pname || !pkeys) {
-	console.log("USERPRINC UNDEFINED");
-	return undefined;
-    }
-
-    return new Principal('user', pname, deserialize_keys(pkeys));
-    
-}
-
 // Attempt to log in as a new user.
 Accounts.createUser = function (options, callback) {
     options = _.clone(options); // we'll be modifying options
@@ -101,7 +88,7 @@ Accounts.createUser = function (options, callback) {
 	localStorage['user_princ_name'] = uname;
 	localStorage['user_princ_keys'] = keys;
 	var user_princ = new Principal('user', uname, deserialize_keys(keys));
-	Principal.create(user_princ);
+	Principal._store(user_princ);
 	
 	Accounts.callLoginMethod({
 	    methodName: 'createUser',
