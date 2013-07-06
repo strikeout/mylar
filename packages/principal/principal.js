@@ -470,6 +470,36 @@ if (Meteor.isClient) {
 	
 	p._load_secret_keys(on_complete);
     }
+
+    // returns the principal corresponding to the current user
+    Principal.user = function () {
+	var pname = localStorage['user_princ_name'];
+	var pkeys = localStorage['user_princ_keys'];
+	
+	if (!pname || !pkeys) {
+	    console.log("USERPRINC UNDEFINED");
+	    return undefined;
+	}
+	
+	return new Principal('user', pname, deserialize_keys(pkeys));
+    }
+
+
+    // returns a principal for the user with uname and feeds it as input to callback cb
+    Principal.lookupUser = function(uname, cb) {
+
+	if (!uname) {
+	    throw new Error("cannot lookup user principal with uname " + uname);
+	}
+	
+        idp.lookup(uname, function (keys) {
+	    if (!keys) {
+		console.log("no keys found for " + invitee);
+		return;
+	    }
+	    cb(new Principal("user", invitee, keys));
+        });
+    }
     
     /*
      Takes as input a list of PrincAttrs, and the username of a user -- authority
