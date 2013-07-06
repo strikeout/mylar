@@ -1,3 +1,5 @@
+isidp = true;
+
 if (Meteor.isClient) {
     Deps.autorun(function () {
         Meteor.subscribe("userdata");
@@ -69,9 +71,13 @@ if (Meteor.isServer) {
       // returns user's keys, undefined if user is not found
       get_keys: function (name, pwd) {
           // TODO: check password
+	  console.log("get_keys name " + name);
           var user = Meteor.users.findOne({
               'username': name
           });
+	  if (!user) {
+	      throw new Error("user " + user + " does not exist at idp");
+	  }
           return user.keys;
       },
       
@@ -94,7 +100,7 @@ if (Meteor.isServer) {
               }
               return user.keys;
           } else {
-              console.log('creating user '+name);
+              console.log('creating keys for  '+name);
               uid = Accounts.createUser({username:name, password:pwd});
               console.log('user id '+uid);
 	      console.log("NEW KEYS for " + name + " keys " + nkeys);

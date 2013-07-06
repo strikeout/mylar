@@ -621,6 +621,7 @@ if (Meteor.isClient) {
             },
             //fetch user's private keys on idp
             get_keys: function (name, pwd, on_complete) {
+		console.log("get keys for " + name);
                 conn.call("get_keys", name, pwd, function (err, result) {
                     on_complete(result);
                 });
