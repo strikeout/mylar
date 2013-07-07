@@ -210,41 +210,42 @@ Meteor.Collection = function (name, options) {
 /// Main collection API
 ///
 
-// returns a list of keys that show up in both a and b
-var intersect = function(a, b) {
-    r = [];
-    _.each(a, function(i) {
-        if (_.has(b, i)) {
-            r.push(i);
-        }
-    });
-    return r;
-};
-
-/* Given container -- an object with key (field name) and value (enc value) 
-   fields -- set of field names that are encrypted or signed,
-   decrypt their values in container
-   */
-Meteor.Collection.prototype.dec_fields = function(container, fields, callback) {
-    var self = this;
-    
-    _.each(fields, function(f) {
+// returns a function F, such that F
+// looks up the enc and sign principals for the field f
+lookup_princ_func = function(f) {
+    // given a list of annotations, such as self._encrypted_fields,
+    // looks-up the principal in the annotation of field f
+    return function(annot_name, cb) {
+	var princ_id = self[annot_name][f];
 	
-	// given a list of annotations, such as self._encrypted_fields,
-	// looks-up the principal in the annotation of field f
-	var lookup_princ = function(annot_name, cb) {
-	    var princ_id = self["annot_name"][f];
-	    
-	    if (!princ_id) {
-		cb(undefined, undefined);
-	    }
-	    
-	    Principal.lookupByID(princ_id, function(princ){
-		cb(undefined, princ);
-	    });
+	if (!princ_id) {
+	    cb(undefined, undefined);
 	}
 	
-	async.map(["_encrypted_fields", "_signed_fields"], lookup_princ,
+	Principal.lookupByID(princ_id, function(princ){
+	    princ._load_secret_keys(function(princ) {
+		cb(undefined, princ);
+	    });
+	});
+    }
+    
+}
+
+/*
+  Given container -- an object with key (field name) and value (enc value) 
+  fields -- set of field names that are encrypted or signed,
+  decrypt their values in container
+*/
+Meteor.Collection.prototype.dec_fields = function(container, callback) {
+    var self = this;
+    
+    var cb = _.after(container.length, function() {
+        callback();
+    });
+    
+    _.each(container, function(v, f) {
+	
+	async.map(["_encrypted_fields", "_signed_fields"], lookup_princ_func(f),
 		  function(err, results) {
 		      if (err) {
 			  throw new Error("could not find princs");
@@ -260,69 +261,49 @@ Meteor.Collection.prototype.dec_fields = function(container, fields, callback) {
 		      if (dec_princ)
 			  container[f] = dec_princ.decrypt(container[f]);
 		      
-		      callback();
+		      cb();
 		  });	
     });
 }
-    
-Meteor.Collection.prototype.enc_row = function(container, principal, callback) {
 
-    console.log("enc row");
+// encrypts & signs a document
+// container is a map of key to values 
+Meteor.Collection.prototype.enc_row = function(container, callback) {
     var self = this;
+    
+    console.log("enc row");
+
     if (!Meteor.isClient || !container) {
         callback();
         return;
     }
 
-    if (principal == undefined) {
-        principal = container.principal;
-    }
-
-    /* r is the set of fields in this row that we need to encrypt or sign */
-    var r = intersect(_.union(self._encrypted_fields, self._signed_fields), container);
-    if (r.length == 0) {
-        callback();
-        return;
-    }
-
-    var cb = _.after(r.length, function() {
+    var cb = _.after(container.length, function() {
         callback();
     });
-    _.each(r, function(princ, f) {
-	
-	Principal._lookupByID(princ["_id"], function (p) {
-            if (!p) {
-		console.log("enc_row: couldn't find principal: " + principal.type + " " + principal.name);
-		callback();
-		return;
-            }
-	    
-            console.log("enc_row: principal: " + p.id);
-	    
-            console.log("encrypt field " + f);
 
-	    var maybe_sign = function (x) {
-		container[f] = x;
-		
-		if (_.indexOf(self._signed_fields, f) >= 0) {
-                    console.log("signing field " + f);
-                    p.sign(x, function (signature) {
-			container[f + '_signature'] = signature;
-			cb();
-                    });
-		} else {
-                    cb();
-                }
-            }
-
-            if (self._encrypted_fields[f] != null) {
-                console.log("encrypting field " + f);
-                p.encrypt(container[f], maybe_sign);
-            } else {
-                maybe_sign(container[f]); 
-            }
-        });
-    });
+    _.each(container, function(princ, v, f) {
+       
+       async.map(["_encrypted_fields", "_signed_fields"], lookup_princ_func(f),
+		 function(err, results) {
+		     if (err) {
+			 throw new Error("could not find princs");
+		     }
+		     var enc_princ = results[0];
+		     var sign_princ = results[1];
+		     
+		     if (enc_princ)
+			 container[f] = enc_princ.encrypt(container[f]);
+		     
+		     if (sign_princ) {
+			 console.log("signing field " + f);
+			 container[f + '_signature'] = sign_princ.sign(x);
+		     }
+		     
+		     cb();
+	      });	
+    }
+ 
 }
 
 // container is an object with key (field name), value (enc field value)
@@ -330,12 +311,7 @@ Meteor.Collection.prototype.dec_msg = function(container, callback) {
     var self = this;
 
     if (Meteor.isClient && container) {
-        var r = intersect(_.union(self._encrypted_fields, self._signed_fields), container);
-        if (r.length > 0) {
-            self.dec_fields(container, r, callback2);
-        } else {
-            callback2();
-        }
+        self.dec_fields(container, callback2);
     } else {
         callback2();
     }
@@ -529,7 +505,7 @@ _.each(["insert", "update", "remove"], function (name) {
       } else {
         ret = args[0]._id = self._makeNewID();
       }
-        self.enc_row(args[0], undefined, f);
+        self.enc_row(args[0], f);
     } else {
       args[0] = Meteor.Collection._rewriteSelector(args[0]);
     }
@@ -537,8 +513,8 @@ _.each(["insert", "update", "remove"], function (name) {
       if (name == "update") {
           // Does set have a principal argument necessary for encryption?
           // XXX handle only updates, not push
-          if (args.length > 2) self.enc_row(args[1]['$set'], args[2].principal, f)
-          else self.enc_row(args[1]['$set'], undefined, f)
+          if (args.length > 2) self.enc_row(args[1]['$set'], f)
+          else self.enc_row(args[1]['$set'], f)
       }
 
       if (name == "remove") {

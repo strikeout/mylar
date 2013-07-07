@@ -527,6 +527,8 @@ if (Meteor.isClient) {
     
     /*
      Takes as input a list of PrincAttrs, and the username of a user -- authority
+     and outputs a principal for attrs[0].
+     The principal does not have secret keys loaded. 
     */
     Principal.lookup = function (attrs, authority, on_complete) {
 
