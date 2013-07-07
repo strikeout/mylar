@@ -168,7 +168,8 @@ Meteor.Collection = function (name, options) {
 	endUpdate: function () {
             self._collection.resumeObservers();
 	},
-	
+
+	// will be run when documents are ready in the local database
 	runWhenDecrypted: function (f) {
             var ndecrypts = self._decrypt_cb.length;
             if (ndecrypts == 0) {
@@ -210,6 +211,17 @@ Meteor.Collection = function (name, options) {
 /// Main collection API
 ///
 
+// returns a list of keys that show up in both a and b
+var intersect = function(a, b) {
+    r = [];
+    _.each(a, function(v, i) {
+        if (_.has(b, i)) {
+            r.push(i);
+        }
+    });
+    return r;
+};
+
 // returns a function F, such that F
 // looks up the enc and sign principals for the field f
 lookup_princ_func = function(f) {
@@ -236,15 +248,14 @@ lookup_princ_func = function(f) {
   fields -- set of field names that are encrypted or signed,
   decrypt their values in container
 */
-Meteor.Collection.prototype.dec_fields = function(container, callback) {
+Meteor.Collection.prototype.dec_fields = function(container, fields, callback) {
     var self = this;
     
-    var cb = _.after(container.length, function() {
+    var cb = _.after(fields.length, function() {
         callback();
     });
     
-    _.each(container, function(v, f) {
-	
+    _.each(fields, function(f) {
 	async.map(["_encrypted_fields", "_signed_fields"], lookup_princ_func(f),
 		  function(err, results) {
 		      if (err) {
@@ -270,19 +281,25 @@ Meteor.Collection.prototype.dec_fields = function(container, callback) {
 // container is a map of key to values 
 Meteor.Collection.prototype.enc_row = function(container, callback) {
     var self = this;
-    
-    console.log("enc row");
+     console.log("enc row");
 
     if (!Meteor.isClient || !container) {
         callback();
         return;
     }
 
-    var cb = _.after(container.length, function() {
+    /* r is the set of fields in this row that we need to encrypt or sign */
+    var r = intersect(_.union(self._encrypted_fields, self._signed_fields), container);
+    if (r.length == 0) {
+        callback();
+        return;
+    }
+
+    var cb = _.after(r.length, function() {
         callback();
     });
 
-    _.each(container, function(princ, v, f) {
+   _.each(r, function(f) {
        
        async.map(["_encrypted_fields", "_signed_fields"], lookup_princ_func(f),
 		 function(err, results) {
@@ -311,7 +328,12 @@ Meteor.Collection.prototype.dec_msg = function(container, callback) {
     var self = this;
 
     if (Meteor.isClient && container) {
-        self.dec_fields(container, callback2);
+        var r = intersect(_.union(self._encrypted_fields, self._signed_fields), container);
+        if (r.length > 0) {
+            self.dec_fields(container, callback2);
+        } else {
+            callback2();
+        }
     } else {
         callback2();
     }
