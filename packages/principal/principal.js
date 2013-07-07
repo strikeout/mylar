@@ -484,7 +484,7 @@ if (Meteor.isClient) {
 	this.keys.decrypt = undefined;
     }
     
-    Principal.lookupByID = function(id, on_complete) {
+    Principal._lookupByID = function(id, on_complete) {
 	princ_info = Principal.findOne({_id : id});
 	if (!princ_info) {
 	    throw new Error("could not find principal");
