@@ -214,13 +214,22 @@ Meteor.Collection = function (name, options) {
 // returns a list of keys that show up in both a and b
 var intersect = function(a, b) {
     r = [];
-    _.each(a, function(v, i) {
-        if (_.has(b, i)) {
-            r.push(i);
+
+    _.each(a, function(f) {
+	console.log("f " + f);
+        if (_.has(b, f)) {
+            r.push(f);
         }
     });
+
     return r;
 };
+
+
+enc_fields = function(enc_fields, signed_fields, container) {
+    return intersect(_.union(_.keys(enc_fields), _.keys(signed_fields)), container);
+}
+
 
 // returns a function F, such that F
 // looks up the enc and sign principals for the field f
@@ -269,9 +278,10 @@ Meteor.Collection.prototype.dec_fields = function(container, fields, callback) {
 			      throw new Error("signature does not verify on field " + f);
 			  }
 		      }
-		      if (dec_princ)
+		      if (dec_princ) {
 			  container[f] = dec_princ.decrypt(container[f]);
-		      
+			  console.log("Decrypt " + f + " princ name " + dec_princ.name);
+		      }
 		      cb();
 		  });	
     });
@@ -282,6 +292,7 @@ Meteor.Collection.prototype.dec_fields = function(container, fields, callback) {
 Meteor.Collection.prototype.enc_row = function(container, callback) {
     var self = this;
      console.log("enc row");
+    console.log("container is " + JSON.stringify(container));
 
     if (!Meteor.isClient || !container) {
         callback();
@@ -289,7 +300,9 @@ Meteor.Collection.prototype.enc_row = function(container, callback) {
     }
 
     /* r is the set of fields in this row that we need to encrypt or sign */
-    var r = intersect(_.union(self._encrypted_fields, self._signed_fields), container);
+    var r = enc_fields(self._encrypted_fields, self._signed_fields, container);
+
+    console.log("r is " + JSON.stringify(r));
     if (r.length == 0) {
         callback();
         return;
@@ -319,16 +332,26 @@ Meteor.Collection.prototype.enc_row = function(container, callback) {
 		     
 		     cb();
 	      });	
-    }
+   });
  
 }
 
 // container is an object with key (field name), value (enc field value)
 Meteor.Collection.prototype.dec_msg = function(container, callback) {
     var self = this;
+    
+    var callback_q = [];
+    self._decrypt_cb.push(callback_q);
+    callback2 = function () {
+	callback();
+	self._decrypt_cb = _.without(self._decrypt_cb, callback_q);
+	_.each(callback_q, function (f) {
+            f();
+	});
+    };
 
     if (Meteor.isClient && container) {
-        var r = intersect(_.union(self._encrypted_fields, self._signed_fields), container);
+        var r = enc_fields(self._encrypted_fields, self._signed_fields, container);
         if (r.length > 0) {
             self.dec_fields(container, callback2);
         } else {
