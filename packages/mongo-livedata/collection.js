@@ -1,6 +1,7 @@
 // connection, if given, is a LivedataClient or LivedataServer
 // XXX presently there is no way to destroy/clean up a Collection
 
+var debug = false;
 
 Meteor.Collection = function (name, options) {
   var self = this;
@@ -103,7 +104,7 @@ Meteor.Collection = function (name, options) {
         var mongoId = Meteor.idParse(msg.id);
         var doc = self._collection.findOne(mongoId);
 
-        console.log("msg: " + msg.msg );
+        //console.log("msg: " + msg.msg );
 
         // Is this a "replace the whole doc" message coming from the quiescence
         // of method writes to an object? (Note that 'undefined' is a valid
@@ -117,7 +118,6 @@ Meteor.Collection = function (name, options) {
                   } else if (!doc) {
                       self._collection.insert(replace);
                   } else {
-                      console.log("replace callback: do replace");
                       // XXX check that replace has no $ ops
                       self._collection.update(mongoId, replace);
                   }
@@ -141,7 +141,6 @@ Meteor.Collection = function (name, options) {
           if (!_.isEmpty(msg.fields)) {
             var modifier = {};
             _.each(msg.fields, function (value, key) {
-                console.log("change key: " + key + value);
               if (value === undefined) {
                 if (!modifier.$unset)
                   modifier.$unset = {};
@@ -216,7 +215,6 @@ var intersect = function(a, b) {
     r = [];
 
     _.each(a, function(f) {
-	console.log("f " + f);
         if (_.has(b, f)) {
             r.push(f);
         }
@@ -233,19 +231,26 @@ enc_fields = function(enc_fields, signed_fields, container) {
 
 // returns a function F, such that F
 // looks up the enc and sign principals for the field f
-lookup_princ_func = function(f) {
+lookup_princ_func = function(f, container) {
     // given a list of annotations, such as self._encrypted_fields,
     // looks-up the principal in the annotation of field f
-    return function(annot_name, cb) {
-	var princ_id = self[annot_name][f];
+    return function(annot, cb) {
+
+	var annotf = annot[f];
+	if (!annotf) { // f has no annotation in annot
+	    cb(undefined, undefined);
+	    return;
+	}
+	var princ_id = container[annotf['princ']];
 	
 	if (!princ_id) {
 	    cb(undefined, undefined);
+	    return;
 	}
 	
-	Principal.lookupByID(princ_id, function(princ){
-	    princ._load_secret_keys(function(princ) {
-		cb(undefined, princ);
+	Principal._lookupByID(princ_id, function(princ){
+	    princ._load_secret_keys(function(fullprinc) {
+		cb(undefined, fullprinc);
 	    });
 	});
     }
@@ -265,7 +270,7 @@ Meteor.Collection.prototype.dec_fields = function(container, fields, callback) {
     });
     
     _.each(fields, function(f) {
-	async.map(["_encrypted_fields", "_signed_fields"], lookup_princ_func(f),
+	async.map([self._encrypted_fields, self._signed_fields], lookup_princ_func(f, container),
 		  function(err, results) {
 		      if (err) {
 			  throw new Error("could not find princs");
@@ -280,7 +285,6 @@ Meteor.Collection.prototype.dec_fields = function(container, fields, callback) {
 		      }
 		      if (dec_princ) {
 			  container[f] = dec_princ.decrypt(container[f]);
-			  console.log("Decrypt " + f + " princ name " + dec_princ.name);
 		      }
 		      cb();
 		  });	
@@ -291,8 +295,6 @@ Meteor.Collection.prototype.dec_fields = function(container, fields, callback) {
 // container is a map of key to values 
 Meteor.Collection.prototype.enc_row = function(container, callback) {
     var self = this;
-     console.log("enc row");
-    console.log("container is " + JSON.stringify(container));
 
     if (!Meteor.isClient || !container) {
         callback();
@@ -302,7 +304,6 @@ Meteor.Collection.prototype.enc_row = function(container, callback) {
     /* r is the set of fields in this row that we need to encrypt or sign */
     var r = enc_fields(self._encrypted_fields, self._signed_fields, container);
 
-    console.log("r is " + JSON.stringify(r));
     if (r.length == 0) {
         callback();
         return;
@@ -313,8 +314,8 @@ Meteor.Collection.prototype.enc_row = function(container, callback) {
     });
 
    _.each(r, function(f) {
-       
-       async.map(["_encrypted_fields", "_signed_fields"], lookup_princ_func(f),
+
+       async.map([self._encrypted_fields, self._signed_fields], lookup_princ_func(f, container),
 		 function(err, results) {
 		     if (err) {
 			 throw new Error("could not find princs");
@@ -322,12 +323,12 @@ Meteor.Collection.prototype.enc_row = function(container, callback) {
 		     var enc_princ = results[0];
 		     var sign_princ = results[1];
 		     
-		     if (enc_princ)
+		     if (enc_princ) {
 			 container[f] = enc_princ.encrypt(container[f]);
-		     
+		     }
+			 
 		     if (sign_princ) {
-			 console.log("signing field " + f);
-			 container[f + '_signature'] = sign_princ.sign(x);
+			 container[f + '_signature'] = sign_princ.sign(container[f]);
 		     }
 		     
 		     cb();
@@ -343,7 +344,9 @@ Meteor.Collection.prototype.dec_msg = function(container, callback) {
     var callback_q = [];
     self._decrypt_cb.push(callback_q);
     callback2 = function () {
-	callback();
+	if (callback) {
+	    callback();
+	}
 	self._decrypt_cb = _.without(self._decrypt_cb, callback_q);
 	_.each(callback_q, function (f) {
             f();
@@ -353,7 +356,7 @@ Meteor.Collection.prototype.dec_msg = function(container, callback) {
     if (Meteor.isClient && container) {
         var r = enc_fields(self._encrypted_fields, self._signed_fields, container);
         if (r.length > 0) {
-            self.dec_fields(container, callback2);
+            self.dec_fields(container, r, callback2);
         } else {
             callback2();
         }
@@ -493,6 +496,7 @@ _.each(["insert", "update", "remove"], function (name) {
       };
     }
 
+      // function used as callback
       var f = function() {
           if (self._connection && self._connection !== Meteor.default_server) {
               // just remote to another endpoint, propagate return value or

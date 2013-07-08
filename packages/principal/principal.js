@@ -4,7 +4,7 @@ Certs = new Meteor.Collection("certs");
 
 var crypto;
 
-var debug = false;
+var debug = true;
 
 PrincAttr = function (type, name) {
     this.type = type;
@@ -144,6 +144,11 @@ if (Meteor.isServer) {
 	    console.log("did not find a chain from " + from_princ + " to " + to_princ);
 	    return undefined;
         },
+
+	// returns a principal with id from the principal graph
+	lookupByID: function(id) {
+	    return Principals.findOne({_id: id});
+	},
 
 	/*
 	  Given a list of PrincAttr-s,
@@ -445,7 +450,7 @@ if (Meteor.isClient) {
 	var self = this;
 	if (self.keys.decrypt && self.keys.sign) {
 	    if (debug) console.log("secret keys available");
-            on_complete();
+            on_complete(self);
 	} else {
 	    var auth = new Principal("user", Meteor.user().username,
 				     deserialize_keys(localStorage['user_princ_keys']));
@@ -459,7 +464,7 @@ if (Meteor.isClient) {
 	    self2.keys = {};
             Meteor.call("keychain", auth2,
 			self2, function (err, chain) {
-			    if (debug) console.log("keychain returns: " + chain);
+			    //if (debug) console.log("keychain returns: " + chain);
 			    if (chain) {
 				var sk = auth.keys.decrypt;
 				var unwrapped = crypto.chain_decrypt(chain, sk);
@@ -485,23 +490,24 @@ if (Meteor.isClient) {
     }
     
     Principal._lookupByID = function(id, on_complete) {
-	princ_info = Principal.findOne({_id : id});
-	if (!princ_info) {
-	    throw new Error("could not find principal");
-	}
+	if (debug) console.log("lookupByID princ id " + id);
 
-	var p = new Principal(princ_info["type"], princ_info["name"], _get_keys(id));
-	
-	p._load_secret_keys(on_complete);
-    }
-
+	Meteor.call("lookupByID", id, function(err, result) {
+	    if (err) {
+		throw new Error("could not find princ with id " + id);
+	    }
+	    var princ_info = result;
+	    var p = new Principal(princ_info["type"], princ_info["name"], _get_keys(id));
+	    
+	    p._load_secret_keys(on_complete);
+	});
+    } 
     // returns the principal corresponding to the current user
     Principal.user = function () {
 	var pname = localStorage['user_princ_name'];
 	var pkeys = localStorage['user_princ_keys'];
 	
 	if (!pname || !pkeys) {
-	    console.log("USERPRINC UNDEFINED");
 	    return undefined;
 	}
 	
@@ -518,7 +524,7 @@ if (Meteor.isClient) {
 	
         idp.lookup(uname, function (keys) {
 	    if (!keys) {
-		console.log("no keys found for " + uname);
+		if (debug) console.log("no keys found for " + uname);
 		return;
 	    }
 	    cb(new Principal("user", uname, keys));
@@ -612,13 +618,14 @@ if (Meteor.isClient) {
 	self.id = get_id(self.keys);
     };
 
+    // transforms an id into keys - crypto instance of public keys
     _get_keys = function(id) {
-	Meteor._debug("parsing" +  id);
 	var pk = EJSON.parse(id);
+
 	return {
-	    encrypt: crypto.deserialize_public(pk.encrypt),
+	    encrypt: crypto.deserialize_public(pk.encrypt, "elGamal"),
 	    decrypt: undefined,
-	    verify: crypto.deserialize_public(pk.verify),
+	    verify: crypto.deserialize_public(pk.verify, "ecdsa"),
 	    sign: undefined
 	}
     }
@@ -677,7 +684,7 @@ if (Meteor.isClient) {
             },
             //fetch user's private keys on idp
             get_keys: function (name, pwd, on_complete) {
-		console.log("get keys for " + name);
+		if (debug) console.log("get keys for " + name);
                 conn.call("get_keys", name, pwd, function (err, result) {
                     on_complete(result);
                 });
