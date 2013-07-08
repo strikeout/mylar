@@ -36,6 +36,7 @@
 // various environment variables (such as PORT and MONGO_URL). The enclosed node
 // application is expected to do the rest, including serving /static.
 
+
 var path = require('path');
 var files = require(path.join(__dirname, 'files.js'));
 var packages = require(path.join(__dirname, 'packages.js'));
@@ -46,6 +47,8 @@ var uglify = require('uglify-js');
 var cleanCSS = require('clean-css');
 var _ = require('underscore');
 var project = require(path.join(__dirname, 'project.js'));
+//needed for cryptframe signing
+var sjcl = require(path.join(__dirname, 'sjcl.js'));
 
 // files to ignore when bundling. node has no globs, so use regexps
 var ignore_files = [
@@ -61,6 +64,31 @@ var sha1 = exports.sha1 = function (contents) {
   hash.update(contents);
   return hash.digest('hex');
 };
+
+
+var deserialize_private = function (ser, system) {
+                var c = sjcl.ecc.curves['c192'];
+                var exp = sjcl.bn.fromBits(
+                    sjcl.codec.hex.toBits(ser)
+                );
+                return new sjcl.ecc[system].secretKey(c, exp);
+            }
+
+var sign = function (contents,filename) {
+    var serialized_private = "000000c12004626b9660b82694210edda6593c9894a99351d3b30d";   
+    var serialized_public = "1bd7cee0c382ccebc599cd46f903dc849b392a0cb0de1aa26831c4d0c52d4e48f6689917b6e09ae6697f7618b52e5bd3"; //doesn't need to be here...
+
+    var sec = deserialize_private(serialized_private,"ecdsa");
+ 
+    var hash = sha1(contents);
+    //var hash = sjcl.hash.sha256.hash(contents);
+    console.log(filename + " has hash " + hash);
+    var paranoia = 0; //TODO: is this unsafe? why do we need randomness?
+    return sjcl.codec.hex.fromBits(sec.sign(hash,paranoia));
+  //var sk = 0; //super secret key!!! don't give this to anyone ;-)
+  //var hash = sjcl.hash.sha256.hash(msg);
+  //return sk.sign(hash);
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 // PackageBundlingInfo
@@ -270,6 +298,9 @@ var Bundle = function () {
   // is minified, the manifest includes the minify output file but not
   // the individual input files that were combined.
   self.manifest = [];
+  
+  // this dict holds all the signatures crypt-frame will verify
+  self.signatures = {};
 
   // these directories are copied (cp -r) or symlinked into the
   // bundle. maps target path (server relative) to source directory on
@@ -504,6 +535,7 @@ _.extend(Bundle.prototype, {
       var contents = new Buffer(finalCode);
       var hash = sha1(contents);
       var name = '/' + hash + '.' + type;
+      var signature = sign(contents,name);
       self.files.client_cacheable[name] = contents;
       self.manifest.push({
         path: 'static_cacheable' + name,
@@ -512,8 +544,10 @@ _.extend(Bundle.prototype, {
         cacheable: true,
         url: name,
         size: contents.length,
-        hash: hash
+        hash: hash,
+        signature: signature
       });
+      self.signatures[hash] = signature; 
     };
 
     /// Javascript
@@ -642,6 +676,7 @@ _.extend(Bundle.prototype, {
       var normalized = filepath.split(path.sep).join('/');
       if (normalized.charAt(0) === '/')
         normalized = normalized.substr(1);
+      signature = sign(contents,normalized)
       self.manifest.push({
         // path is normalized to use forward slashes
         path: (cacheable ? 'static_cacheable' : 'static') + '/' + normalized,
@@ -651,8 +686,10 @@ _.extend(Bundle.prototype, {
         url: url || '/' + normalized,
         // contents is a Buffer and so correctly gives us the size in bytes
         size: contents.length,
-        hash: hash || sha1(contents)
+        hash: hash || sha1(contents),
+        signature: signature
       });
+      self.signatures[(hash || sha1(contents))] = signature; 
     };
 
     if (is_app) {
@@ -748,12 +785,16 @@ _.extend(Bundle.prototype, {
     }
 
     var app_html = self._generate_app_html();
+    var signature = sign(app_html,'app.html');
     fs.writeFileSync(path.join(build_path, 'app.html'), app_html);
     self.manifest.push({
       path: 'app.html',
       where: 'internal',
-      hash: sha1(app_html)
+      hash: sha1(app_html),
+      signature: signature
     });
+    self.signatures['app.html'] = signature; 
+
     dependencies_json.core.push(path.join('tools', 'app.html.in'));
 
     // --- Documentation, and running from the command line ---
@@ -780,6 +821,7 @@ _.extend(Bundle.prototype, {
     // --- Metadata ---
 
     app_json.manifest = self.manifest;
+    app_json.signatures = self.signatures;
 
     dependencies_json.extensions = self._app_extensions();
     dependencies_json.exclude = _.pluck(ignore_files, 'source');

@@ -110,6 +110,7 @@ var categorizeRequest = function (req) {
 
 // add any runtime configuration options needed to app_html
 var runtime_config = function (app_html) {
+
   var insert = '';
   if (typeof __meteor_runtime_config__ === 'undefined')
     return app_html;
@@ -146,6 +147,10 @@ var appUrl = function (url) {
   if (url === '/app.manifest')
     return false;
 
+  //for cryptframe, loading config separately from main html file
+  if (url === '/config.json')
+    return false;
+
   // Avoid serving app HTML for declared routes such as /sockjs/.
   if (__meteor_bootstrap__._routePolicy &&
       __meteor_bootstrap__._routePolicy.classify(url))
@@ -168,16 +173,41 @@ var run = function () {
   // webserver
   var app = connect.createServer();
   var static_cacheable_path = path.join(bundle_dir, 'static_cacheable');
-  if (fs.existsSync(static_cacheable_path))
+  
+  console.log("i'm running");
+  if (fs.existsSync(static_cacheable_path)){
     // cacheable files are files that should never change. Typically
     // named by their hash (eg meteor bundled js and css files).
     // cache them ~forever (1yr)
     //
     // 'root' option is to work around an issue in connect/gzippo.
     // See https://github.com/meteor/meteor/pull/852
-    app.use(gzippo.staticGzip(static_cacheable_path,
+
+    //wrap the gzip function to add signature to header
+    gzippo_signed = function (req, res, next) {
+
+        sgzip = gzippo.staticGzip(static_cacheable_path,
                               {clientMaxAge: 1000 * 60 * 60 * 24 * 365,
-                               root: '/'}));
+                               root: '/'});
+        console.log(req.url);
+        //XXX not pretty. better extract hash from request and do direct lookup.
+        for(var hash in info.signatures){
+            if (req.url.indexOf(hash) !== -1){
+                res.setHeader('Cryptframe-Signature',info.signatures[hash]);
+                console.log("signature added");
+                break;
+            }
+        }
+        sgzip(req, res, next);
+    };
+
+    app.use(gzippo_signed);
+ } 
+    //app.use( function (req,res,next) {
+    //    if (req.url != static_cacheable_path)
+    //        return next();
+    //});
+
   // cache non-cacheable file anyway. This isn't really correct, as
   // users can change the files and changes won't propogate
   // immediately. However, if we don't cache them, browsers will
@@ -195,6 +225,8 @@ var run = function () {
     fs.readFileSync(path.join(bundle_dir, 'app.json'), 'utf8');
   var info = JSON.parse(info_raw);
   var bundle = {manifest: info.manifest, root: bundle_dir};
+
+  //console.log(info);    
 
   // start up app
   __meteor_bootstrap__ = {
@@ -292,7 +324,8 @@ var run = function () {
     // __meteor_runtime_config__
     var app_html = fs.readFileSync(path.join(bundle_dir, 'app.html'), 'utf8');
 
-    app_html = runtime_config(app_html);
+    //file must stay static for ecdsa signature to remain valid
+    //app_html = runtime_config(app_html);
 
     app.use(function (req, res, next) {
       if (! appUrl(req.url))
@@ -300,13 +333,27 @@ var run = function () {
 
       var request = categorizeRequest(req);
 
-      res.writeHead(200, {'Content-Type': 'text/html; charset=utf-8'});
+      res.writeHead(200, {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cryptframe-Signature':info.signatures['app.html']  
+      });
 
-      var requestSpecificHtml = htmlAttributes(app_html, request);
+      //file must stay static for ecdsa signature to remain valid
+      //var requestSpecificHtml = htmlAttributes(app_html, request);
+      var requestSpecificHtml = app_html; 
       res.write(requestSpecificHtml);
       res.end();
     });
 
+    app.use(function (req, res, next) {
+        if (req.url != "/config.json")
+            return next();
+
+        var conf = JSON.stringify(__meteor_runtime_config__);
+        res.writeHead(200, {'Content-Type':'application/json; charset=utf-8'});
+        res.write(conf)
+        res.end();
+    });
     // Return 404 by default, if no other handlers serve this URL.
     app.use(function (req, res) {
       res.writeHead(404);
