@@ -25,10 +25,11 @@ Meteor.loggingIn = function () {
 
 // This calls userId, which is reactive.
 Meteor.user = function () {
-  var userId = Meteor.userId();
-  if (!userId)
-    return null;
-  return Meteor.users.findOne(userId);
+    var userId = Meteor.userId();
+    if (!userId)
+	return null;
+    
+    return Meteor.users.findOne(userId);
 };
 
 ///
@@ -163,7 +164,10 @@ Accounts._makeClientLoggedIn = function(userId, token) {
 };
 
 Meteor.logout = function (callback) {
-  Meteor.apply('logout', [], {wait: true}, function(error, result) {
+    localStorage['user_princ_name'] = undefined;
+    localStorage['user_princ_keys'] = undefined;
+    
+    Meteor.apply('logout', [], {wait: true}, function(error, result) {
     if (error) {
       callback && callback(error);
     } else {

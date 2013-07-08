@@ -137,7 +137,10 @@ _Mongo = function (url) {
 	      },
 	      {safe:true},
 	      function(err, doc) {
-		  Meteor._debug('error' + err + " doc " + doc);
+		  if (err) {
+		      Meteor._debug('Error when creating search' + err + " doc " + doc);
+		      throw err;
+		  }
 	      }
 	  );
 	  

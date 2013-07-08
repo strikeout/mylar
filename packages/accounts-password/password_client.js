@@ -11,55 +11,91 @@ Meteor.loginWithPassword = function (selector, password, callback) {
   var srp = new Meteor._srp.Client(password);
   var request = srp.startExchange();
 
-  if (typeof selector === 'string')
-    if (selector.indexOf('@') === -1)
-      selector = {username: selector};
-    else
-      selector = {email: selector};
+    var uname;
 
-  request.user = selector;
-
-  // Normally, we only set Meteor.loggingIn() to true within
-  // Accounts.callLoginMethod, but we'd also like it to be true during the
-  // password exchange. So we set it to true here, and clear it on error; in
-  // the non-error case, it gets cleared by callLoginMethod.
-  Accounts._setLoggingIn(true);
-  Meteor.apply('beginPasswordExchange', [request], function (error, result) {
-    if (error || !result) {
-      Accounts._setLoggingIn(false);
-      error = error || new Error("No result from call to beginPasswordExchange");
-      callback && callback(error);
-      return;
+    if (typeof selector === 'string') {
+	if (selector.indexOf('@') === -1){
+	    uname = selector;
+	    selector = {username: selector};
+	}
+	else {
+	    uname = selector;
+	    selector = {email: selector};
+	}
+    } else {
+	if (selector['username']) {
+	    uname = selector['username'];
+	} else {
+	    throw new Error("cannot login user without some username");
+	}
     }
-
-    var response = srp.respondToChallenge(result);
-    Accounts.callLoginMethod({
-      methodArguments: [{srp: response}],
-      validateResult: function (result) {
-        if (!srp.verifyConfirmation({HAMK: result.HAMK}))
-          throw new Error("Server is cheating!");
-      },
-      userCallback: callback});
-  });
+    
+    console.log("loggingin user " + uname);
+    idp.get_keys(uname, password, function(keys) {
+	if (!keys) {
+	    throw new Error("idp error, cannot login this user");
+	}
+	localStorage['user_princ_keys']= keys;
+	localStorage['user_princ_name'] = name;
+	
+	request.user = selector;
+	
+	// Normally, we only set Meteor.loggingIn() to true within
+	// Accounts.callLoginMethod, but we'd also like it to be true during the
+	// password exchange. So we set it to true here, and clear it on error; in
+	// the non-error case, it gets cleared by callLoginMethod.
+	Accounts._setLoggingIn(true);
+	Meteor.apply('beginPasswordExchange', [request], function (error, result) {
+	    if (error || !result) {
+		Accounts._setLoggingIn(false);
+		error = error || new Error("No result from call to beginPasswordExchange");
+		callback && callback(error);
+		return;
+	    }
+	    
+	    var response = srp.respondToChallenge(result);
+	    Accounts.callLoginMethod({
+		methodArguments: [{srp: response}],
+		validateResult: function (result) {
+		    if (!srp.verifyConfirmation({HAMK: result.HAMK}))
+			throw new Error("Server is cheating!");
+		},
+		userCallback: callback});
+	});
+    });
 };
-
 
 // Attempt to log in as a new user.
 Accounts.createUser = function (options, callback) {
-  options = _.clone(options); // we'll be modifying options
+    options = _.clone(options); // we'll be modifying options
 
-  if (!options.password)
-    throw new Error("Must set options.password");
-  var verifier = Meteor._srp.generateVerifier(options.password);
-  // strip old password, replacing with the verifier object
-  delete options.password;
-  options.srp = verifier;
+    var uname = options.username;
+    var pwd = options.password;
 
-  Accounts.callLoginMethod({
-    methodName: 'createUser',
-    methodArguments: [options],
-    userCallback: callback
-  });
+    if (!pwd)
+	throw new Error("Must set options.password");
+    
+    if (!uname) {
+	throw new Error("Meteor-enc needs username when creating account");
+    }
+
+    var verifier = Meteor._srp.generateVerifier(options.password);
+    // strip old password, replacing with the verifier object
+    delete options.password;
+    options.srp = verifier;
+    
+    idp.create_keys(uname, pwd, function(keys) {
+	localStorage['user_princ_name'] = uname;
+	localStorage['user_princ_keys'] = keys;
+	var user_princ = new Principal('user', uname, deserialize_keys(keys));
+	Principal._store(user_princ);
+	
+	Accounts.callLoginMethod({
+	    methodName: 'createUser',
+	    methodArguments: [options],
+	    userCallback: callback
+	});
+    });
 };
 
 
