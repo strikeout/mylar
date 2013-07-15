@@ -1,0 +1,20 @@
+Raluca:
+By Tue/Wed : multi-key search implementation: browser extension for multi-key code, server-side C++ server, mongoDB running our multi-key search, principal graph with multi-key 
+Wed-Sun: multi-key proof and new implementation;
+can we do multi-key summation?
+
+Steven:
+Monday: a basic forum
+Tue: more fleshed out forum
+Wed: annotations
+Thur - Monday : code verification based on Jonas signing module
+
+Monday:Jul22
+
+
+Things to figure out:
+-- what are remaining ways an attacker can fool user?
+-- multi-key summation?
+-- what can be an acceptable idp?
+-- meteor over https
+-- change some of the princ graph to use symmetric keys for efficiency?
