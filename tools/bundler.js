@@ -82,7 +82,7 @@ var sign = function (contents,filename) {
  
     var hash = sha1(contents);
     //var hash = sjcl.hash.sha256.hash(contents);
-    console.log(filename + " has hash " + hash);
+    //console.log(filename + " has hash " + hash);
     var paranoia = 0; //TODO: is this unsafe? why do we need randomness?
     return sjcl.codec.hex.fromBits(sec.sign(hash,paranoia));
   //var sk = 0; //super secret key!!! don't give this to anyone ;-)

@@ -244,10 +244,17 @@ var start_server = function (options) {
   nodeOptions.push(path.join(options.bundlePath, 'main.js'));
   nodeOptions.push('--keepalive');
 
+ 
   var proc = spawn(process.execPath,
                    nodeOptions,
                    {env: env});
 
+
+    // start crypto server
+    var cs_path = env['PRINCIPAL_PATH'] + "/crypto_server/crypto_server";
+    cryptos_process = spawn(cs_path);
+    
+    
   // XXX deal with test server logging differently?!
 
   proc.stdout.setEncoding('utf8');

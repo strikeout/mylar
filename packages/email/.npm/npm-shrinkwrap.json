@@ -1,13 +1,5 @@
 {
   "dependencies": {
-    "mailcomposer": {
-      "version": "0.1.15",
-      "dependencies": {
-        "mimelib-noiconv": {
-          "version": "0.1.9"
-        }
-      }
-    },
     "simplesmtp": {
       "version": "0.1.25",
       "dependencies": {
@@ -16,6 +8,14 @@
         },
         "xoauth2": {
           "version": "0.1.8"
+        }
+      }
+    },
+    "mailcomposer": {
+      "version": "0.1.15",
+      "dependencies": {
+        "mimelib-noiconv": {
+          "version": "0.1.9"
         }
       }
     },

@@ -174,7 +174,7 @@ var run = function () {
   var app = connect.createServer();
   var static_cacheable_path = path.join(bundle_dir, 'static_cacheable');
   
-  console.log("i'm running");
+  //console.log("i'm running");
   if (fs.existsSync(static_cacheable_path)){
     // cacheable files are files that should never change. Typically
     // named by their hash (eg meteor bundled js and css files).
@@ -189,12 +189,12 @@ var run = function () {
         sgzip = gzippo.staticGzip(static_cacheable_path,
                               {clientMaxAge: 1000 * 60 * 60 * 24 * 365,
                                root: '/'});
-        console.log(req.url);
+        //console.log(req.url);
         //XXX not pretty. better extract hash from request and do direct lookup.
         for(var hash in info.signatures){
             if (req.url.indexOf(hash) !== -1){
                 res.setHeader('Cryptframe-Signature',info.signatures[hash]);
-                console.log("signature added");
+                //console.log("signature added");
                 break;
             }
         }

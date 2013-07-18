@@ -37,6 +37,14 @@ if [ -L "$(basename "$0")" ] ; then
     cd "$(dirname $(readlink $(basename "$0") ) )"
 fi
 SCRIPT_DIR=$(pwd -P)
+
+# build crypto_server
+# we are in meteor-enc now
+echo "Building crypto_server.. "
+pushd packages/principal/crypto_server
+make
+popd
+
 cd "$ORIG_DIR"
 
 
@@ -105,4 +113,5 @@ if [ "$(ulimit -n)" != "unlimited" ] ; then
 fi
 
 export NODE_PATH="$DEV_BUNDLE/lib/node_modules"
+export PRINCIPAL_PATH="$DEV_BUNDLE/packages/principal"
 exec "$DEV_BUNDLE/bin/node" "$METEOR" "$@"
