@@ -1,0 +1,10 @@
+For both libgmp and libpbc, you need to get the relevant source from the internet and then extract them and perform the following:
+
+make distclean
+NACL_GLIBC=1 $NACL_PORT/build_tools/nacl_env.sh ./configure --enable-static --enable-shared=no --host=nacl CFLAGS="-O3" --prefix=$NACL_SDK_ROOT/toolchain/linux_x86_glibc/x86_64-nacl/
+make && make install
+make distclean
+NACL_ARCH=i686 NACL_GLIBC=1 $NACL_PORT/build_tools/nacl_env.sh ./configure --enable-static --enable-shared=no --host=nacl CFLAGS="-O3" --prefix=$NACL_SDK_ROOT/toolchain/linux_x86_glibc/i686-nacl/ 
+make && make install
+cp $NACL_SDK_ROOT/toolchain/linux_x86_glibc/i686-nacl/lib/* $NACL_SDK_ROOT/toolchain/linux_x86_glibc/x86_64-nacl/lib32/
+make distclean

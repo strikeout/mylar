@@ -753,4 +753,3 @@ Certificate.prototype.verify = function (on_complete) {
 Certificate.contents = function (princ) {
     return "(" + princ.id + ", " + princ.type + ", " + princ.name + ")"; 
 };
-
