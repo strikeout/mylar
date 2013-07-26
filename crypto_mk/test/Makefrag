@@ -1,0 +1,10 @@
+OBJDIRS     += test
+TESTSRC   :=  test.cc
+TESTOBJ   := $(patsubst %.cc,$(OBJDIR)/test/%.o,$(TESTSRC))
+
+
+all:	$(OBJDIR)/test/test
+$(OBJDIR)/test/test: $(OBJDIR)/test/test.o $(OBJDIR)/libcryptmk.so  $(OBJDIR)/libmkutil.so
+	$(CXX) $< -o $@ $(LDFLAGS) -lcryptmk -lmkutil
+	
+# vim: set noexpandtab:

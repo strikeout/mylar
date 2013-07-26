@@ -6,6 +6,7 @@ Package.on_use(function(api) {
   api.use('accounts-base', ['client', 'server']);
   api.use('srp', ['client', 'server']);
   api.use('email', ['server']);
+  api.use('principal', ['client', 'server']);
 
   api.add_files('email_templates.js', 'server');
   api.add_files('password_server.js', 'server');
