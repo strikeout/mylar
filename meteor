@@ -45,6 +45,12 @@ pushd packages/principal/crypto_server
 make
 popd
 
+# build crypto_ext
+echo "Building crypto_ext"
+pushd crypto_ext
+make
+popd
+
 cd "$ORIG_DIR"
 
 
