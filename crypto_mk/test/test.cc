@@ -167,7 +167,7 @@ bench(int ac, char **av) {
 int
 main(int ac, char **av)
 {
-    bool ignore = false;
+    bool ignore = true;
     if (!ignore) test();
     bench(ac, av);
     
