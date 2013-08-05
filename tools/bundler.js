@@ -80,9 +80,10 @@ var sign = function (contents,filename) {
 
     var sec = deserialize_private(serialized_private,"ecdsa");
  
-    var hash = sha1(contents);
-    //var hash = sjcl.hash.sha256.hash(contents);
-    //console.log(filename + " has hash " + hash);
+    //var hash = sha1(contents);
+    var hash = sjcl.hash.sha256.hash(contents);
+    hash = sjcl.codec.hex.fromBits(hash)
+    console.log(filename + " has hash " + hash);
     var paranoia = 0; //TODO: is this unsafe? why do we need randomness?
     return sjcl.codec.hex.fromBits(sec.sign(hash,paranoia));
   //var sk = 0; //super secret key!!! don't give this to anyone ;-)
@@ -535,7 +536,7 @@ _.extend(Bundle.prototype, {
       var contents = new Buffer(finalCode);
       var hash = sha1(contents);
       var name = '/' + hash + '.' + type;
-      var signature = sign(contents,name);
+      //var signature = sign(contents,name);
       self.files.client_cacheable[name] = contents;
       self.manifest.push({
         path: 'static_cacheable' + name,
@@ -545,9 +546,9 @@ _.extend(Bundle.prototype, {
         url: name,
         size: contents.length,
         hash: hash,
-        signature: signature
+        //signature: signature
       });
-      self.signatures[hash] = signature; 
+      //self.signatures[hash] = signature; 
     };
 
     /// Javascript
@@ -676,7 +677,7 @@ _.extend(Bundle.prototype, {
       var normalized = filepath.split(path.sep).join('/');
       if (normalized.charAt(0) === '/')
         normalized = normalized.substr(1);
-      signature = sign(contents,normalized)
+      //signature = sign(contents,normalized)
       self.manifest.push({
         // path is normalized to use forward slashes
         path: (cacheable ? 'static_cacheable' : 'static') + '/' + normalized,
@@ -687,11 +688,12 @@ _.extend(Bundle.prototype, {
         // contents is a Buffer and so correctly gives us the size in bytes
         size: contents.length,
         hash: hash || sha1(contents),
-        signature: signature
+        //signature: signature
       });
-      self.signatures[(hash || sha1(contents))] = signature; 
+      //self.signatures[(hash || sha1(contents))] = signature; 
     };
 
+    var cf_public_files = {};//index of all public files with hash
     if (is_app) {
       if (fs.existsSync(path.join(project_dir, 'public'))) {
         var copied =
@@ -702,6 +704,7 @@ _.extend(Bundle.prototype, {
           var filepath = path.join(build_path, 'static', fs_relative_path);
           var contents = fs.readFileSync(filepath);
           var hash = sha1(contents);
+          cf_public_files[fs_relative_path] = hash;
           self.inputFileHashes[path.join(project_dir, 'public', fs_relative_path)]
             = hash;
           addClientFileToManifest(fs_relative_path, contents, 'static', false, undefined, hash);
@@ -722,6 +725,15 @@ _.extend(Bundle.prototype, {
         // Client css and js becomes cacheable with the addition of the
         // cache busting query parameter.
         contents = self.files.client[file];
+        // Some not very safe string gynmastics to add hash to query for every static file.
+        // Will append ?<hash> to anything that matches a static filename
+        contents = self.files.client[file];
+        for (var fname in cf_public_files){
+            strcontents = contents.toString(); //defaults to utf8
+            strcontents = strcontents.replace(fname,fname + "?" + cf_public_files[fname]);
+            contents = new Buffer(strcontents);
+        }
+
         delete self.files.client[file];
         self.files.client_cacheable[file] = contents;
         url = file + '?' + sha1(contents);
