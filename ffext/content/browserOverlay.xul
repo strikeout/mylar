@@ -1,0 +1,45 @@
+<?xml version="1.0"?>
+
+<?xml-stylesheet type="text/css" href="chrome://global/skin/" ?>
+<?xml-stylesheet type="text/css"
+  href="chrome://cryptframe/skin/browserOverlay.css" ?>
+
+<!DOCTYPE overlay SYSTEM
+  "chrome://cryptframe/locale/browserOverlay.dtd">
+
+<overlay id="cryptframe-browser-overlay"
+  xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
+
+  <script type="application/x-javascript"
+    src="chrome://cryptframe/content/browserOverlay.js" />
+
+  <stringbundleset id="stringbundleset">
+    <stringbundle id="cryptframe-string-bundle"
+      src="chrome://cryptframe/locale/browserOverlay.properties" />
+  </stringbundleset>
+
+  <menubar id="main-menubar">
+    <menu id="cryptframe-hello-menu" label="&cryptframe.hello.label;"
+      accesskey="&cryptframe.helloMenu.accesskey;" insertafter="helpMenu">
+      <menupopup>
+        <menuitem id="cryptframe-hello-menu-item"
+          label="&cryptframe.hello.label;"
+          accesskey="&cryptframe.helloItem.accesskey;"
+          oncommand="CryptFrameChrome.BrowserOverlay.sayHello(event);" />
+      </menupopup>
+    </menu>
+  </menubar>
+
+  <vbox id="appmenuSecondaryPane">
+    <menu id="cryptframe-hello-menu-2" label="&cryptframe.hello.label;"
+      accesskey="&cryptframe.helloMenu.accesskey;"
+      insertafter="appmenu_addons">
+      <menupopup>
+        <menuitem id="cryptframe-hello-menu-item-2"
+          label="&cryptframe.hello.label;"
+          accesskey="&cryptframe.helloItem.accesskey;"
+          oncommand="CryptFrameChrome.BrowserOverlay.sayHello(event);" />
+      </menupopup>
+    </menu>
+  </vbox>
+</overlay>

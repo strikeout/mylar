@@ -1,0 +1,105 @@
+/**
+ * CryptFrameChrome namespace.
+ */
+dump("doing something");
+
+if ("undefined" == typeof(CryptFrameChrome)) {
+  var CryptFrameChrome = {};
+}
+   
+/*
+    init: function() {
+        dump("init\n");
+        window.addEventListener("load", CryptFrameChrome.register, false);
+        window.addEventListener("unload", CryptFrameChrome.unregister, false);
+        dump("init end\n");
+    },
+
+     register: function() {
+        dump("register\n");
+        try{
+            var observerService = Components.classes["@mozilla.org/observer-service;1"]
+                .getService(Components.interfaces.nsIObserverService);
+            observerService.addObserver(CryptFrameChrome.httpRequestObserver, "http-on-examine-response", false);
+            observerService.addObserver(CryptFrameChrome.httpRequestObserver, "http-on-modify-request", false);
+        } catch (e) {
+            dump("error: "+e);
+        }
+        dump("register done\n");
+    },
+
+    observe: function(subject, topic, data){
+        dump("response intercepted\n"); 
+    },
+
+    unregister: function() {
+        var observerService = Components.classes["@mozilla.org/observer-service;1"]
+            .getService(Components.interfaces.nsIObserverService);
+        observerService.removeObserver(CryptFrameChrome.httpRequestObserver, "http-on-examine-response");
+        observerService.removeObserver(CryptFrameChrome.httpRequestObserver, "http-on-modify-request", false);
+    },
+    };
+};
+
+CryptFrameChrome.httpRequestObserver = { 
+
+    observe: function(aSubject, aTopic, aData){
+        try{
+            if (typeof Cc == "undefined") {
+                var Cc = Components.classes;
+            }   
+            if (typeof Ci == "undefined") {
+                var Ci = Components.interfaces;
+            }   
+            if (aTopic == "http-on-examine-response") {
+                dump("meep");
+                aSubject.QueryInterface(Ci.nsITraceableChannel);
+                dump("response intercepted from "+aSubject.originalURI.spec+"\n");
+            }   
+            if (aTopic == "http-on-modify-request") {
+                dump("moop");
+                aSubject.QueryInterface(Ci.nsITraceableChannel);
+                dump("request intercepted to "+aSubject.originalURI.spec+"\n");
+            }   
+        } catch (observerError) {
+            dump("observer error: " + observerError +"\n");
+        }
+    },  
+
+    QueryInterface: function(aIID){
+        if (typeof Cc == "undefined") {
+            var Cc = Components.classes;
+        }   
+        if (typeof Ci == "undefined") {
+            var Ci = Components.interfaces;
+        }   
+        if (aIID.equals(Ci.nsIObserver) ||
+        aIID.equals(Ci.nsISupports)) {
+            return this;
+        }   
+
+        throw Components.results.NS_NOINTERFACE;
+
+    },  
+};
+
+CryptFrameChrome.init();
+*/
+/**
+ * Controls the browser overlay for the Hello World extension.
+ */
+CryptFrameChrome.BrowserOverlay = {
+  /**
+   * Says 'Hello' to the user.
+   */
+  sayHello : function(aEvent) {
+    //let stringBundle = document.getElementById("cryptframe-string-bundle");
+    //let message = stringBundle.getString("cryptframe.greeting.label");
+    message = "hello user";
+    window.alert(message);
+  }
+};
+
+
+//window.addEventListener("load", CryptFrameChrome.register, false);
+//window.addEventListener("unload", CryptFrameChrome.unregister, false);

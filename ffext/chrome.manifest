@@ -1,0 +1,13 @@
+content   cryptframe                content/
+skin      cryptframe                classic/1.0   skin/
+locale    cryptframe                en-US         locale/en-US/
+
+resource cryptframe components/modules/
+
+component {f6480eac-e13a-494c-85ba-4de1817abbbd} components/cryptweb_service.js
+contract @cryptweb.csail.mit.edu/service;1 {f6480eac-e13a-494c-85ba-4de1817abbbd}
+#category app-startup cryptweb_service @cryptweb.csail.mit.edu/service;1
+category profile-after-change cryptweb_service @cryptweb.csail.mit.edu/service;1
+
+#overlay chrome://browser/content/browser.xul  chrome://cryptframe/content/browserOverlay.xul
+overlay chrome://browser/content/browser.xul  chrome://cryptframe/content/overlay.xul
