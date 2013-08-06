@@ -1,6 +1,6 @@
 content   cryptframe                content/
-skin      cryptframe                classic/1.0   skin/
-locale    cryptframe                en-US         locale/en-US/
+#skin      cryptframe                classic/1.0   skin/
+#locale    cryptframe                en-US         locale/en-US/
 
 resource cryptframe components/modules/
 

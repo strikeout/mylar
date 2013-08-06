@@ -4,7 +4,7 @@ Package.describe({
 
 
 Package.on_use(function (api, where) {
-    const SUPPORT_MULTIKEY = true;
+    const SUPPORT_MULTIKEY = false;
 
     where = where || ['client', 'server'];
 
