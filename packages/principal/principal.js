@@ -420,6 +420,42 @@ if (Meteor.isClient) {
 	};
     };
     
+    // Removes princ1 access to princ2
+    Principal.remove_access = function (princ1, princ2, on_complete) {
+	if (debug) console.log("remove_access princ1 " + princ1.name + " to princ2 " + princ2.name);
+	    var inner = Principal._remove_access(princ1, princ2, on_complete);
+	    princ2._load_secret_keys(inner);
+    };
+
+
+    Principal._remove_access = function (princ1, princ2, on_complete) {
+	return function () {
+        var originalKeys = princ2._secret_keys();
+
+        // Remove WK from princ1.
+	    var wrappedID = WrappedKeys.findOne({principal: princ2.id, wrapped_for: princ1.id})._id;
+        WrappedKeys.remove(wrappedID);
+
+        // Create a new principal.
+        var newPrincipal = Principal.create(princ2.type, princ2.name, undefined);
+
+        // Add new WK for new principal.
+        var parentOriginal = WrappedKeys.find({principal: princ2.id});
+        parentOriginal.forEach(function(wk) {
+            var princ = Principals.findOne(wk.wrapped_for);
+            Principal.add_access(princ, newPrincipal, undefined);
+        });
+
+        // The following are required to remove the possibility the client cached keys.
+        // TODO:Reencrypt data
+        // TODO:remove_access(princ2, Children)
+
+	    if (on_complete) {
+		    on_complete();
+	    }
+	};
+    };
+
     Principal.prototype.create_certificate = function (princ) {
 	var self = this;
 	var msg = Certificate.contents(princ);

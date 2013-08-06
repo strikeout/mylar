@@ -39,6 +39,7 @@ popd
 
 pushd naclports
 NACL_GCC=1 make openssl
+./make_all.sh openssl
 popd
 
 popd
