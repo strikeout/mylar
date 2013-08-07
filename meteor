@@ -133,5 +133,5 @@ if [ "$(ulimit -n)" != "unlimited" ] ; then
 fi
 
 export NODE_PATH="$DEV_BUNDLE/lib/node_modules"
-export PRINCIPAL_PATH="$DEV_BUNDLE/packages/principal"
+export CRYPTO_SERVER="$DEV_BUNDLE/../crypto_server/crypto_server"
 exec "$DEV_BUNDLE/bin/node" "$METEOR" "$@"

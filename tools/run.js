@@ -251,7 +251,7 @@ var start_server = function (options) {
 
 
     // start crypto server
-    var cs_path = env['PRINCIPAL_PATH'] + "/crypto_server/crypto_server";
+    var cs_path = env['CRYPTO_SERVER']
     cryptos_process = spawn(cs_path);
     
     
