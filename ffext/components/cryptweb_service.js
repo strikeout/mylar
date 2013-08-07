@@ -42,7 +42,7 @@ if ("undefined" == typeof(CFNamespace)) {
 CFNamespace = {
     safe_pages: {},
     tainted_pages: {},
-    allowed_unsafe_paths: {'/config.json':true,'/favicon.ico':true,'/sockjs/info':true},
+    allowed_unsafe_paths: {'/config.json':true}, //,'/favicon.ico':true,'/sockjs/info':true},
     /* A bit of unicode gymnastics for correct hashing of response content*/
     encode_utf8: function(s) {
         return unescape( encodeURIComponent( s ) );
@@ -185,7 +185,7 @@ CopyTracingListener.prototype =
   onStartRequest: function(request, context) {
       //dump("start request\n");
       var httpChannel = request.QueryInterface(Components.interfaces.nsIHttpChannel);
-      //dump("URI:" + request.URI.spec + "\n");
+      dump("URI:" + request.URI.spec + "\n");
       this.receivedData = [];   // array for incoming data.
       this.offsetcount = [];  //array for passing on chunks of data
       this.pageIsSigned = false; //true iff header contains cryptframe-signature
@@ -196,10 +196,10 @@ CopyTracingListener.prototype =
           this.pageSignature = httpChannel.getResponseHeader("cryptframe-signature");
           this.pageIsSigned = true;
           this.requiresVerification = true;
-          //dump("PAGE SIGNED\n");
+          dump("PAGE SIGNED\n");
       } catch (anError) {
           this.pageIsSigned = false
-          //dump("page not signed\n");
+          dump("page not signed\n");
           var uri = parseUri(request.originalURI.spec);
           if(CFNamespace.safe_pages.hasOwnProperty(uri['host'])){
               this.requiresVerification = true; 
@@ -228,7 +228,8 @@ CopyTracingListener.prototype =
       var responseSource = this.receivedData.join('');
       //dump("SHA1 not string: " + Sha1.hash(responseSource,false) + "\n");
       
-      if (this.pageIsSigned) {
+      if (this.pageIsSigned && uri['path'] === '/') {
+        //TODO: path is wrong check. must instead assert it's top-level page and developer intends use as top-level page
         if(this.verifySignature(this.pageSignature,responseSource)){
           if(!CFNamespace.tainted_pages.hasOwnProperty(uri['host'])){
             if(!CFNamespace.safe_pages.hasOwnProperty(uri['host'])){
@@ -242,12 +243,16 @@ CopyTracingListener.prototype =
           dump("ERROR: invalid signature on signed page!!!");
         }
       } else {
+         if(responseSource.length == 0){
+          dump("response length == 0\n");
+         }
          if(responseSource.length > 0 && !CFN.allowed_unsafe_paths.hasOwnProperty(uri['path']) ){
             var hash = Sha1.hash(responseSource,false)
-            if(uri['file'].startsWith(hash) || uri['query'].startsWith(hash) ){
+            if(this.pageIsSigned && uri['query'] === hash ){
               unsafe = false;
             } else {
               dump("INVALID HASH ("+hash+"): " + uri['source'] + "\n");
+              dump('query was: ' + uri['query'] + "\n");
             }
           } else {
             unsafe = false;
@@ -275,8 +280,9 @@ CopyTracingListener.prototype =
   verifySignature: function(sig,responseSource){
     try{
       sn = sjcl.codec.hex.toBits(sig) 
-      var bithash = sjcl.hash.sha256.hash(CFN.decode_utf8(responseSource));
-      var hashed = sjcl.codec.hex.fromBits(bithash);
+      //var bithash = sjcl.hash.sha256.hash(CFN.decode_utf8(responseSource));
+      //var hashed = sjcl.codec.hex.fromBits(bithash);
+      var hashed = Sha1.hash(responseSource,false);
       CFN.pub.verify(hashed,sn);//throws error if not safe
       return true;
     } catch (anError) {

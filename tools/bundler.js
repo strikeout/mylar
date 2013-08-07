@@ -80,10 +80,10 @@ var sign = function (contents,filename) {
 
     var sec = deserialize_private(serialized_private,"ecdsa");
  
-    //var hash = sha1(contents);
-    var hash = sjcl.hash.sha256.hash(contents);
-    hash = sjcl.codec.hex.fromBits(hash)
-    console.log(filename + " has hash " + hash);
+    var hash = sha1(contents);
+    //var hash = sjcl.hash.sha256.hash(contents);
+    //hash = sjcl.codec.hex.fromBits(hash)
+    //console.log(filename + " has hash " + hash);
     var paranoia = 0; //TODO: is this unsafe? why do we need randomness?
     return sjcl.codec.hex.fromBits(sec.sign(hash,paranoia));
   //var sk = 0; //super secret key!!! don't give this to anyone ;-)
@@ -536,19 +536,19 @@ _.extend(Bundle.prototype, {
       var contents = new Buffer(finalCode);
       var hash = sha1(contents);
       var name = '/' + hash + '.' + type;
-      //var signature = sign(contents,name);
+      var signature = sign(contents,name);
       self.files.client_cacheable[name] = contents;
       self.manifest.push({
         path: 'static_cacheable' + name,
         where: 'client',
         type: type,
         cacheable: true,
-        url: name,
+        url: name + '?' + hash,
         size: contents.length,
         hash: hash,
-        //signature: signature
+        signature: signature
       });
-      //self.signatures[hash] = signature; 
+      self.signatures[hash] = signature; 
     };
 
     /// Javascript
@@ -675,9 +675,10 @@ _.extend(Bundle.prototype, {
       if (! contents instanceof Buffer)
         throw new Error('contents must be a Buffer');
       var normalized = filepath.split(path.sep).join('/');
+      //console.log(normalized + " => " + url);
       if (normalized.charAt(0) === '/')
         normalized = normalized.substr(1);
-      //signature = sign(contents,normalized)
+        signature = sign(contents,normalized)
       self.manifest.push({
         // path is normalized to use forward slashes
         path: (cacheable ? 'static_cacheable' : 'static') + '/' + normalized,
@@ -688,9 +689,9 @@ _.extend(Bundle.prototype, {
         // contents is a Buffer and so correctly gives us the size in bytes
         size: contents.length,
         hash: hash || sha1(contents),
-        //signature: signature
+        signature: signature
       });
-      //self.signatures[(hash || sha1(contents))] = signature; 
+      self.signatures[(hash || sha1(contents))] = signature; 
     };
 
     var cf_public_files = {};//index of all public files with hash
