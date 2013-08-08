@@ -49,6 +49,7 @@ var _ = require('underscore');
 var project = require(path.join(__dirname, 'project.js'));
 //needed for cryptframe signing
 var sjcl = require(path.join(__dirname, 'sjcl.js'));
+var mime = require('mime');
 
 // files to ignore when bundling. node has no globs, so use regexps
 var ignore_files = [
@@ -79,13 +80,24 @@ var sign = function (contents,filename) {
     var serialized_public = "1bd7cee0c382ccebc599cd46f903dc849b392a0cb0de1aa26831c4d0c52d4e48f6689917b6e09ae6697f7618b52e5bd3"; //doesn't need to be here...
 
     var sec = deserialize_private(serialized_private,"ecdsa");
+
+    //infer content type to sign header
+    contentType = mime.lookup(filename);
+    charset = mime.charsets.lookup(contentType, 'UTF-8'); //TODO: not sure if correct for img
+    console.log(charset + " charset");
+    contentTypeMatch = /*options.contentTypeMatch ||*/ /text|javascript|json/
+    if(contentTypeMatch.test(contentType)){
+      contentType = contentType + (charset ? '; charset=' + charset : '');
+    }
+    console.log(filename + " has content type: " + contentType);
  
     var hash = sha1(contents);
+    var hash2 = sha1(contentType+':'+hash);
     //var hash = sjcl.hash.sha256.hash(contents);
     //hash = sjcl.codec.hex.fromBits(hash)
-    //console.log(filename + " has hash " + hash);
+    console.log(filename + " has hashes " + hash + " and " + hash2);
     var paranoia = 0; //TODO: is this unsafe? why do we need randomness?
-    return sjcl.codec.hex.fromBits(sec.sign(hash,paranoia));
+    return sjcl.codec.hex.fromBits(sec.sign(hash2,paranoia));
   //var sk = 0; //super secret key!!! don't give this to anyone ;-)
   //var hash = sjcl.hash.sha256.hash(msg);
   //return sk.sign(hash);
@@ -675,7 +687,6 @@ _.extend(Bundle.prototype, {
       if (! contents instanceof Buffer)
         throw new Error('contents must be a Buffer');
       var normalized = filepath.split(path.sep).join('/');
-      //console.log(normalized + " => " + url);
       if (normalized.charAt(0) === '/')
         normalized = normalized.substr(1);
         signature = sign(contents,normalized)
