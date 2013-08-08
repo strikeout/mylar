@@ -74,7 +74,8 @@ main(int argc, char *argv[]) {
 	 n = read(newsockfd,buffer,4096);
 	 if (n < 0) error("ERROR reading from socket");
 
-	 cerr << "=================== \n message " << buffer;
+	 if (VERB)
+	     cerr << "=================== \n message " << buffer;
 	 
 	 resp = cs.process(string(buffer));
 	 

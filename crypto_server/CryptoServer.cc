@@ -45,7 +45,7 @@ parse_input(const string & request, string & action, map<string, string> & args)
   string args_str = line.substr(action_end + 1,
                      line.find("HTTP") - action_end - 1);
 
-  cerr << "action is " << action << "\n";
+  if (VERB) cerr << "action is " << action << "\n";
 
   parse_args(args_str, args);
 
@@ -55,7 +55,7 @@ static string
 get_assert(const map<string, string> & args, string key) {
     auto it = args.find(key);
     if (it == args.end()) {
-	cerr << "invalid server request";
+	if (VERB) cerr << "invalid server request";
 	exit(-1); // todo(raluca): don't fail, just return incorrect
     }
 
@@ -63,61 +63,41 @@ get_assert(const map<string, string> & args, string key) {
 }
 
 static string
-keygen(const b64mk & mk, const map<string, string> & args) {
-    cerr << "calling keygen\n";
+keygen(b64mk & mk, const map<string, string> & args) {
     return mk.keygen();
 }
 
 static string
-delta(const b64mk & mk, const map<string, string> & args) {
-    ec_scalar k1 = get_assert(args, "k1");
-    ec_scalar k2 = get_assert(args, "k2");
-
-    cerr << "delta : " << mk.delta(k1, k2).pretty() << "\n";
-    return mk.delta(k1, k2);
+delta(b64mk & mk, const map<string, string> & args) {
+    return mk.delta(get_assert(args, "k1"),
+		    get_assert(args, "k2"));
 }
 
 static string
-token(const b64mk & mk, const map<string, string> & args) {
-    ec_scalar k = get_assert(args, "k");
-    string word = get_assert(args, "word");
-
-    cerr << "token " << mk.token(k, word).pretty() << "\n";
-    
-    return mk.token(k, word);
+token(b64mk & mk, const map<string, string> & args) {
+    return mk.token(get_assert(args, "k"),
+		    get_assert(args, "word"));
 }
 
 static string
 encrypt(b64mk & mk, const map<string, string> & args) {
-    ec_scalar k = get_assert(args, "k");
-    string word = get_assert(args, "word");
-
-    return mk.encrypt(k, word));
+    return mk.encrypt(get_assert(args, "k"),
+		      get_assert(args, "word"));
 }
 
 
 
 static string
-adjust(const mksearch & mk, const map<string, string> & args) {
-
-    ec_point tok = get_assert(args, "tok");
-    ec_point delta = get_assert(args, "delta");
-    cerr << "tok str is " << tok << " delta str " << delta << "\n";
-    
-    cerr << "token " << tok.pretty() << " delta " << delta.pretty() << "\n";
-
-    return mk.adjust(tok, delta);
+adjust(b64mk & mk, const map<string, string> & args) {
+    return mk.adjust(get_assert(args, "tok"),
+		     get_assert(args, "delta"));
 }
 
 static bool
-match(const mksearch & mk, const map<string, string> & args) {
-    string searchtok = get_assert(args, "searchtok");
-    string ciph = get_assert(args, "ciph");
-
-    return mk.match(searchtok, ciph);
+match(b64mk & mk, const map<string, string> & args) {
+    return mk.match(get_assert(args, "searchtok"),
+		    get_assert(args, "ciph"));
 }
-
-
 
 string
 CryptoServer::process(const string & request) {
@@ -152,7 +132,7 @@ CryptoServer::process(const string & request) {
     }
     
    
-    cerr << "resp is " << resp.str() << "\n===================\n";
+    if (VERB) cerr << "resp is " << resp.str() << "\n===================\n";
     return resp.str();
     
 }

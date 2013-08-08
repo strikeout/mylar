@@ -230,7 +230,7 @@ bench(int ac, char **av) {
 int
 main(int ac, char **av)
 {
-    bool benchf = false;
+    bool benchf = true;
     if (!benchf) test();
     if (benchf) bench(ac, av);
     
