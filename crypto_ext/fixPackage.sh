@@ -18,7 +18,7 @@ Package.on_use(function (api, where) {
       var path = Npm.require('path');
 EOF
 
-for i in `find bin -maxdepth 2 -type f | sed "s/bin\///g" | grep -v "src"`; do
+for i in `find bin -maxdepth 2 -type f | sed "s/bin\///g" | grep -v "\(main\|src\)"`; do
 	echo "      api.add_files(path.join('crypto_ext', '$i'), 'client');"
 done
 
