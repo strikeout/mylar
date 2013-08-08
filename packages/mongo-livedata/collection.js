@@ -330,8 +330,11 @@ Meteor.Collection.prototype.enc_row = function(container, callback) {
 		     if (sign_princ) {
 			 container[f + '_signature'] = sign_princ.sign(container[f]);
 		     }
-		     
-		     cb();
+
+		     Crypto.newkey(function(k) {
+			 console.log("crypto new key returned " + k);
+			 cb();
+		     })
 	      });	
    });
  

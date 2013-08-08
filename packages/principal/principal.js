@@ -1,6 +1,27 @@
 Principals = new Meteor.Collection("princs");
+/*
+  id : unique over all principals (currently, serialized public keys)
+  name
+  type 
+  */
+
 WrappedKeys = new Meteor.Collection("wrapped_keys");
+/* principal: princ.id
+   wrapped_for : princ.id -- the id of the princ that gets new access
+   wrapped_keys : wrapped secret asymmetric keys
+   delta
+   wrapped_sym_keys : wrapped secret keys, symmetric
+*/
+   
 Certs = new Meteor.Collection("certs");
+/*
+  subject_id : princ id
+  subject_type
+  subject_name
+  subject_pk
+  signer : id of principal signer
+  signature
+ */
 
 var crypto;
 
@@ -550,6 +571,14 @@ if (Meteor.isClient) {
 	return new Principal('user', pname, deserialize_keys(pkeys));
     }
 
+    // p1.allowSearch(p2) : p1 can now search on data encrypted for p2
+    // since p2 can see p2's data, if p1 searches for a word that matches a word in p2's document
+    // p2 knows which word p1 searched for because p2 knows p2's document
+    // in cases where the search word is to be hidden, allowSearch should only be given
+    // to trusted principals
+    Principal.allowSearch = function(allowed_princ) {
+	delta = Crypto.delta();
+    }
 
     // returns a principal for the user with uname and feeds it as input to callback cb
     Principal.lookupUser = function(uname, cb) {

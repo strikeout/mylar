@@ -25,7 +25,7 @@ public:
     std::string process(const std::string & request);
 
 private:
-    mksearch mk;
+    b64mk mk;
 };
 
 

@@ -11,7 +11,6 @@ class mksearch {
 public:
 
     mksearch();
-    mksearch(unsigned char* g_ser);
     ~mksearch();
     
     ec_scalar keygen() const;
@@ -25,24 +24,18 @@ public:
     bool match(const std::string & searchtok, const std::string & ciph) const;
 
 
-    // serialization functions
-    
-    char* serialize();
-    void init_key(ec_scalar &k) const;
-    void init_tok(ec_point &k) const;
+    // serialization
+    std::string serialize();
+    mksearch(std::string g_ser);
+
+    ec_point from_bytes(const std::string & serial, ECTYPE group);
+    static std::string to_bytes(const ec_point & p);
+    ec_scalar from_bytes(const std::string & serial);
+    static std::string to_bytes(const ec_scalar & s);    
     
 private:
     EC ec;
     ec_point g;
 };
 
-extern "C" {
-    // Caller is responsible for freeing the results of all these functions.
-    void* mksearch_new();
-    void* mksearch_keygen(void* g);
-    void* mksearch_delta(void* g, void* k1, void* k2);
-    void* mksearch_token(void* g, void* k, char* _word);
-    void* mksearch_encrypt(void* g, void* k, char* _word);
-    void* mksearch_adjust(void* g, void* tok, void* delta);
-    int mksearch_match(void* g, void* token, void* ciph);
-}
+

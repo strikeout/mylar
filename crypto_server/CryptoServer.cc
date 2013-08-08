@@ -62,92 +62,57 @@ get_assert(const map<string, string> & args, string key) {
     return it->second;		 
 }
 
-// TODO(raluca)
-// this code should happen in multikey
-// as is needed by client side as well
-
-
-static ec_point
-deserialize_ep(const mksearch & mk, const string & d) {
-    ec_point p;
-    mk.init_tok(p); //TODO(raluca): these inits are not clean
-    ec_serializable::from_bytes((void *)d.data(), p);
-
-    return p;
-}
-
-static ec_scalar
-deserialize_es(const mksearch & mk, const string &d) {
-    ec_scalar s;
-    mk.init_key(s);
-    ec_serializable::from_bytes((void *)d.data(), s);
-
-    return s;
-}
-
 static string
-marshall(const ec_point & p) {
-    return base64_encode(p.stringify());
-}
-
-static string
-marshall(const ec_scalar & s) {
-    return base64_encode(s.stringify());
-}
-
-static ec_scalar
-unmarshall_es(const mksearch & mk, const string & s) {
-    return deserialize_es(mk, base64_decode(s));
-}
-
-static ec_point
-unmarshall_ep(const mksearch & mk, const string & s) {
-    return deserialize_ep(mk, base64_decode(s));
-}
-
-
-static string
-keygen(const mksearch & mk, const map<string, string> & args) {
+keygen(const b64mk & mk, const map<string, string> & args) {
     cerr << "calling keygen\n";
-    return marshall(mk.keygen());
+    return mk.keygen();
 }
 
 static string
-delta(const mksearch & mk, const map<string, string> & args) {
-    ec_scalar k1 = unmarshall_es(mk, get_assert(args, "k1"));
-    ec_scalar k2 = unmarshall_es(mk, get_assert(args, "k2"));
+delta(const b64mk & mk, const map<string, string> & args) {
+    ec_scalar k1 = get_assert(args, "k1");
+    ec_scalar k2 = get_assert(args, "k2");
+
+    cerr << "delta : " << mk.delta(k1, k2).pretty() << "\n";
+    return mk.delta(k1, k2);
+}
+
+static string
+token(const b64mk & mk, const map<string, string> & args) {
+    ec_scalar k = get_assert(args, "k");
+    string word = get_assert(args, "word");
+
+    cerr << "token " << mk.token(k, word).pretty() << "\n";
     
-    return marshall(mk.delta(k1, k2));
+    return mk.token(k, word);
 }
 
 static string
-token(const mksearch & mk, const map<string, string> & args) {
-    ec_scalar k = unmarshall_es(mk, get_assert(args, "k"));
+encrypt(b64mk & mk, const map<string, string> & args) {
+    ec_scalar k = get_assert(args, "k");
     string word = get_assert(args, "word");
 
-    return marshall(mk.token(k, word));
+    return mk.encrypt(k, word));
 }
 
-static string
-encrypt(mksearch & mk, const map<string, string> & args) {
-    ec_scalar k = unmarshall_es(mk, get_assert(args, "k"));
-    string word = get_assert(args, "word");
 
-    return base64_encode(mk.encrypt(k, word));
-}
 
 static string
 adjust(const mksearch & mk, const map<string, string> & args) {
-    ec_point tok = unmarshall_ep(mk, get_assert(args, "tok"));
-    ec_point delta = unmarshall_ep(mk, get_assert(args, "delta"));
 
-    return base64_encode(mk.adjust(tok, delta));
+    ec_point tok = get_assert(args, "tok");
+    ec_point delta = get_assert(args, "delta");
+    cerr << "tok str is " << tok << " delta str " << delta << "\n";
+    
+    cerr << "token " << tok.pretty() << " delta " << delta.pretty() << "\n";
+
+    return mk.adjust(tok, delta);
 }
 
 static bool
 match(const mksearch & mk, const map<string, string> & args) {
-    string searchtok = base64_decode(get_assert(args, "searchtok"));
-    string ciph = base64_decode(get_assert(args, "ciph"));
+    string searchtok = get_assert(args, "searchtok");
+    string ciph = get_assert(args, "ciph");
 
     return mk.match(searchtok, ciph);
 }

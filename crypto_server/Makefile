@@ -15,7 +15,7 @@ LDFLAGS	 := -lz \
 	    -L$(TOP)/$(OBJDIR) -L$(PBC)/lib/ -Wl,-rpath=$(PBC)/lib/  -Wl,-rpath=$(TOP) -Wl,-rpath=$(MK)/obj -L$(MK)/obj  -lcryptmk
 
 
-SRC := CryptoServer.cc server.cc base64.cc
+SRC := CryptoServer.cc server.cc
 
 
 all: $(SRC)
