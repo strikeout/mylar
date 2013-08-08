@@ -8,3 +8,7 @@ NACL_ARCH=i686 NACL_GLIBC=1 $NACL_PORT/build_tools/nacl_env.sh ./configure --ena
 make && make install
 cp $NACL_SDK_ROOT/toolchain/linux_x86_glibc/i686-nacl/lib/* $NACL_SDK_ROOT/toolchain/linux_x86_glibc/x86_64-nacl/lib32/
 make distclean
+
+Afterwards, you'll need to run:
+
+export NACL_SDK_ROOT=$HOME/nacl/nacl_sdk/pepper_28/ before doing a meteor build.
