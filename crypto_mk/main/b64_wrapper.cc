@@ -83,10 +83,15 @@ b64mk::match(const std::string & searchtok, const std::string & ciph) {
 
 
 // serialization functions
+std::string
+b64mk::serialize() {
+  return std::string(mk.serialize());
+}
 /*
 char*
 b64mk::serialize() {
     return mk.serialize();
 }
 */
+
 

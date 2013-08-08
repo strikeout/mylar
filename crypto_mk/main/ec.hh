@@ -1,6 +1,6 @@
 #pragma once
 
-#include "pbc.h"
+#include <pbc/pbc.h>
 #include <main/prng.hh>
 
 

@@ -1,6 +1,6 @@
 #include "main/multikey.hh"
 
-#include "pbc.h"
+#include "pbc/pbc.h"
 #include "main/sha.hh"
 
 #include <util/util.hh>

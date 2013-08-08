@@ -6,7 +6,7 @@
 
 
 
-#include "pbc.h"
+#include "pbc/pbc.h"
 #include <string>
 #include "main/multikey.hh"
 

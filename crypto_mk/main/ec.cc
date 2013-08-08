@@ -1,4 +1,4 @@
-#include "pbc.h"
+#include <pbc/pbc.h>
 #include <main/ec.hh>
 #include <main/sha.hh>
 #include <util/util.hh>
@@ -11,7 +11,10 @@ string
 ec_serializable::to_bytes() const {
     int size = element_length_in_bytes(e);
     unsigned char data[size];
-    assert_s(element_to_bytes(data, e) == size, "incorrect serialization");
+	if(element_to_bytes(data, e) != size) {
+	  cerr << "ERROR: incorrect serialization\n";
+	  throw "incorrect serialization";
+	}
     return string((const char *)data, size);
 }
 
@@ -55,7 +58,6 @@ ec_serializable::from_bytes(const string & serial, ECTYPE group, pairing_ptr & p
 	return p;
     }
     }
-    assert_s(false, "incorrect ECTYPE");
     return NULL;
 }
 
@@ -157,7 +159,10 @@ EC::EC() {
     pairing = new pairing_s();
     pairing_init_set_buf(pairing, curve_d.c_str(), curve_d.size());
     
-    assert_s(SEEDSIZE < CTSIZE && CTSIZE <= SEEDSIZE + (int)sha1::hashsize, "CTSIZE sanity check failed");
+    if(!(SEEDSIZE < CTSIZE && CTSIZE <= SEEDSIZE + (int)sha1::hashsize)) {
+	  cerr << "ERROR: CTSIZE sanity check failed\n";
+	  throw "CTSIZE sanity check failed";
+	}
 }
 
 EC::~EC() {
@@ -216,10 +221,16 @@ string
 EC::xor_pattern (const ec_point & n) {
     int size = element_length_in_bytes(n.e);
 
-    assert_s(size >= CTSIZE, "size of point is smaller than ciphertext size");
+	if(size < CTSIZE) {
+	  cerr << "ERROR: size of point is smaller than ciphertext size\n";
+	  throw "size of point is smaller than ciphertext size";
+	}
     unsigned char data[size];
     
-    assert_s(element_to_bytes(data, n.e) == size, "incorrect serialization");
+	if(element_to_bytes(data, n.e) != size) {
+	  cerr << "ERROR: incorrect serialization\n";
+	  throw "incorrect serialization";
+	}
 
     std::string seed = u.rand_string(SEEDSIZE);
     std::string hseed = sha1::hash(seed);
@@ -241,7 +252,10 @@ EC::xor_pattern (const ec_point & n) {
 bool
 EC::has_pattern(const string & tok, const string & ciph) const {
     string tmp;
-    assert_s(tok.size() == ciph.size(), "inconsistent tok/ciph sizes");
+    if(tok.size() != ciph.size()) {
+	  cerr << "ERROR: inconsistent tok/ciph sizes\n";
+	  throw "inconsistent tok/ciph sizes";
+	}
     
     for (uint i = 0; i < tok.size(); i++) {
 	tmp += tok[i]^ciph[i];
