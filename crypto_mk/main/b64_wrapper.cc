@@ -44,7 +44,7 @@ unmarshall_binary(const string & serial) {
 
 b64mk::b64mk() {}
 
-b64mk::b64mk(string g_ser) : mk(g_ser) {}
+b64mk::b64mk(string g_ser) : mk(unmarshall_binary(g_ser)) {}
 
 b64mk::~b64mk() {}
 
@@ -85,7 +85,7 @@ b64mk::match(const std::string & searchtok, const std::string & ciph) {
 // serialization functions
 std::string
 b64mk::serialize() {
-  return std::string(mk.serialize());
+  return marshall(std::string(mk.serialize()));
 }
 /*
 char*
