@@ -42,7 +42,7 @@ if ("undefined" == typeof(CFNamespace)) {
 CFNamespace = {
     safe_pages: {},
     tainted_pages: {},
-    allowed_unsafe_paths: {'/config.json':true,'/favicon.ico':true,'/sockjs/info':true},
+    allowed_unsafe_paths: {'/config.json':'application/json','/sockjs/info':'application/json'},
     /* A bit of unicode gymnastics for correct hashing of response content*/
     encode_utf8: function(s) {
         return unescape( encodeURIComponent( s ) );
@@ -194,6 +194,7 @@ CopyTracingListener.prototype =
       try {
           var httpChannel = request.QueryInterface(Components.interfaces.nsIHttpChannel);
           this.pageSignature = httpChannel.getResponseHeader("cryptframe-signature");
+          this.contentType = httpChannel.getResponseHeader("Content-Type");
           this.pageIsSigned = true;
           this.requiresVerification = true;
           //dump("PAGE SIGNED\n");
@@ -227,9 +228,39 @@ CopyTracingListener.prototype =
       //dump("onStopRequest\n");
       var responseSource = this.receivedData.join('');
       //dump("SHA1 not string: " + Sha1.hash(responseSource,false) + "\n");
-      
-      if (this.pageIsSigned) {
-        if(this.verifySignature(this.pageSignature,responseSource)){
+     
+      var loadContext;
+      try { 
+          loadContext = request.QueryInterface(Components.interfaces.nsIChannel) // aRequest is equivalent to aSubject from observe
+                                .notificationCallbacks 
+                                .getInterface(Components.interfaces.nsILoadContext);
+      } catch (ex) { 
+          //dump("ex: " + ex + "\n");
+          try { 
+              loadContext = request.loadGroup.notificationCallbacks 
+                                    .getInterface(Components.interfaces.nsILoadContext); 
+          } catch (ex) {
+              dump("ex: " + ex + "\n");
+              loadContext = null;
+          }
+      }
+      //dump("load context: " + loadContext.associatedWindow.location + "\n");
+      var top_uri = parseUri(loadContext.associatedWindow.location);
+      //dump("toplevel uri: " + top_uri['source'] + "\n");
+      //dump("channel uri: " + uri['source'] + "\n");
+      if(uri['source'] == top_uri['source']) {
+        dump("TOP LEVEL page load: " + top_uri['source'] + "\n");
+      }
+
+
+      if(this.pageIsSigned && !this.verifySignature(this.pageSignature,responseSource,this.contentType)){
+        dump("ERROR: invalid signature on signed page!!!");
+        this.emitFakeResponse(request,context,statusCode,uri);
+        return;
+      }
+ 
+      if (uri['path'] === '/') {
+        //TODO: path is wrong check. must instead assert it's top-level page and developer intends use as top-level page
           if(!CFNamespace.tainted_pages.hasOwnProperty(uri['host'])){
             if(!CFNamespace.safe_pages.hasOwnProperty(uri['host'])){
               CFNamespace.safe_pages[uri['host']] = true;
@@ -238,20 +269,27 @@ CopyTracingListener.prototype =
           } else {
             dump("ERROR: Tainted origin. clear cache, close browser and retry\n")
           }  
-        } else {
-          dump("ERROR: invalid signature on signed page!!!");
-        }
       } else {
+         if(responseSource.length == 0){
+          dump("response length == 0\n");
+         }
          if(responseSource.length > 0 && !CFN.allowed_unsafe_paths.hasOwnProperty(uri['path']) ){
             var hash = Sha1.hash(responseSource,false)
-            if(uri['file'].startsWith(hash) || uri['query'].startsWith(hash) ){
+            if(this.pageIsSigned && uri['query'] === hash ){
               unsafe = false;
             } else {
               dump("INVALID HASH ("+hash+"): " + uri['source'] + "\n");
+              dump('query was: ' + uri['query'] + "\n");
             }
           } else {
             unsafe = false;
           }
+      }
+      //make sure files from secure origin cannot be loaded separately
+      //must still allow including files from unsafe origin on secured origin page
+      if(uri['host'] != top_uri['host']) {
+        dump("different hosts: " + uri['host'] + ' ' + top_uri['host'] + "\n");
+        unsafe = true;
       }
       //
       if(!unsafe){
@@ -272,12 +310,18 @@ CopyTracingListener.prototype =
       throw Components.results.NS_NOINTERFACE;
   },
 
-  verifySignature: function(sig,responseSource){
+  verifySignature: function(sig,responseSource,contentType){
+    //dump("verify\n");
     try{
       sn = sjcl.codec.hex.toBits(sig) 
-      var bithash = sjcl.hash.sha256.hash(CFN.decode_utf8(responseSource));
-      var hashed = sjcl.codec.hex.fromBits(bithash);
-      CFN.pub.verify(hashed,sn);//throws error if not safe
+      //var bithash = sjcl.hash.sha256.hash(CFN.decode_utf8(responseSource));
+      //var hashed = sjcl.codec.hex.fromBits(bithash);
+      var hashed = Sha1.hash(responseSource,false);
+      var hash2 = Sha1.hash(contentType + ':' + hashed,true);
+      //dump("simple hash: " + hashed + "\n");
+      //dump("ctype: " + contentType + "\n");
+      //dump("with ctype hash: " + hash2 + "\n");
+      CFN.pub.verify(hash2,sn);//throws error if not safe
       return true;
     } catch (anError) {
       return false;

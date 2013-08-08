@@ -19,6 +19,7 @@ function newNotifierInstance(window){
 
     var icon = window.document.getElementById("flagfox-icon");
     var tooltip = window.document.getElementById("cf-tooltip-info");
+    //dump("lili = " + window.location + "\n");
     if (!icon)
     {
         dump("Cryptframe warning: attempted to load icon into an invalid window");
@@ -29,10 +30,10 @@ function newNotifierInstance(window){
 
     var progressListener =
     {
-        onLocationChange : refreshIcon,
+        onLocationChange : locationChange,
         onProgressChange : function() {},
         onSecurityChange : function() {},
-        onStateChange : refreshIcon,
+        onStateChange : refreshIcon, //TODO: filter appropriate states only
         onStatusChange : function() {}
     };
     window.getBrowser().addProgressListener(progressListener);
@@ -54,6 +55,12 @@ function newNotifierInstance(window){
             return "CFextension: this page is not secured";
         }
     }
+
+
+    function locationChange(){
+      //dump("LOCATION = " + window.location + "\n");
+      refreshIcon();
+    } 
 
     function refreshIcon()
     {

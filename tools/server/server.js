@@ -190,7 +190,7 @@ var run = function () {
                               {clientMaxAge: 1000 * 60 * 60 * 24 * 365,
                                root: '/'});
         //console.log(req.url);
-        //XXX not pretty. better extract hash from request and do direct lookup.
+        //XXX quick ugly hash. better extract hash from request and do direct lookup.
         for(var hash in info.signatures){
             if (req.url.indexOf(hash) !== -1){
                 res.setHeader('Cryptframe-Signature',info.signatures[hash]);
@@ -334,7 +334,7 @@ var run = function () {
       var request = categorizeRequest(req);
 
       res.writeHead(200, {
-        'Content-Type': 'text/html; charset=utf-8',
+        'Content-Type': 'text/html; charset=UTF-8',
         'Cryptframe-Signature':info.signatures['app.html']  
       });
 
