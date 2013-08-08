@@ -469,7 +469,13 @@ if (Meteor.isClient) {
 
         // The following are required to remove the possibility the client cached keys.
         // TODO:Reencrypt data
-        // TODO:remove_access(princ2, Children)
+
+        // Remove the children's pointers to the parent.
+        // var childrenOriginal = WrappedKeys.find({wrapped_for:princ2.id});
+        // childrenOriginal.forEach(function(wk){
+        //     var child = wk.principal;
+        //     Principal._remove_access(princ2, child, undefined);
+        // });
 
 	    if (on_complete) {
 		    on_complete();
