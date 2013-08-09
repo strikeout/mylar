@@ -75,7 +75,7 @@ var deserialize_private = function (ser, system) {
                 return new sjcl.ecc[system].secretKey(c, exp);
             }
 
-var sign = function (contents,filename) {
+var sign = function (contents,filename,toplevel) {
     var serialized_private = "000000c12004626b9660b82694210edda6593c9894a99351d3b30d";   
     var serialized_public = "1bd7cee0c382ccebc599cd46f903dc849b392a0cb0de1aa26831c4d0c52d4e48f6689917b6e09ae6697f7618b52e5bd3"; //doesn't need to be here...
 
@@ -84,18 +84,19 @@ var sign = function (contents,filename) {
     //infer content type to sign header
     contentType = mime.lookup(filename);
     charset = mime.charsets.lookup(contentType, 'UTF-8'); //TODO: not sure if correct for img
-    console.log(charset + " charset");
+    //console.log(charset + " charset");
     contentTypeMatch = /*options.contentTypeMatch ||*/ /text|javascript|json/
     if(contentTypeMatch.test(contentType)){
       contentType = contentType + (charset ? '; charset=' + charset : '');
     }
-    console.log(filename + " has content type: " + contentType);
+    //console.log(filename + " has content type: " + contentType);
  
+    tl = toplevel ? '1' : '0';
     var hash = sha1(contents);
-    var hash2 = sha1(contentType+':'+hash);
+    var hash2 = sha1(contentType+':'+hash+':'+tl);
     //var hash = sjcl.hash.sha256.hash(contents);
     //hash = sjcl.codec.hex.fromBits(hash)
-    console.log(filename + " has hashes " + hash + " and " + hash2);
+    //console.log(filename + " has hashes " + hash + " and " + hash2);
     var paranoia = 0; //TODO: is this unsafe? why do we need randomness?
     return sjcl.codec.hex.fromBits(sec.sign(hash2,paranoia));
   //var sk = 0; //super secret key!!! don't give this to anyone ;-)
@@ -548,7 +549,7 @@ _.extend(Bundle.prototype, {
       var contents = new Buffer(finalCode);
       var hash = sha1(contents);
       var name = '/' + hash + '.' + type;
-      var signature = sign(contents,name);
+      var signature = sign(contents,name,false);
       self.files.client_cacheable[name] = contents;
       self.manifest.push({
         path: 'static_cacheable' + name,
@@ -689,7 +690,7 @@ _.extend(Bundle.prototype, {
       var normalized = filepath.split(path.sep).join('/');
       if (normalized.charAt(0) === '/')
         normalized = normalized.substr(1);
-        signature = sign(contents,normalized)
+        signature = sign(contents,normalized,false)
       self.manifest.push({
         // path is normalized to use forward slashes
         path: (cacheable ? 'static_cacheable' : 'static') + '/' + normalized,
@@ -809,7 +810,7 @@ _.extend(Bundle.prototype, {
     }
 
     var app_html = self._generate_app_html();
-    var signature = sign(app_html,'app.html');
+    var signature = sign(app_html,'app.html',true);
     fs.writeFileSync(path.join(build_path, 'app.html'), app_html);
     self.manifest.push({
       path: 'app.html',

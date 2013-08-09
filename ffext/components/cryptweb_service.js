@@ -42,7 +42,7 @@ if ("undefined" == typeof(CFNamespace)) {
 CFNamespace = {
     safe_pages: {},
     tainted_pages: {},
-    allowed_unsafe_paths: {'/config.json':'application/json','/sockjs/info':'application/json'},
+    allowed_unsafe_paths: {'/config.json':'application/json','/favicon.ico':'image/x-icon','/sockjs/info':'application/json'},
     /* A bit of unicode gymnastics for correct hashing of response content*/
     encode_utf8: function(s) {
         return unescape( encodeURIComponent( s ) );
@@ -118,7 +118,7 @@ cryptweb_service.prototype =
     },
   
     onModifyRequest: function(oHttp) {
-        //dump("modify " + oHttp.URI.spec + "\n");
+        dump("modify " + oHttp.URI.spec + "\n");
     },
 
     onExamineResponse: function(oHttp) {
@@ -248,19 +248,21 @@ CopyTracingListener.prototype =
       var top_uri = parseUri(loadContext.associatedWindow.location);
       //dump("toplevel uri: " + top_uri['source'] + "\n");
       //dump("channel uri: " + uri['source'] + "\n");
-      if(uri['source'] == top_uri['source']) {
+      var is_toplevel = (uri['source'] == top_uri['source'])
+
+      if(is_toplevel){
         dump("TOP LEVEL page load: " + top_uri['source'] + "\n");
       }
 
 
-      if(this.pageIsSigned && !this.verifySignature(this.pageSignature,responseSource,this.contentType)){
+      if(responseSource.length > 0 && !CFN.allowed_unsafe_paths.hasOwnProperty(uri['path']) && !this.verifySignature(this.pageSignature,responseSource,this.contentType,is_toplevel)){
         dump("ERROR: invalid signature on signed page!!!");
         this.emitFakeResponse(request,context,statusCode,uri);
         return;
       }
+      dump("signature is valid\n");
  
-      if (uri['path'] === '/') {
-        //TODO: path is wrong check. must instead assert it's top-level page and developer intends use as top-level page
+      if (is_toplevel) {
           if(!CFNamespace.tainted_pages.hasOwnProperty(uri['host'])){
             if(!CFNamespace.safe_pages.hasOwnProperty(uri['host'])){
               CFNamespace.safe_pages[uri['host']] = true;
@@ -285,8 +287,8 @@ CopyTracingListener.prototype =
             unsafe = false;
           }
       }
-      //make sure files from secure origin cannot be loaded separately
-      //must still allow including files from unsafe origin on secured origin page
+      //makes sure files from secure origin cannot be loaded separately
+      //but still allows including files from unsafe origin on secured origin page
       if(uri['host'] != top_uri['host']) {
         dump("different hosts: " + uri['host'] + ' ' + top_uri['host'] + "\n");
         unsafe = true;
@@ -310,20 +312,36 @@ CopyTracingListener.prototype =
       throw Components.results.NS_NOINTERFACE;
   },
 
-  verifySignature: function(sig,responseSource,contentType){
-    //dump("verify\n");
+  verifySignature: function(sig,responseSource,contentType,is_toplevel){
+    dump("verify\n");
     try{
       sn = sjcl.codec.hex.toBits(sig) 
       //var bithash = sjcl.hash.sha256.hash(CFN.decode_utf8(responseSource));
       //var hashed = sjcl.codec.hex.fromBits(bithash);
+      var tl = is_toplevel ? '1':'0';
       var hashed = Sha1.hash(responseSource,false);
-      var hash2 = Sha1.hash(contentType + ':' + hashed,true);
+      var hstring = contentType + ':' + hashed + ':' + tl;
+      dump(hstring + '\n');
+      var hash2 = Sha1.hash(hstring,true);
       //dump("simple hash: " + hashed + "\n");
       //dump("ctype: " + contentType + "\n");
       //dump("with ctype hash: " + hash2 + "\n");
       CFN.pub.verify(hash2,sn);//throws error if not safe
       return true;
     } catch (anError) {
+      try {
+        var tl = !is_toplevel ? '1':'0';
+        var hashed = Sha1.hash(responseSource,false);
+        var hash2 = Sha1.hash(contentType + ':' + hashed + ':' + tl,true);
+        CFN.pub.verify(hash2,sn);//throws error if not safe
+        if(is_toplevel){
+          dump("WARNING: other document trying to load toplevel page");
+        } else {
+          dump("WARNING: non-toplevel document trying to load as top-level page");
+        }
+      } catch (e) {
+        //pass
+      } 
       return false;
     }
     return false;
