@@ -75,7 +75,7 @@ var deserialize_private = function (ser, system) {
                 return new sjcl.ecc[system].secretKey(c, exp);
             }
 
-var sign = function (contents,filename,toplevel) {
+var sign = function (contents,filename,toplevel,uri_filename) {
     var serialized_private = "000000c12004626b9660b82694210edda6593c9894a99351d3b30d";   
     var serialized_public = "1bd7cee0c382ccebc599cd46f903dc849b392a0cb0de1aa26831c4d0c52d4e48f6689917b6e09ae6697f7618b52e5bd3"; //doesn't need to be here...
 
@@ -92,8 +92,9 @@ var sign = function (contents,filename,toplevel) {
     //console.log(filename + " has content type: " + contentType);
  
     tl = toplevel ? '1' : '0';
-    var hash = sha1(contents);
-    var hash2 = sha1(contentType+':'+hash+':'+tl);
+    var hash = sha1(contents); //hash twice because content might not be utf8
+    //console.log("uri_filename is " + uri_filename);
+    var hash2 = sha1(contentType+':'+hash+':'+tl+':'+uri_filename);
     //var hash = sjcl.hash.sha256.hash(contents);
     //hash = sjcl.codec.hex.fromBits(hash)
     //console.log(filename + " has hashes " + hash + " and " + hash2);
@@ -549,7 +550,7 @@ _.extend(Bundle.prototype, {
       var contents = new Buffer(finalCode);
       var hash = sha1(contents);
       var name = '/' + hash + '.' + type;
-      var signature = sign(contents,name,false);
+      var signature = sign(contents,name,false,name);
       self.files.client_cacheable[name] = contents;
       self.manifest.push({
         path: 'static_cacheable' + name,
@@ -690,7 +691,7 @@ _.extend(Bundle.prototype, {
       var normalized = filepath.split(path.sep).join('/');
       if (normalized.charAt(0) === '/')
         normalized = normalized.substr(1);
-        signature = sign(contents,normalized,false)
+        signature = sign(contents,normalized,false,path.basename(normalized))
       self.manifest.push({
         // path is normalized to use forward slashes
         path: (cacheable ? 'static_cacheable' : 'static') + '/' + normalized,
@@ -810,7 +811,7 @@ _.extend(Bundle.prototype, {
     }
 
     var app_html = self._generate_app_html();
-    var signature = sign(app_html,'app.html',true);
+    var signature = sign(app_html,'app.html',true,'');
     fs.writeFileSync(path.join(build_path, 'app.html'), app_html);
     self.manifest.push({
       path: 'app.html',

@@ -255,7 +255,7 @@ CopyTracingListener.prototype =
       }
 
 
-      if(responseSource.length > 0 && !CFN.allowed_unsafe_paths.hasOwnProperty(uri['path']) && !this.verifySignature(this.pageSignature,responseSource,this.contentType,is_toplevel)){
+      if(responseSource.length > 0 && !CFN.allowed_unsafe_paths.hasOwnProperty(uri['path']) && !this.verifySignature(this.pageSignature,responseSource,this.contentType,is_toplevel,uri['file'])){
         dump("ERROR: invalid signature on signed page!!!");
         this.emitFakeResponse(request,context,statusCode,uri);
         return;
@@ -312,7 +312,7 @@ CopyTracingListener.prototype =
       throw Components.results.NS_NOINTERFACE;
   },
 
-  verifySignature: function(sig,responseSource,contentType,is_toplevel){
+  verifySignature: function(sig,responseSource,contentType,is_toplevel,uri_filename){
     dump("verify\n");
     try{
       sn = sjcl.codec.hex.toBits(sig) 
@@ -320,7 +320,7 @@ CopyTracingListener.prototype =
       //var hashed = sjcl.codec.hex.fromBits(bithash);
       var tl = is_toplevel ? '1':'0';
       var hashed = Sha1.hash(responseSource,false);
-      var hstring = contentType + ':' + hashed + ':' + tl;
+      var hstring = contentType + ':' + hashed + ':' + tl + ":" + uri_filename;
       dump(hstring + '\n');
       var hash2 = Sha1.hash(hstring,true);
       //dump("simple hash: " + hashed + "\n");
@@ -332,7 +332,8 @@ CopyTracingListener.prototype =
       try {
         var tl = !is_toplevel ? '1':'0';
         var hashed = Sha1.hash(responseSource,false);
-        var hash2 = Sha1.hash(contentType + ':' + hashed + ':' + tl,true);
+        dump("uri_filename is " + uri_filename + "\n");
+        var hash2 = Sha1.hash(contentType + ':' + hashed + ':' + tl+':' + uri_filename,true);
         CFN.pub.verify(hash2,sn);//throws error if not safe
         if(is_toplevel){
           dump("WARNING: other document trying to load toplevel page");
