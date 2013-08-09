@@ -61,7 +61,7 @@ fi
 # build crypto_ext
 pushd crypto_ext
 #make
-./fixPackage.sh > ../packages/principal/package.js
+#./fixPackage.sh > ../packages/principal/package.js
 popd
 
 
