@@ -42,7 +42,11 @@ if ("undefined" == typeof(CFNamespace)) {
 CFNamespace = {
     safe_pages: {},
     tainted_pages: {},
-    allowed_unsafe_paths: {'/config.json':'application/json','/favicon.ico':'image/x-icon','/sockjs/info':'application/json'},
+    allowed_unsafe_paths: {
+      '/config.json':'application/json; charset=utf-8',
+      '/favicon.ico':'image/x-icon',
+      '/sockjs/info':'application/json; charset=UTF-8'
+    },
     /* A bit of unicode gymnastics for correct hashing of response content*/
     encode_utf8: function(s) {
         return unescape( encodeURIComponent( s ) );
@@ -119,9 +123,19 @@ cryptweb_service.prototype =
   
     onModifyRequest: function(oHttp) {
         dump("modify " + oHttp.URI.spec + "\n");
+        var uri = parseUri(oHttp.originalURI.spec);
+        if(CFNamespace.safe_pages.hasOwnProperty(uri['host'])){
+          //prevent loading from cache in secure origin
+          oHttp.loadFlags |= Components.interfaces.nsICachingChannel.LOAD_BYPASS_LOCAL_CACHE;
+          dump("bypass cache\n");
+        } else {
+          dump("cache active\n");
+        }
+        dump("eom\n");
     },
 
     onExamineResponse: function(oHttp) {
+        dump("examine " + oHttp.URI.spec + "\n");
         try{
             //intercept http response content in inITraceableChannel
             var newListener = new CopyTracingListener();
@@ -190,11 +204,11 @@ CopyTracingListener.prototype =
       this.offsetcount = [];  //array for passing on chunks of data
       this.pageIsSigned = false; //true iff header contains cryptframe-signature
       this.pageSignature = null;
-      this.requiresVerification = false; //true if signed on in signed origin
+      this.requiresVerification = false; //true if signed or in signed origin
       try {
           var httpChannel = request.QueryInterface(Components.interfaces.nsIHttpChannel);
+          this.ContentType = httpChannel.getResponseHeader("Content-Type");
           this.pageSignature = httpChannel.getResponseHeader("cryptframe-signature");
-          this.contentType = httpChannel.getResponseHeader("Content-Type");
           this.pageIsSigned = true;
           this.requiresVerification = true;
           //dump("PAGE SIGNED\n");
@@ -255,11 +269,22 @@ CopyTracingListener.prototype =
       }
 
 
-      if(responseSource.length > 0 && !CFN.allowed_unsafe_paths.hasOwnProperty(uri['path']) && !this.verifySignature(this.pageSignature,responseSource,this.contentType,is_toplevel,uri['file'])){
+      if(responseSource.length > 0 && !CFN.allowed_unsafe_paths.hasOwnProperty(uri['path']) && !this.verifySignature(this.pageSignature,responseSource,this.ContentType,is_toplevel,uri['file'])){
         dump("ERROR: invalid signature on signed page!!!");
         this.emitFakeResponse(request,context,statusCode,uri);
         return;
       }
+      //for unsafe paths, check content type:
+      if(CFN.allowed_unsafe_paths.hasOwnProperty(uri['path'])){
+        if(this.ContentType !== CFN.allowed_unsafe_paths[uri['path']]){
+          dump("ERROR: invalid content type "+this.ContentType+" for path "+uri['path']+"\n");
+          this.emitFakeResponse(request,context,statusCode,uri);
+          return;
+        } 
+      }
+
+
+
       dump("signature is valid\n");
  
       if (is_toplevel) {
@@ -313,7 +338,7 @@ CopyTracingListener.prototype =
   },
 
   verifySignature: function(sig,responseSource,contentType,is_toplevel,uri_filename){
-    dump("verify\n");
+    //dump("verify\n");
     try{
       sn = sjcl.codec.hex.toBits(sig) 
       //var bithash = sjcl.hash.sha256.hash(CFN.decode_utf8(responseSource));
@@ -321,7 +346,7 @@ CopyTracingListener.prototype =
       var tl = is_toplevel ? '1':'0';
       var hashed = Sha1.hash(responseSource,false);
       var hstring = contentType + ':' + hashed + ':' + tl + ":" + uri_filename;
-      dump(hstring + '\n');
+      //dump(hstring + '\n');
       var hash2 = Sha1.hash(hstring,true);
       //dump("simple hash: " + hashed + "\n");
       //dump("ctype: " + contentType + "\n");
@@ -332,7 +357,7 @@ CopyTracingListener.prototype =
       try {
         var tl = !is_toplevel ? '1':'0';
         var hashed = Sha1.hash(responseSource,false);
-        dump("uri_filename is " + uri_filename + "\n");
+        //dump("uri_filename is " + uri_filename + "\n");
         var hash2 = Sha1.hash(contentType + ':' + hashed + ':' + tl+':' + uri_filename,true);
         CFN.pub.verify(hash2,sn);//throws error if not safe
         if(is_toplevel){
@@ -400,8 +425,8 @@ CopyTracingListener.prototype =
     //must clear cache here, becasue content is already in cache and 
     //loading from cache doesn't trigger http-on-examine-response
     var cacheService = Components.classes["@mozilla.org/network/cache-service;1"].getService(Components.interfaces.nsICacheService);
-    cacheService.evictEntries(Components.interfaces.nsICache.STORE_ON_DISK);
-    cacheService.evictEntries(Components.interfaces.nsICache.STORE_IN_MEMORY);
+    //cacheService.evictEntries(Components.interfaces.nsICache.STORE_ON_DISK);
+    //cacheService.evictEntries(Components.interfaces.nsICache.STORE_IN_MEMORY);
     dump("fake response emitted, cache cleared\n");
   }, 
 
