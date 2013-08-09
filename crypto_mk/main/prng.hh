@@ -3,7 +3,6 @@
 #include <string.h>
 #include <string>
 #include <vector>
-#include <fstream>
 #include <util/errstream.hh>
 
 
@@ -43,8 +42,5 @@ class urandom : public PRNG {
     virtual ~urandom() {}
     virtual void rand_bytes(size_t nbytes, uint8_t *buf);
     virtual void seed_bytes(size_t nbytes, uint8_t *buf);
-
- private:
-    std::fstream f;
 };
 

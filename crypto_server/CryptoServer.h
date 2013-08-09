@@ -2,7 +2,7 @@
 
 #include <string>
 
-#include "multikey.hh"
+#include "b64_wrapper.hh"
 
 
 /* Server doing multi key crypto
@@ -16,16 +16,16 @@
  *
  */
 
+#define VERB false
+
 class CryptoServer {
 
 public:
-    CryptoServer()  {};
-    
     // process request
     std::string process(const std::string & request);
 
 private:
-    mksearch mk;
+    b64mk mk;
 };
 
 

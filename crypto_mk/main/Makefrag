@@ -1,5 +1,5 @@
 OBJDIRS     += main
-CRYPTMKSRC   :=  prng.cc ec.cc multikey.cc 
+CRYPTMKSRC   :=  base64.cc prng.cc ec.cc multikey.cc b64_wrapper.cc 
 CRYPTMKOBJ   := $(patsubst %.cc,$(OBJDIR)/main/%.o,$(CRYPTMKSRC))
 
 all:    $(OBJDIR)/libcryptmk.so

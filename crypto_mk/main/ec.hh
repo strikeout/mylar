@@ -1,13 +1,20 @@
 #pragma once
 
-#include "pbc.h"
+#include <pbc/pbc.h>
 #include <main/prng.hh>
+
+
+enum class ECTYPE {G1, G2, Zr, GT};
+
+class EC;
 
 class ec_serializable {
 public:
-    std::string stringify(int truncate = 0) const;
-    void to_bytes(void** output) const;
-    static void from_bytes(void* ser, ec_serializable &output);
+
+    std::string to_bytes() const;
+    static ec_serializable * from_bytes(const std::string & serial,
+				      ECTYPE group, pairing_ptr & pairing);
+    
     element_ptr e;
 };
 
@@ -25,6 +32,7 @@ class ec_point : public ec_serializable {
 public:
     ec_point();
     ec_point(const element_ptr & _e);
+
     ~ec_point();
 
     ec_point operator^(const ec_scalar & s) const;
@@ -34,13 +42,12 @@ public:
 };
 
 
+
+
 class EC {
 public:
     EC();
     ~EC();
-
-    void elem_init_G2(element_ptr e) const;
-    void elem_init_Zr(element_ptr e) const;
 
     ec_point sample_G2() const;
     ec_scalar sample_scalar() const;
@@ -52,11 +59,14 @@ public:
     std::string xor_pattern (const ec_point & n);
     bool has_pattern(const std::string & tok, const std::string & ciph) const;
 
+        
     static const int CTSIZE = 24;
 
-private:
     pairing_ptr pairing;
+private:
+
     urandom u;
 
     static const int SEEDSIZE = 16;
+
 };

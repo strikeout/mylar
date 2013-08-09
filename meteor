@@ -52,7 +52,7 @@ popd
 echo "Building crypto_ext"
 
 # fetch crypto_ext
-if [ ! -f crypto_ext/bin/lib32/libc.so.b7d4c72d ]; then
+if [ ! -f crypto_ext/bin/lib32/libc.so.a0e12298 ]; then
 	wget "http://web.mit.edu/dvorak42/Public/cebin.tar"
 	tar xvf "cebin.tar"
 	rm "cebin.tar"
