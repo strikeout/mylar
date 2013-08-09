@@ -122,20 +122,20 @@ cryptweb_service.prototype =
     },
   
     onModifyRequest: function(oHttp) {
-        dump("modify " + oHttp.URI.spec + "\n");
+        //dump("modify " + oHttp.URI.spec + "\n");
         var uri = parseUri(oHttp.originalURI.spec);
         if(CFNamespace.safe_pages.hasOwnProperty(uri['host'])){
           //prevent loading from cache in secure origin
           oHttp.loadFlags |= Components.interfaces.nsICachingChannel.LOAD_BYPASS_LOCAL_CACHE;
-          dump("bypass cache\n");
+          //dump("bypass cache\n");
         } else {
-          dump("cache active\n");
+          //dump("cache active\n");
         }
-        dump("eom\n");
+        //dump("eom\n");
     },
 
     onExamineResponse: function(oHttp) {
-        dump("examine " + oHttp.URI.spec + "\n");
+        //dump("examine " + oHttp.URI.spec + "\n");
         try{
             //intercept http response content in inITraceableChannel
             var newListener = new CopyTracingListener();
@@ -285,7 +285,7 @@ CopyTracingListener.prototype =
 
 
 
-      dump("signature is valid\n");
+      //dump("signature is valid\n");
  
       if (is_toplevel) {
           if(!CFNamespace.tainted_pages.hasOwnProperty(uri['host'])){
@@ -427,7 +427,7 @@ CopyTracingListener.prototype =
     var cacheService = Components.classes["@mozilla.org/network/cache-service;1"].getService(Components.interfaces.nsICacheService);
     //cacheService.evictEntries(Components.interfaces.nsICache.STORE_ON_DISK);
     //cacheService.evictEntries(Components.interfaces.nsICache.STORE_IN_MEMORY);
-    dump("fake response emitted, cache cleared\n");
+    dump("CFExtension: fake response emitted\n");
   }, 
 
   //writes to file, sometimes useful for debugging
