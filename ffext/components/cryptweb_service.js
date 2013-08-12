@@ -43,9 +43,27 @@ CFNamespace = {
     safe_pages: {},
     tainted_pages: {},
     allowed_unsafe_paths: {
-      '/config.json':'application/json; charset=utf-8',
-      '/favicon.ico':'image/x-icon',
-      '/sockjs/info':'application/json; charset=UTF-8'
+      '\/config\.json':'application/json; charset=utf-8',
+      '\/favicon\.ico':'image/x-icon',
+      '\/sockjs\/info':'application/json; charset=UTF-8',
+      //XXX: is this dangerous or does firefox treat json and javascript the same?
+      '\/sockjs\/[\w\/]*':'application/javascript; charset=UTF-8'
+    },
+    //tests if an unsafe path matches
+    test_unsafe_path: function(p) { 
+      try{
+      for (var allowed in CFNamespace.allowed_unsafe_paths){
+        re = new RegExp(allowed);
+        if (re.test(p)) {
+          dump("REGEXP match " + allowed + " for " + p + "\n");
+          return [true,CFNamespace.allowed_unsafe_paths[allowed]];
+        }
+        dump("no regexp match " + allowed + " for " + p + "\n");
+      }
+      } catch (e) {
+        dump("E: " + e + "\n");
+      }
+      return [false,''];
     },
     /* A bit of unicode gymnastics for correct hashing of response content*/
     encode_utf8: function(s) {
@@ -269,15 +287,17 @@ CopyTracingListener.prototype =
       }
 
 
-      if(responseSource.length > 0 && !CFN.allowed_unsafe_paths.hasOwnProperty(uri['path']) && !this.verifySignature(this.pageSignature,responseSource,this.ContentType,is_toplevel,uri['file'])){
+      check_unsafe = CFN.test_unsafe_path(uri['path']);
+      if(responseSource.length > 0 && !check_unsafe[0] && !this.verifySignature(this.pageSignature,responseSource,this.ContentType,is_toplevel,uri['file'])){
         dump("ERROR: invalid signature on signed page!!!");
         this.emitFakeResponse(request,context,statusCode,uri);
         return;
       }
       //for unsafe paths, check content type:
-      if(CFN.allowed_unsafe_paths.hasOwnProperty(uri['path'])){
-        if(this.ContentType !== CFN.allowed_unsafe_paths[uri['path']]){
+      if(check_unsafe[0]){
+        if(this.ContentType !== check_unsafe[1]){
           dump("ERROR: invalid content type "+this.ContentType+" for path "+uri['path']+"\n");
+          dump(">"+responseSource+"<\n");
           this.emitFakeResponse(request,context,statusCode,uri);
           return;
         } 
@@ -300,7 +320,7 @@ CopyTracingListener.prototype =
          if(responseSource.length == 0){
           dump("response length == 0\n");
          }
-         if(responseSource.length > 0 && !CFN.allowed_unsafe_paths.hasOwnProperty(uri['path']) ){
+         if(responseSource.length > 0 && !check_unsafe[0] ){
             var hash = Sha1.hash(responseSource,false)
             if(this.pageIsSigned && uri['query'] === hash ){
               unsafe = false;
