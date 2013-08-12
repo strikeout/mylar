@@ -1,0 +1,2 @@
+cd meteor-enc/idp/.meteor/local/build/server/
+npm install mime
