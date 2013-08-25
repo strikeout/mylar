@@ -42,9 +42,10 @@ unmarshall_binary(const string & serial) {
     return base64_decode(serial);
 }
 
-b64mk::b64mk() {}
 
-b64mk::b64mk(string g_ser) : mk(unmarshall_binary(g_ser)) {}
+const string params = "ECRQ++V82WnAmHOdN7RQdKTps7NHe86rGhfV0Kx/cRbop6Ued59qM2YInO+y8DuOGO6qqidgujNCrC48SG3oX7Pq77nA6GTlfngovn7WLTRqyhktpggROfGE/YNMysNZsPs8BxEkL5B+EjXHPuIx9KVJY6SORW8E";
+
+b64mk::b64mk() : mk(unmarshall_binary(params)) {}
 
 b64mk::~b64mk() {}
 
@@ -80,18 +81,4 @@ b64mk::match(const std::string & searchtok, const std::string & ciph) {
     return mk.match(unmarshall_binary(searchtok),
 		    unmarshall_binary(ciph));
 }
-
-
-// serialization functions
-std::string
-b64mk::serialize() {
-  return marshall(std::string(mk.serialize()));
-}
-/*
-char*
-b64mk::serialize() {
-    return mk.serialize();
-}
-*/
-
 
