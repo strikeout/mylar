@@ -1,3 +1,9 @@
+
+/*
+  NaCl crypto interface for multi-key crypto
+*/
+
+
 enc_module = undefined;
 enc_return = undefined;
 
@@ -53,3 +59,4 @@ Crypto.match = function(tok, cipher, cb) {
     enc_return = cb;
     enc_module.postMessage("match(" + tok + "," + cipher + ")");
 };
+
