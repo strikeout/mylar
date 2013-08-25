@@ -13,10 +13,6 @@
 using namespace std;
 
 namespace crypto_ext {
-  pp::Var MarshallNew() {
-	b64mk bmk = b64mk();
-	return pp::Var(bmk.serialize());
-  }
 
   pp::Var MarshallKeygen(const std::string& gs) {
 	b64mk bmk = b64mk(gs);
