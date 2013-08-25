@@ -24,12 +24,6 @@ Crypto.test = function(cb) {
     enc_return = cb;
     enc_module.postMessage("testJ()");
 };
-
-Crypto.newKey = function(cb) {
-    enc_return = cb;
-    enc_module.postMessage("new()");
-};
-
 Crypto.keygen = function(cb) {
     enc_return = cb;
     enc_module.postMessage("keygen()");
