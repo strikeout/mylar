@@ -342,16 +342,11 @@ if (Meteor.isClient) {
     // Constructs a new principal
     // keys is optional, and is generated randomly if missing
     Principal = function(type, name, keys) {
-	if (type == '')
-	    throw new Error("Principal needs a type");
+	if (type == '' || !keys)
+	    throw new Error("Principal needs a type & keys must be set");
 	
 	this.type = type;
 	this.name = name;
-	
-	if (!keys) {
-	    keys = crypto.generate_keys();
-	}
-	
 	this.keys = keys;
         
 	/* Currently, id is public keys. 
@@ -361,13 +356,22 @@ if (Meteor.isClient) {
 
     }
 
+    // generates keys: standard crypto + multi-key
+    _generate_keys = function(type, cb) {
+	keys = crypto.generate_keys();
+
+	Crypto.keygen(function(key) {
+	    _.extend(keys, {'mk_key' : key});
+	    cb();
+	});
+    }
+
     // creates a principal of type and name
     // as certified by principal authority
     // and stores it in the principal graph
     // as certified by creator
     // naturally, creator gets access to this principal
     // runs callback cb upon completion
-    // returns the principal created
     Principal.create = function(type, name, creator, cb) {
 
 	if (!type || !name || !creator) {
@@ -378,11 +382,12 @@ if (Meteor.isClient) {
 	if (!creator.keys.sign) {
 	    throw new Error("creator " + creator.name + " does not have sign keys available");
 	}
-	
-	var p = new Principal(type, name);
-	Principal._store(p, creator);
-	Principal.add_access(creator, p, cb);
-	return p;
+
+	_generate_keys(type, function(keys) {
+	    var p = new Principal(type, name, keys);
+	    Principal._store(p, creator);
+	    Principal.add_access(creator, p, cb);
+	});
     }
 
     // Creates a new node in the principal graph for the given principal
@@ -466,30 +471,32 @@ if (Meteor.isClient) {
         WrappedKeys.remove(wrappedID);
 
         // Create a new principal.
-        var newPrincipal = Principal.create(princ2.type, princ2.name, undefined);
-
-        // Add new WK for new principal.
-        var parentOriginal = WrappedKeys.find({principal: princ2.id});
-        parentOriginal.forEach(function(wk) {
-            var princ = Principals.findOne(wk.wrapped_for);
-            Principal.add_access(princ, newPrincipal, undefined);
-        });
-
-        // The following are required to remove the possibility the client cached keys.
-        // TODO:Reencrypt data
-
-        // Remove the children's pointers to the parent.
-        // var childrenOriginal = WrappedKeys.find({wrapped_for:princ2.id});
-        // childrenOriginal.forEach(function(wk){
-        //     var child = wk.principal;
-        //     Principal._remove_access(princ2, child, undefined);
-        // });
-
-	    if (on_complete) {
+            Principal.create(princ2.type, princ2.name, function(newPrincipal){
+		
+		// Add new WK for new principal.
+		var parentOriginal = WrappedKeys.find({principal: princ2.id});
+		parentOriginal.forEach(function(wk) {
+		    var princ = Principals.findOne(wk.wrapped_for);
+		    Principal.add_access(princ, newPrincipal, undefined);
+		});
+		
+		// The following are required to remove the possibility the client cached keys.
+		// TODO:Reencrypt data
+		
+		// Remove the children's pointers to the parent.
+		// var childrenOriginal = WrappedKeys.find({wrapped_for:princ2.id});
+		// childrenOriginal.forEach(function(wk){
+		//     var child = wk.principal;
+		//     Principal._remove_access(princ2, child, undefined);
+		// });
+		
+		if (on_complete) {
 		    on_complete();
-	    }
-	};
-    };
+		}
+	    		
+	    });
+
+	}};
 
     Principal.prototype.create_certificate = function (princ) {
 	var self = this;
@@ -511,7 +518,7 @@ if (Meteor.isClient) {
     // How did they get there? What happens if they're not there?
     Principal.prototype.user = function () {
 	var keys = Principal.deserialize_keys(localStorage['user_princ_keys']);
-	return new Principal(keys);
+	return new Principal("user", Meteor.user().username, keys);
     };
 
     
