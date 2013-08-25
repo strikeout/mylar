@@ -28,9 +28,18 @@ PrincType = new Meteor.Collection("princtype");
   Information on principal type:
   type
   searchable : True/False
-  instantiated: True/False; True if some principal of this type was created
+  one_got_access: True/False; True if some principal got access to a principal of this type
  */
-  
+
+
+AccessInbox = new Meteor.Collection("accessinbox");
+/*
+  Information about new accesses for each principal that got access.
+  princ_id
+  to_princ_id
+  wrapped_key
+*/
+
 var crypto;
 
 var debug = true;
@@ -383,6 +392,12 @@ if (Meteor.isClient) {
 	    throw new Error("creator " + creator.name + " does not have sign keys available");
 	}
 
+	// check if type exists in Princ type, else create it
+	var pt = PrincType.findOne({type: type});
+	if (!pt) {
+	    PrincType.insert({type:type, one_got_access: false, searchable: false});
+	} 
+
 	_generate_keys(type, function(keys) {
 	    var p = new Principal(type, name, keys);
 	    Principal._store(p, creator);
@@ -424,34 +439,50 @@ if (Meteor.isClient) {
 	// need to load secret keys for princ2 and then add access to princ1
 	// we do these in reverse order due to callbacks
 	
-	var inner = Principal._add_access(princ1, princ2, on_complete);
-	princ2._load_secret_keys(inner);
+	princ2._load_secret_keys(function(){
+	    Principal._add_access(princ1, princ2, on_complete);
+	});
     };
     
     
     // encrypt's the keys of princ2 with princ 1's keys and
     // stores these new wrapped keys
     Principal._add_access = function (princ1, princ2, on_complete) {
-	return function () {
-            var keys = princ2._secret_keys();
-	    if (!keys) {
-		throw new Error("princ2 should have secret keys loaded");
+        var keys = princ2._secret_keys();
+	if (!keys) {
+	    throw new Error("princ2 should have secret keys loaded");
+	}
+	
+	// record that someone got access to princ2
+	var pt = PrincType.findOne({type:princ2.type})
+	if (!pt) {
+	    throw new Error("adding access to inexistent type");
+	} else {
+	    if (!pt['one_got_access']) {
+		PrincType.update({type:princ2.type, 'one_got_access': true});
 	    }
-	    keys.decrypt = crypto.serialize_private(keys.decrypt);
-            keys.sign = crypto.serialize_private(keys.sign);
-            var wrapped = princ1.encrypt(EJSON.stringify(keys));
-	    
-            WrappedKeys.insert({
-		principal: princ2.id,
-		wrapped_for: princ1.id,
-		wrapped_key: wrapped
-            });
+	}
 
-	    if (on_complete) {
-		on_complete();
-	    }
-	    
-	};
+	keys.decrypt = crypto.serialize_private(keys.decrypt);
+        keys.sign = crypto.serialize_private(keys.sign);
+
+	if (pt['searchable']) { 
+	    keys.mk_key = crypto.serialize_private(keys.mk_key);
+	}
+	
+	var wrapped = princ1.encrypt(EJSON.stringify(keys));
+	
+        WrappedKeys.insert({
+	    principal: princ2.id,
+		wrapped_for: princ1.id,
+	    wrapped_key: wrapped
+        });
+
+	
+	if (on_complete) {
+	    on_complete();
+	}
+	
     };
     
     // Removes princ1 access to princ2

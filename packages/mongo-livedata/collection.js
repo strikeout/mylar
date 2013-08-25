@@ -268,10 +268,10 @@ Meteor.Collection.prototype._encrypted_fields = function(lst) {
 
 	var pt = PrincType.findOne({type: type});
 	if (pt == undefined) {
-	    PrincType.insert({type: type, searchable: (attr == "SEARCHABLE"), instantiated : false});
+	    PrincType.insert({type: type, searchable: (attr == "SEARCHABLE"), one_got_access : false});
 	} else {
-	    if (pt['attr'] != "SEARCHABLE" && pt['instantiated'] && attr == "SEARCHABLE") {
-		Console.log("cannot declare a princtype searchable after instantiating it");
+	    if (pt['attr'] != "SEARCHABLE" && pt['one_got_access'] && attr == "SEARCHABLE") {
+		Console.log("cannot declare a princtype searchable after giving access to someone to it");
 	    }
 	    if (attr == "SEARCHABLE" && !pt['searchable'] ) {
 		PrincType.update({type:type}, {'searchable' : true});
