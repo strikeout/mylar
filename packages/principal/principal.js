@@ -23,6 +23,14 @@ Certs = new Meteor.Collection("certs");
   signature
  */
 
+PrincType = new Meteor.Collection("princtype");
+/*
+  Information on principal type:
+  type
+  searchable : True/False
+  instantiated: True/False; True if some principal of this type was created
+ */
+  
 var crypto;
 
 var debug = true;

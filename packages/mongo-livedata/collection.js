@@ -67,7 +67,7 @@ Meteor.Collection = function (name, options) {
   self._collection = options._driver.open(name);
   self._name = name;
   self._decrypt_cb = [];   // callbacks for running decryptions
-  self._encrypted_fields = {};
+  self._enc_fields = {};
     self._signed_fields = {};
 
   if (name && self._connection.registerStore) {
@@ -229,10 +229,12 @@ enc_fields = function(enc_fields, signed_fields, container) {
 }
 
 
+
+
 // returns a function F, such that F
 // looks up the enc and sign principals for the field f
 lookup_princ_func = function(f, container) {
-    // given a list of annotations, such as self._encrypted_fields,
+    // given a list of annotations, such as self._enc_fields,
     // looks-up the principal in the annotation of field f
     return function(annot, cb) {
 
@@ -257,6 +259,27 @@ lookup_princ_func = function(f, container) {
     
 }
 
+Meteor.Collection.prototype._encrypted_fields = function(lst) {
+    this._enc_fields = lst;
+
+    _.each(lst, function(val){
+	var type = val["princtype"];
+	var attr = val["attr"];
+
+	var pt = PrincType.findOne({type: type});
+	if (pt == undefined) {
+	    PrincType.insert({type: type, searchable: (attr == "SEARCHABLE"), instantiated : false});
+	} else {
+	    if (pt['attr'] != "SEARCHABLE" && pt['instantiated'] && attr == "SEARCHABLE") {
+		Console.log("cannot declare a princtype searchable after instantiating it");
+	    }
+	    if (attr == "SEARCHABLE" && !pt['searchable'] ) {
+		PrincType.update({type:type}, {'searchable' : true});
+	    }	    
+	}
+    });
+} 
+
 /*
   Given container -- an object with key (field name) and value (enc value) 
   fields -- set of field names that are encrypted or signed,
@@ -270,7 +293,7 @@ Meteor.Collection.prototype.dec_fields = function(container, fields, callback) {
     });
     
     _.each(fields, function(f) {
-	async.map([self._encrypted_fields, self._signed_fields], lookup_princ_func(f, container),
+	async.map([self._enc_fields, self._signed_fields], lookup_princ_func(f, container),
 		  function(err, results) {
 		      if (err) {
 			  throw new Error("could not find princs");
@@ -302,7 +325,7 @@ Meteor.Collection.prototype.enc_row = function(container, callback) {
     }
 
     /* r is the set of fields in this row that we need to encrypt or sign */
-    var r = enc_fields(self._encrypted_fields, self._signed_fields, container);
+    var r = enc_fields(self._enc_fields, self._signed_fields, container);
 
     if (r.length == 0) {
         callback();
@@ -315,7 +338,7 @@ Meteor.Collection.prototype.enc_row = function(container, callback) {
 
    _.each(r, function(f) {
 
-       async.map([self._encrypted_fields, self._signed_fields], lookup_princ_func(f, container),
+       async.map([self._enc_fields, self._signed_fields], lookup_princ_func(f, container),
 		 function(err, results) {
 		     if (err) {
 			 throw new Error("could not find princs");
@@ -357,7 +380,7 @@ Meteor.Collection.prototype.dec_msg = function(container, callback) {
     };
 
     if (Meteor.isClient && container) {
-        var r = enc_fields(self._encrypted_fields, self._signed_fields, container);
+        var r = enc_fields(self._enc_fields, self._signed_fields, container);
         if (r.length > 0) {
             self.dec_fields(container, r, callback2);
         } else {
