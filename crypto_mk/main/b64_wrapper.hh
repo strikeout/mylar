@@ -27,11 +27,6 @@ public:
     std::string adjust(const std::string & tok, const std::string & delta);
     bool match(const std::string & searchtok, const std::string & ciph);
 
-
-    // serialization functions    
-    std::string serialize();
-    b64mk(std::string g_ser);
-
     
 private:
     mksearch mk;

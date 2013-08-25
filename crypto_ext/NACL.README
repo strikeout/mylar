@@ -1,3 +1,5 @@
+Prerequisites: lex, bison, gmp, pbc, libssl-dev
+
 For both libgmp and libpbc, you need to get the relevant source from the internet and then extract them and perform the following:
 
 make distclean
@@ -12,3 +14,12 @@ make distclean
 Afterwards, you'll need to run:
 
 export NACL_SDK_ROOT=$HOME/nacl/nacl_sdk/pepper_28/ before doing a meteor build.
+
+For newer versions of ubuntu, 13.10, need pepper_30. Do
+./naclsdk update pepper_30
+and then point NACL_SDK_ROOT to pepper_30's path
+
+Prepare the browser:
+- Enable Native Client in about:flags in your Chrome browser.
+- relaunch the browser
+If you did these two steps correctly, there should be no NaCl-related message in the JS console.

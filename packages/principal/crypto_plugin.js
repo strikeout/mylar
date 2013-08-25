@@ -24,38 +24,32 @@ Crypto.test = function(cb) {
     enc_return = cb;
     enc_module.postMessage("testJ()");
 };
-
-Crypto.newKey = function(cb) {
+Crypto.keygen = function(cb) {
     enc_return = cb;
-    enc_module.postMessage("new()");
+    enc_module.postMessage("keygen()");
 };
 
-Crypto.keygen = function(g, cb) {
+Crypto.delta = function(k1, k2, cb) {
     enc_return = cb;
-    enc_module.postMessage("keygen(" + g + ")");
+    enc_module.postMessage("delta(" + k1 + "," + k2 + ")");
 };
 
-Crypto.delta = function(g, k1, k2, cb) {
+Crypto.token = function(k1, word, cb) {
     enc_return = cb;
-    enc_module.postMessage("delta(" + g + "," + k1 + "," + k2 + ")");
+    enc_module.postMessage("token(" + k1 + "," + word + ")");
 };
 
-Crypto.token = function(g, k1, word, cb) {
+Crypto.encrypt = function(k1, word, cb) {
     enc_return = cb;
-    enc_module.postMessage("token(" + g + "," + k1 + "," + word + ")");
+    enc_module.postMessage("encrypt(" +  k1 + "," + word + ")");
 };
 
-Crypto.encrypt = function(g, k1, word, cb) {
+Crypto.adjust = function(tok, delta, cb) {
     enc_return = cb;
-    enc_module.postMessage("encrypt(" + g + "," + k1 + "," + word + ")");
+    enc_module.postMessage("adjust(" + tok + "," + delta + ")");
 };
 
-Crypto.adjust = function(g, tok, delta, cb) {
+Crypto.match = function(tok, cipher, cb) {
     enc_return = cb;
-    enc_module.postMessage("adjust(" + g + "," + tok + "," + delta + ")");
-};
-
-Crypto.match = function(g, tok, cipher, cb) {
-    enc_return = cb;
-    enc_module.postMessage("match(" + g + "," + tok + "," + cipher + ")");
+    enc_module.postMessage("match(" + tok + "," + cipher + ")");
 };
