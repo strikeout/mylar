@@ -1,11 +1,18 @@
+/*
+  Implements principals
+*/
 
 
 var debug = true;
+
+/******* Data structures ****/
 
 PrincAttr = function (type, name) {
     this.type = type;
     this.name = name;
 };
+
+/* keys: sign, verify, encrypt, decrypt, mk_key, sim_key */
 
 
 /****** Pretty printing for debug *****************/
@@ -39,7 +46,6 @@ if (Meteor.isServer) {
         insert: function () { return true; },
         update: function () { return true; }
     };
-
     //TODO: needs to be restricted
     Principals.allow(allow_all_writes);
     WrappedKeys.allow(allow_all_writes);
@@ -169,9 +175,16 @@ if (Meteor.isServer) {
     });
 }
 
+/***** Client ***************/
 
 if (Meteor.isClient) {
-   
+
+    var add_access_happened = undefined;
+
+    Deps.autorun(function(){
+	add_access_happened = EncGlobal.findOne({key : "add_access"})["value"];
+    });
+    
     // Constructs a new principal
     // keys is optional, and is generated randomly if missing
     Principal = function(type, name, keys) {
@@ -192,10 +205,9 @@ if (Meteor.isClient) {
     // generates keys: standard crypto + multi-key
     _generate_keys = function(type, cb) {
 	keys = crypto.generate_keys();
-
 	Crypto.keygen(function(key) {
 	    _.extend(keys, {'mk_key' : key});
-	    cb();
+	    cb(keys);
 	});
     }
 
@@ -219,7 +231,7 @@ if (Meteor.isClient) {
 	// check if type exists in Princ type, else create it
 	var pt = PrincType.findOne({type: type});
 	if (!pt) {
-	    PrincType.insert({type:type, one_got_access: false, searchable: false});
+	    PrincType.insert({type:type, searchable: false});
 	} 
 
 	_generate_keys(type, function(keys) {
@@ -259,6 +271,9 @@ if (Meteor.isClient) {
     // Gives princ1 access to princ2
     Principal.add_access = function (princ1, princ2, on_complete) {
 
+	if (!add_access_happened) {
+	    GlobalEnc.update({key: "add_access"}, {$set: {value : true}});
+	}
 	if (debug) console.log("add_access princ1 " + princ1.name + " to princ2 " + princ2.name);
 	// need to load secret keys for princ2 and then add access to princ1
 	// we do these in reverse order due to callbacks
@@ -273,39 +288,27 @@ if (Meteor.isClient) {
     // stores these new wrapped keys
     Principal._add_access = function (princ1, princ2, on_complete) {
         var keys = princ2._secret_keys();
+
 	if (!keys) {
 	    throw new Error("princ2 should have secret keys loaded");
 	}
 	
-	// record that someone got access to princ2
-	var pt = PrincType.findOne({type:princ2.type})
-	if (!pt) {
-	    throw new Error("adding access to inexistent type");
-	} else {
-	    if (!pt['one_got_access']) {
-		PrincType.update({type:princ2.type, 'one_got_access': true});
-	    }
-	}
-
 	keys.decrypt = crypto.serialize_private(keys.decrypt);
         keys.sign = crypto.serialize_private(keys.sign);
-
-	if (pt['searchable']) { 
-	    keys.mk_key = crypto.serialize_private(keys.mk_key);
-	}
+	keys.mk_key = crypto.serialize_private(keys.mk_key);
 	
 	var wrapped = princ1.encrypt(EJSON.stringify(keys));
 	
-        WrappedKeys.insert({
+        var entry_id = WrappedKeys.insert({
 	    principal: princ2.id,
-		wrapped_for: princ1.id,
+	    wrapped_for: princ1.id,
 	    wrapped_key: wrapped
         });
 
-
-	// add access in princ1's inbox
-	AccessInbox.insert({princ: princ1.id, to_princ:princ2.id, wrapped_key: wrapped});
-
+	if (princ1.type == "user") {
+	    // add access in princ1's inbox
+	    AccessInbox.insert({princ: princ1.id, entry_id : entry_id});
+	}
 	
 	if (on_complete) {
 	    on_complete();
@@ -579,21 +582,25 @@ if (Meteor.isClient) {
     // requires public key to be set
     Principal.prototype.encrypt = function (pt) {
 	var self = this;
+	if (self.keys.sym_key) {
+	    return crypto.sym_encrypt(self.keys.sym_key, pt);
+	}
 	if (self.keys.encrypt) {
 	    return crypto.encrypt(self.keys.encrypt, pt);
-	} else {
-	    throw new Error("encrypt key must be set");
-	}
+	} 
+	throw new Error("encrypt key must be set");
     };
 
     // requires keys.decrypt to be set
     Principal.prototype.decrypt = function (ct) {
 	var self = this;
+	if (self.keys.sym_key) {
+	    return crypto.sym_decrypt(self.keys.sym_key, ct);
+	}
 	if (self.keys.decrypt) {
 	    return crypto.decrypt(self.keys.decrypt, ct);
-	} else {
-	    throw new Error("cannot decrypt without decrypt key");
-	}
+	} 
+	throw new Error("cannot decrypt without decrypt key");
     };
 
     // requires sign key to be set
@@ -614,6 +621,41 @@ if (Meteor.isClient) {
 	    throw new Error("verify key must be set");
 	}
     };
+
+    Deps.autorun(processAccessInbox);
+
+    //TODO: remove new Principal which gets name instead of id 
+    
+    processAccessInbox = function() {
+	var user = Principal.user();
+	var newaccess = AccessInbox.find({user_id : Meteor.user().id}).fetch();
+	_.each(newaccess, function(access){
+	    var wid = access["entry_id"];
+	    var w = WrappedKeys.findOne(wid);
+	    if (!w) {
+		Console.log("issue with access inbox and wrapped keys");
+	    }
+	    var subject_keys = crypto.decrypt(user.keys.decrypt, w["wrapped_keys"]);
+	    var sym_wrapped = crypto.sym_encrypt(user.keys.sym_key, subject_keys);
+	    WrappedKeys.update({_id: wid}, {$set : {wrapped_sym_keys : sym_wrapped}});
+	});
+    }
     
 }
+
+/* Algorithm for switching access from public key to private key.
+
+   This happens in two ways:
+
+   1. Access given to a user -- common case
+   The user has an accessinbox which gets filled with information about a new access, and the user
+   converts these to secret key as soon as the user logs in, in processAccessInbox
+
+   2. Access given to an inner principal : NOT  YET IMPLEMENTED
+   - the access is granted using the public key of the inner principal, if secret key is not available
+   - when one searches for inner principal later and obtains its keys, one updates the wrapped key to be encrypted under the symmetric keys
+
+
+   TODO: can avoid generating pks for terminal principals if we know the type graph ahead of time
+   */
 

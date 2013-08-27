@@ -38,13 +38,16 @@ if (Meteor.isClient) {
             },
 
             generate_keys: function () {
+		// these are fed 0 paranoia - so no randomness???
                 var enc = sjcl.ecc.elGamal.generateKeys(curve, 0);
                 var sig = sjcl.ecc.ecdsa.generateKeys(curve, 0);
+		var sim_key = sjcl.random.randomWords(16);
                 return {
                     encrypt: enc.pub,
                     decrypt: enc.sec,
                     sign: sig.sec,
-                    verify: sig.pub
+                    verify: sig.pub,
+		    sim_key : sim_key
                 };
             },
 
@@ -55,6 +58,16 @@ if (Meteor.isClient) {
             decrypt: function (sk, ct) {
                 return sjcl.decrypt(sk, ct);
             },
+
+	    // authenticated encryption
+	    sym_encrypt: function(sk, data) {
+		var ops = {iv : sjcl.random.randomWords(8), mode:"ccm", cipher: "aes"};
+		return sjcl.encrypt(sk, data, p);
+	    },
+
+	    sym_decrypt: function(sk, ct) {
+		return sjcl.decrypt(sk, ct);
+	    },
 
             sign: function (msg, sk) {
                 var hash = sjcl.hash.sha256.hash(msg);

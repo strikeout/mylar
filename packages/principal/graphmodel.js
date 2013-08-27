@@ -28,14 +28,22 @@ PrincType = new Meteor.Collection("princtype");
   Information on principal type:
   type
   searchable : True/False
-  one_got_access: True/False; True if some principal got access to a principal of this type
  */
 
 
 AccessInbox = new Meteor.Collection("accessinbox");
 /*
-  Information about new accesses for each principal that got access.
-  princ_id
-  to_princ_id
-  wrapped_key
+  Information about new accesses for each user who got that access.
+  user_id
+  entry_id : id of entry in WrappedKeys
 */
+
+GlobalEnc = new Meteor.Collection("globalenc");
+GlobalEnc.insert({key: "add_access", value: false});
+/*
+  Holds some global variables:
+  key
+  value
+
+  e.g. "add_access", true/false -> whether an add access happened in the system
+  */

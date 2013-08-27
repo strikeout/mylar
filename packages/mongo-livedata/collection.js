@@ -260,6 +260,12 @@ lookup_princ_func = function(f, container) {
 }
 
 Meteor.Collection.prototype._encrypted_fields = function(lst) {
+    // check that one can still declare annotations
+    var add_access_happened = GlobalEnc.findOne({key : "add_access"})["value"];
+    if (add_access_happened) {
+	throw new Error("cannot declare enc fields after add access requests");
+    }
+
     this._enc_fields = lst;
 
     _.each(lst, function(val){
@@ -268,13 +274,10 @@ Meteor.Collection.prototype._encrypted_fields = function(lst) {
 
 	var pt = PrincType.findOne({type: type});
 	if (pt == undefined) {
-	    PrincType.insert({type: type, searchable: (attr == "SEARCHABLE"), one_got_access : false});
+	    PrincType.insert({type: type, searchable: (attr == "SEARCHABLE")});
 	} else {
-	    if (pt['attr'] != "SEARCHABLE" && pt['one_got_access'] && attr == "SEARCHABLE") {
-		Console.log("cannot declare a princtype searchable after giving access to someone to it");
-	    }
 	    if (attr == "SEARCHABLE" && !pt['searchable'] ) {
-		PrincType.update({type:type}, {'searchable' : true});
+		PrincType.update({type:type}, {$set: {'searchable' : true}});
 	    }	    
 	}
     });
