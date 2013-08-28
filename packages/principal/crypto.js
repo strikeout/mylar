@@ -84,13 +84,18 @@ base_crypto = (function () {
 	/* Starting with a secret key sk,
 	   unwraps keys in chain, until it obtains
 	   the secret key at the end of the chain. */
-        chain_decrypt: function (chain, sk) {
+        chain_decrypt: function (chain, keys) {
             var secret_keys;
             _.each(chain, function (wk) {
-                var unwrapped = sjcl.decrypt(sk, wk);
+		var unwrapped;
+		if (wk.isSym) {
+                    unwrapped = sjcl.sym_decrypt(keys.sim_key, wk.wkey);
+		} else {
+		    unwrapped = sjcl.decrypt(keys.sk, wk.wkey);
+		}
                 secret_keys = EJSON.parse(unwrapped);
                 sk = base_crypto.deserialize_private(secret_keys.decrypt,
-                                                     "elGamal");
+						     "elGamal");
             });
             secret_keys.sign = base_crypto.deserialize_private(
                 secret_keys.sign, "ecdsa"

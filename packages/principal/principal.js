@@ -52,7 +52,15 @@ if (Meteor.isServer) {
     WrappedKeys.allow(allow_all_writes);
     Certs.allow(allow_all_writes);
 
-  
+
+    // gets the wrapped key, symmetric or public
+    getWKey = function(doc) {
+	if (doc.wrapped_sym_keys) {
+	    return {isSym: true, wkey: doc.wrapped_sym_keys};
+	} else {
+	    return {isSym: false, wkey: doc.wrapped_keys};
+	}
+    }
     
     Meteor.methods({
 
@@ -94,7 +102,7 @@ if (Meteor.isServer) {
 		    
                     var next_hops = WrappedKeys.find({ wrapped_for: frontier_id }).fetch();
                     _.each(next_hops, function (next_hop) {
-                        var new_chain = frontier_chain.concat([ next_hop.wrapped_key ]);
+                        var new_chain = frontier_chain.concat([getWKey(next_hop)]);
                         new_frontier.push([ next_hop.principal, new_chain ]);
                     });
                 });
@@ -306,14 +314,14 @@ if (Meteor.isClient) {
 	    WrappedKeys.save({
 		principal: princ2.id,
 		wrapped_for: princ1.id,
-		wrapped_sym_keys: wrap.wrappedKey
+		wrapped_sym_keys: wrap.ct
            }); 
 	}
 	else {
 	    var entry_id = WrappedKeys.save({
 		principal: princ2.id,
 		wrapped_for: princ1.id,
-		wrapped_key: wrap.wrappedKey
+		wrapped_key: wrap.ct
 	    });
 	    // update user inbox
 	    if (princ1.type == "user") {
@@ -595,7 +603,6 @@ if (Meteor.isClient) {
 	    return crypto.sym_encrypt(self.keys.sym_key, pt);
 	}
 	throw new Error("encrypt key must be set");
-
     }
 
     // encrypts with either sym_key or public key
@@ -603,10 +610,10 @@ if (Meteor.isClient) {
     Principal.prototype.encrypt = function (pt) {
 	var self = this;
 	if (self.keys.sym_key) {
-	    return crypto.sym_encrypt(self.keys.sym_key, pt);
+	    return {isSym: true, ct:crypto.sym_encrypt(self.keys.sym_key, pt)};
 	}
 	if (self.keys.encrypt) {
-	    return crypto.encrypt(self.keys.encrypt, pt);
+	    return {isSym: false, ct:crypto.encrypt(self.keys.encrypt, pt)};
 	} 
 	throw new Error("encrypt key must be set");
     };
