@@ -4,6 +4,7 @@
 
 
 var debug = true;
+var crypto = base_crypto;
 
 /******* Data structures ****/
 
@@ -182,7 +183,7 @@ if (Meteor.isClient) {
     var add_access_happened = undefined;
 
     Deps.autorun(function(){
-	add_access_happened = EncGlobal.findOne({key : "add_access"})["value"];
+	add_access_happened = GlobalEnc.findOne({key : "add_access"})["value"];
     });
     
     // Constructs a new principal
@@ -286,7 +287,7 @@ if (Meteor.isClient) {
     
     // encrypt's the keys of princ2 with princ 1's keys and
     // stores these new wrapped keys
-    Principal._add_access = function (princ1, princ2, on_complete) {
+    Principal._add_access = function (princ1, princ2, cb) {
         var keys = princ2._secret_keys();
 
 	if (!keys) {
@@ -296,22 +297,32 @@ if (Meteor.isClient) {
 	keys.decrypt = crypto.serialize_private(keys.decrypt);
         keys.sign = crypto.serialize_private(keys.sign);
 	keys.mk_key = crypto.serialize_private(keys.mk_key);
-	
-	var wrapped = princ1.encrypt(EJSON.stringify(keys));
-	
-        var entry_id = WrappedKeys.insert({
-	    principal: princ2.id,
-	    wrapped_for: princ1.id,
-	    wrapped_key: wrapped
-        });
 
-	if (princ1.type == "user") {
-	    // add access in princ1's inbox
-	    AccessInbox.insert({princ: princ1.id, entry_id : entry_id});
-	}
 	
-	if (on_complete) {
-	    on_complete();
+	var wrap = princ2.encrypt(EJSON.stringify(keys));
+
+	if (wrap.isSym) {
+	    // no need for access inbox
+	    WrappedKeys.save({
+		principal: princ2.id,
+		wrapped_for: princ1.id,
+		wrapped_sym_keys: wrap.wrappedKey
+           }); 
+	}
+	else {
+	    var entry_id = WrappedKeys.save({
+		principal: princ2.id,
+		wrapped_for: princ1.id,
+		wrapped_key: wrap.wrappedKey
+	    });
+	    // update user inbox
+	    if (princ1.type == "user") {
+		Principals.update({_id : princ1.id}, {$push: {accessInbox: entry_id}});
+	    }
+	}
+		
+	if (cb) {
+	    cb();
 	}
 	
     };
@@ -578,8 +589,17 @@ if (Meteor.isClient) {
 	}
     }
 
+    // requires symmetric key of this principal to be set
+    Principal.prototype.sym_encrypt = function(pt) {
+	if (this.keys.sym_key) {
+	    return crypto.sym_encrypt(self.keys.sym_key, pt);
+	}
+	throw new Error("encrypt key must be set");
 
-    // requires public key to be set
+    }
+
+    // encrypts with either sym_key or public key
+    // requires sym_key or public enc key to be set
     Principal.prototype.encrypt = function (pt) {
 	var self = this;
 	if (self.keys.sym_key) {
@@ -622,24 +642,29 @@ if (Meteor.isClient) {
 	}
     };
 
-    Deps.autorun(processAccessInbox);
-
+    
     //TODO: remove new Principal which gets name instead of id 
     
     processAccessInbox = function() {
-	var user = Principal.user();
-	var newaccess = AccessInbox.find({user_id : Meteor.user().id}).fetch();
-	_.each(newaccess, function(access){
-	    var wid = access["entry_id"];
-	    var w = WrappedKeys.findOne(wid);
-	    if (!w) {
-		Console.log("issue with access inbox and wrapped keys");
-	    }
-	    var subject_keys = crypto.decrypt(user.keys.decrypt, w["wrapped_keys"]);
-	    var sym_wrapped = crypto.sym_encrypt(user.keys.sym_key, subject_keys);
-	    WrappedKeys.update({_id: wid}, {$set : {wrapped_sym_keys : sym_wrapped}});
-	});
+	if (Meteor.user) {
+	    var user = Principal.user();
+	    var accessinbox = Principals.findOne({_id : user.id}).accessInbox;
+	    _.each(accessinbox, function(wid){
+		var w = WrappedKeys.findOne(wid);
+		if (!w) {
+		    Console.log("issue with access inbox and wrapped keys");
+		}
+		var subject_keys = base_crypto.decrypt(user.keys.decrypt, w["wrapped_keys"]);
+		var sym_wrapped = base_crypto.sym_encrypt(user.keys.sym_key, subject_keys);
+		WrappedKeys.update({_id: wid},
+				   {$set : {wrapped_sym_keys : sym_wrapped,
+					    wrapped_keys: undefined}
+				   });
+	    });
+	}
     }
+
+    Deps.autorun(processAccessInbox);
     
 }
 

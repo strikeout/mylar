@@ -2,7 +2,9 @@ Principals = new Meteor.Collection("princs");
 /*
   id : unique over all principals (currently, serialized public keys)
   name
-  type 
+  type
+  accessinbox: a list of pointers in WrappedKeys where there is a new public key access to be converted in a
+               symmetric key access
   */
 
 WrappedKeys = new Meteor.Collection("wrapped_keys");
@@ -11,6 +13,8 @@ WrappedKeys = new Meteor.Collection("wrapped_keys");
    wrapped_keys : wrapped secret asymmetric keys
    delta
    wrapped_sym_keys : wrapped secret keys, symmetric
+
+   There is a bijection between each edge of the graph and each document. 
 */
    
 Certs = new Meteor.Collection("certs");
@@ -29,14 +33,6 @@ PrincType = new Meteor.Collection("princtype");
   type
   searchable : True/False
  */
-
-
-AccessInbox = new Meteor.Collection("accessinbox");
-/*
-  Information about new accesses for each user who got that access.
-  user_id
-  entry_id : id of entry in WrappedKeys
-*/
 
 GlobalEnc = new Meteor.Collection("globalenc");
 GlobalEnc.insert({key: "add_access", value: false});

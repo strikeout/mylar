@@ -3,6 +3,7 @@
 
 var debug = false;
 
+
 Meteor.Collection = function (name, options) {
   var self = this;
   if (! (self instanceof Meteor.Collection))
@@ -350,7 +351,7 @@ Meteor.Collection.prototype.enc_row = function(container, callback) {
 		     var sign_princ = results[1];
 		     
 		     if (enc_princ) {
-			 container[f] = enc_princ.encrypt(container[f]);
+			 container[f] = enc_princ.sym_encrypt(container[f]);
 		     }
 			 
 		     if (sign_princ) {
