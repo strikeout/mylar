@@ -425,10 +425,10 @@ if (Meteor.isClient) {
 			self2, function (err, chain) {
 			    //if (debug) console.log("keychain returns: " + chain);
 			    if (chain) {
-				var sk = auth.keys.decrypt;
-				var unwrapped = crypto.chain_decrypt(chain, sk);
+				var unwrapped = base_crypto.chain_decrypt(chain, auth.keys);
 				self.keys.decrypt = unwrapped.decrypt;
 				self.keys.sign = unwrapped.sign;
+				self.keys.sym_key = unwrapped.sym_key;
 				if (on_complete) {
 				    on_complete(self);
 				}

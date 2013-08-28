@@ -3,6 +3,7 @@
 
 var debug = false;
 
+var ENC_DEBUG = true; // if true, an unencrypted copy of the fields will be kept for debugging mode
 
 Meteor.Collection = function (name, options) {
   var self = this;
@@ -306,12 +307,21 @@ Meteor.Collection.prototype.dec_fields = function(container, fields, callback) {
 		      var verif_princ = results[1];
 		      
 		      if (verif_princ) {
-			  if (!verif_princ.verify(container[f], container[f + '_signature'])) {
+			  if (!verif_princ.verify(container[f+'_enc'], container[f + '_signature'])) {
 			      throw new Error("signature does not verify on field " + f);
 			  }
+			  delete container[f+'_signature'];
 		      }
 		      if (dec_princ) {
-			  container[f] = dec_princ.decrypt(container[f]);
+			  var res  = dec_princ.decrypt(container[f+"_enc"]);
+			  if (ENC_DEBUG) {
+			      if (res != container[f]) {
+				  throw new Error ("inconsistency in the value decrypted and plaintext");
+			      }
+			  } else {
+			      container[f] = res;
+			  }
+			  delete container[f+"_enc"];
 		      }
 		      cb();
 		  });	
@@ -351,7 +361,10 @@ Meteor.Collection.prototype.enc_row = function(container, callback) {
 		     var sign_princ = results[1];
 		     
 		     if (enc_princ) {
-			 container[f] = enc_princ.sym_encrypt(container[f]);
+			 container[f+"_enc"] = enc_princ.sym_encrypt(container[f]);
+			 if (!ENC_DEBUG) {
+			     delete container[f];
+			 }
 		     }
 			 
 		     if (sign_princ) {
