@@ -373,29 +373,25 @@ if (Meteor.isClient) {
         WrappedKeys.remove(wrappedID);
 
         // Create a new principal.
-            Principal.create(princ2.type, princ2.name, function(newPrincipal){
-		
-		// Add new WK for new principal.
-		var parentOriginal = WrappedKeys.find({principal: princ2.id});
-		parentOriginal.forEach(function(wk) {
-		    var princ = Principals.findOne(wk.wrapped_for);
-		    Principal.add_access(princ, newPrincipal, undefined);
-		});
-		
-		// The following are required to remove the possibility the client cached keys.
-		// TODO:Reencrypt data
-		
-		// Remove the children's pointers to the parent.
-		// var childrenOriginal = WrappedKeys.find({wrapped_for:princ2.id});
-		// childrenOriginal.forEach(function(wk){
-		//     var child = wk.principal;
-		//     Principal._remove_access(princ2, child, undefined);
-		// });
-		
-		if (on_complete) {
-		    on_complete();
-		}
-	    		
+        Principal.create(princ2.type, princ2.name, function(newPrincipal){
+		    // Add new WK for new principal.
+		    var parentOriginal = WrappedKeys.find({principal: princ2.id});
+            var cb = _.after(parentOriginal.length, function() {
+		        // The following are required to remove the possibility the client cached keys.
+		        // TODO:Reencrypt data
+		        
+		        // Remove the children's pointers to the parent.
+		        // var childrenOriginal = WrappedKeys.find({wrapped_for:princ2.id});
+		        // childrenOriginal.forEach(function(wk){
+		        //     var child = wk.principal;
+		        //     Principal._remove_access(princ2, child, undefined);
+		        // });
+                on_complete();
+            });
+		    parentOriginal.forEach(function(wk) {
+		        var princ = Principals.findOne(wk.wrapped_for);
+		        Principal.add_access(princ, newPrincipal, cb);
+		    });
 	    });
 
 	}};
