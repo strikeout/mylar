@@ -7,6 +7,9 @@
 enc_module = undefined;
 enc_return = undefined;
 
+USE_CRYPTO_SERVER = true; //this is a temporary hack until we get NaCl working properly
+// it uses the crypto server instead of NaCl, which is insecure
+
 Handlebars.registerHelper(
     "cryptoPlugin",
     function (options) {
@@ -32,31 +35,60 @@ Crypto.test = function(cb) {
 };
 Crypto.keygen = function(cb) {
     enc_return = cb;
+    if (USE_CRYPTO_SERVER) {
+	cb(crypto_server.keygen());
+	return;
+    }
     enc_module.postMessage("keygen()");
 };
 
 Crypto.delta = function(k1, k2, cb) {
     enc_return = cb;
+    if (USE_CRYPTO_SERVER) {
+	cb(crypto_server.delta(k1, k2));
+	return;
+    }
+  
     enc_module.postMessage("delta(" + k1 + "," + k2 + ")");
 };
 
 Crypto.token = function(k1, word, cb) {
     enc_return = cb;
+    if (USE_CRYPTO_SERVER) {
+	cb(crypto_server.token(k, word));
+	return;
+    }
+  
     enc_module.postMessage("token(" + k1 + "," + word + ")");
 };
 
 Crypto.encrypt = function(k1, word, cb) {
     enc_return = cb;
+    if (USE_CRYPTO_SERVER) {
+	cb(crypto_server.encrypt(k1, word));
+	return;
+    }
+  
     enc_module.postMessage("encrypt(" +  k1 + "," + word + ")");
 };
 
 Crypto.adjust = function(tok, delta, cb) {
     enc_return = cb;
+    if (USE_CRYPTO_SERVER) {
+	cb(crypto_server.adjust(tok, delta));
+	return;
+    }
+  
     enc_module.postMessage("adjust(" + tok + "," + delta + ")");
 };
 
 Crypto.match = function(tok, cipher, cb) {
     enc_return = cb;
+    if (USE_CRYPTO_SERVER) {
+	cb(crypto_server.match(tok, cipher));
+	return;
+    }
+  
     enc_module.postMessage("match(" + tok + "," + cipher + ")");
 };
 

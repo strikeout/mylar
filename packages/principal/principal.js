@@ -237,7 +237,7 @@ if (Meteor.isClient) {
 			    + type + ", " + name + ", " + creator +")");
 	}
 
-	if (!creator.keys.sign) {
+	if (creator && !creator.keys.sign) {
 	    throw new Error("creator " + creator.name + " does not have sign keys available");
 	}
 
@@ -657,7 +657,8 @@ if (Meteor.isClient) {
 
     
     processAccessInbox = function() {
-	if (Meteor.userId()) {
+	if (Meteor.user()) {
+	    console.log("userid is " + Meteor.user().username);
 	    var uprinc = Principal.user();
 	    var accessinbox = Principals.findOne({_id : uprinc.id}).accessInbox;
 	    _.each(accessinbox, function(wid){
