@@ -141,18 +141,36 @@ deserialize_keys = function (ser) {
 };
 
 
-serialize_keys = function (keys) {
+var _prepare_private = function(keys) {
     var ser = {};
+    ser['mk_key'] = keys.mk_key;
+    _.each(["mk_key", "sim_key"], function(){
+	if (keys[k]) {
+	    ser[k] = keys[k];
+	}
+    });
+    _.each(["sign", "decrypt"], function (k) {
+        if (keys[k]) {
+	    ser[k] = base_crypto.serialize_private(keys[k]);
+        }
+    });
+    return ser;
+    
+}
+
+serialize_keys = function (keys) {
+    var ser = _prepare_private(keys);
+    
     _.each(["encrypt", "verify"], function (k) {
         if (keys[k]) {
             ser[k] = base_crypto.serialize_public(keys[k]);
         }
     });
-    _.each(["sign", "decrypt"], function (k) {
-        if (keys[k]) {
-            ser[k] = base_crypto.serialize_private(keys[k]);
-        }
-    });
+    
     ser = EJSON.stringify(ser);
     return ser;
+};
+
+serialize_private = function (keys) {
+    return EJSON.stringify(_prepare_private(keys));
 };

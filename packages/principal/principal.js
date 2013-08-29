@@ -322,13 +322,8 @@ if (Meteor.isClient) {
 	if (!keys) {
 	    throw new Error("princ2 should have secret keys loaded");
 	}
-	
-	keys.decrypt = crypto.serialize_private(keys.decrypt);
-        keys.sign = crypto.serialize_private(keys.sign);
-	keys.mk_key = crypto.serialize_private(keys.mk_key);
-
-	
-	var wrap = princ2.encrypt(EJSON.stringify(keys));
+		
+	var wrap = princ2.encrypt(serialize_private(keys));
 
 	if (wrap.isSym) {
 	    // no need for access inbox
