@@ -61,7 +61,8 @@ echo "Building crypto_ext"
 # build crypto_ext
 pushd crypto_ext
 make
-./fixPackage.sh > ../packages/principal/package.js
+./fixPackage.sh ../packages/principal/package.js > _package.js
+mv _package.js ../packages/principal/package.js
 popd
 
 
