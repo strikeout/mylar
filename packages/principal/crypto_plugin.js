@@ -36,7 +36,7 @@ Crypto.test = function(cb) {
 Crypto.keygen = function(cb) {
     enc_return = cb;
     if (USE_CRYPTO_SERVER) {
-	cb(crypto_server.keygen());
+	crypto_server.keygen(cb);
 	return;
     }
     enc_module.postMessage("keygen()");
@@ -45,7 +45,7 @@ Crypto.keygen = function(cb) {
 Crypto.delta = function(k1, k2, cb) {
     enc_return = cb;
     if (USE_CRYPTO_SERVER) {
-	cb(crypto_server.delta(k1, k2));
+	crypto_server.delta(k1, k2, cb);
 	return;
     }
   
@@ -55,7 +55,7 @@ Crypto.delta = function(k1, k2, cb) {
 Crypto.token = function(k1, word, cb) {
     enc_return = cb;
     if (USE_CRYPTO_SERVER) {
-	cb(crypto_server.token(k, word));
+	crypto_server.token(k, word, cb);
 	return;
     }
   
@@ -65,7 +65,7 @@ Crypto.token = function(k1, word, cb) {
 Crypto.encrypt = function(k1, word, cb) {
     enc_return = cb;
     if (USE_CRYPTO_SERVER) {
-	cb(crypto_server.encrypt(k1, word));
+	crypto_server.encrypt(k1, word, cb);
 	return;
     }
   
@@ -75,7 +75,7 @@ Crypto.encrypt = function(k1, word, cb) {
 Crypto.adjust = function(tok, delta, cb) {
     enc_return = cb;
     if (USE_CRYPTO_SERVER) {
-	cb(crypto_server.adjust(tok, delta));
+	crypto_server.adjust(tok, delta, cb);
 	return;
     }
   
@@ -85,7 +85,7 @@ Crypto.adjust = function(tok, delta, cb) {
 Crypto.match = function(tok, cipher, cb) {
     enc_return = cb;
     if (USE_CRYPTO_SERVER) {
-	cb(crypto_server.match(tok, cipher));
+	crypto_server.match(tok, cipher, cb);
 	return;
     }
   
