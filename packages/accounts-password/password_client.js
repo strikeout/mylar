@@ -36,7 +36,6 @@ Meteor.loginWithPassword = function (selector, password, callback) {
 	    throw new Error("idp error, cannot login this user");
 	}
 	localStorage['user_princ_keys']= keys;
-	localStorage['user_princ_name'] = name;
 	
 	request.user = selector;
 	

@@ -13,6 +13,9 @@
    format of keys is unserialized	 
 	 
    id, type, name correspond to _id, type, name in the Principals collection
+
+   localStorage contains user_princ_keys serialized
+   
 */
 
 var debug = true;
@@ -271,6 +274,7 @@ if (Meteor.isClient) {
 	    '_id': princ.id,
 	    'type' : princ.type,
 	    'name' : princ.name,
+	    accessInbox: null
 	});
 
 	if (authority) {
@@ -285,13 +289,21 @@ if (Meteor.isClient) {
     }
        
     //TODO: all this should run at the client
+
+    record_add_access = function() {
+	if (!add_access_happened) {
+	    var aa = GlobalEnc.findOne({key: "add_access"});
+	    // update must be only by id in meteor
+	    GlobalEnc.update({_id: aa._id}, {$set: {value: true}});
+	    add_access_happened = true;
+	}
+    }
     
     // Gives princ1 access to princ2
     Principal.add_access = function (princ1, princ2, on_complete) {
 
-	if (!add_access_happened) {
-	    GlobalEnc.update({key: "add_access"}, {$set: {value : true}});
-	}
+	record_add_access();
+
 	if (debug) console.log("add_access princ1 " + princ1.name + " to princ2 " + princ2.name);
 	// need to load secret keys for princ2 and then add access to princ1
 	// we do these in reverse order due to callbacks
@@ -658,22 +670,24 @@ if (Meteor.isClient) {
 	if (Meteor.user()) {
 	    console.log("userid is " + Meteor.user().username);
 	    var uprinc = Principal.user();
-	    var accessinbox = Principals.findOne({_id : uprinc.id}).accessInbox;
-	    _.each(accessinbox, function(wid){
-		var w = WrappedKeys.findOne(wid);
-		if (!w) {
-		    Console.log("issue with access inbox and wrapped keys");
-		}
-		var subject_keys = base_crypto.decrypt(user.keys.decrypt, w["wrapped_keys"]);
-		var sym_wrapped = base_crypto.sym_encrypt(user.keys.sym_key, subject_keys);
-		WrappedKeys.update({_id: wid},
-				   {$set : {wrapped_sym_keys : sym_wrapped,
-					    wrapped_keys: undefined}
-				   });
-	    });
+	    var dbprinc = Principals.findOne({_id : uprinc.id});
+	    if (dbprinc) {
+		_.each(db.accessInbox, function(wid){
+		    var w = WrappedKeys.findOne(wid);
+		    if (!w) {
+			Console.log("issue with access inbox and wrapped keys");
+		    }
+		    var subject_keys = base_crypto.decrypt(user.keys.decrypt, w["wrapped_keys"]);
+		    var sym_wrapped = base_crypto.sym_encrypt(user.keys.sym_key, subject_keys);
+		    WrappedKeys.update({_id: wid},
+				       {$set : {wrapped_sym_keys : sym_wrapped,
+						wrapped_keys: undefined}
+				       });
+		});
+	    }
 	}
     }
-
+    
     Deps.autorun(processAccessInbox);
     
 }

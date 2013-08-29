@@ -3,7 +3,7 @@ Principals = new Meteor.Collection("princs");
   id : unique over all principals (currently, serialized public keys)
   name
   type
-  accessinbox: a list of pointers in WrappedKeys where there is a new public key access to be converted in a
+  accessInbox: a list of pointers in WrappedKeys where there is a new public key access to be converted in a
                symmetric key access
   */
 
