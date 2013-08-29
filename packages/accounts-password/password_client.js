@@ -88,6 +88,8 @@ Accounts.createUser = function (options, callback) {
 	localStorage['user_princ_name'] = uname;
 	localStorage['user_princ_keys'] = uprinc.keys;
 	Principal._store(uprinc);
+
+	console.log("created user ");
 	
 	Accounts.callLoginMethod({
 	    methodName: 'createUser',

@@ -1,12 +1,10 @@
 /* Interface to crypto server. Synchronous. */
 
-var crypto_server;
+crypto_server = undefined;
+var base_url = 'http://localhost:8082/';
 
 if (Meteor.isServer) { // server is synchronous
     crypto_server = (function () {
-	
-	var base_url = 'http://localhost:8082/';
-	var ct_sep = ',';
 	
 	// synchronous send request
 	function send_request(url_extension) {
@@ -54,13 +52,14 @@ if (Meteor.isServer) { // server is synchronous
 if (Meteor.isClient) { // client must be asynchronous
     crypto_server = (function () {
 	
-	var base_url = 'http://localhost:8082/';
-	var ct_sep = ',';
-	
 	// calls cb on the content of the response
 	function send_request(url_extension, cb) {
-	    var res =  Meteor.http.call("GET", base_url+url_extension, function(){
-		cb(res.content);
+	    Meteor.http.call("GET", base_url+url_extension, {}, function(error, res){
+		if (res.statusCode == 200) {
+		    cb(res.content);
+		} else {
+		    cb();
+		}
 	    });
 	}
 	

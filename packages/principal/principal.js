@@ -245,13 +245,15 @@ if (Meteor.isClient) {
 	var pt = PrincType.findOne({type: type});
 	if (!pt) {
 	    PrincType.insert({type:type, searchable: false});
-	} 
+	}
 
 	_generate_keys(type, function(keys) {
 	    var p = new Principal(type, name, keys);
 	    Principal._store(p, creator);
 	    if (creator) {
-		Principal.add_access(creator, p, cb);	
+		Principal.add_access(creator, p, function(){cb(p);});	
+	    } else {
+		cb(p);
 	    }
 	});
     }
