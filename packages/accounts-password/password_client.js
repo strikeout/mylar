@@ -85,11 +85,9 @@ Accounts.createUser = function (options, callback) {
     options.srp = verifier;
 
     Principal.create("user", uname, null, function(uprinc){
-	localStorage['user_princ_name'] = uname;
-	localStorage['user_princ_keys'] = uprinc.keys;
-	Principal._store(uprinc);
-
-	console.log("created user ");
+	// store user keys in local storage
+	// localStorage can only deal with serialized strings
+	localStorage['user_princ_keys'] = serialize_keys(uprinc.keys);
 	
 	Accounts.callLoginMethod({
 	    methodName: 'createUser',

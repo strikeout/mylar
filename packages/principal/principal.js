@@ -10,6 +10,7 @@
          sign, verify (pk),
 	 sim_key (sym),
 	 mk_key  (multi-key)
+   format of keys is unserialized	 
 	 
    id, type, name correspond to _id, type, name in the Principals collection
 */
@@ -403,14 +404,6 @@ if (Meteor.isClient) {
     };
 
     
-    // Assumes user's private keys are sitting in localStorage.
-    // How did they get there? What happens if they're not there?
-    Principal.prototype.user = function () {
-	var keys = Principal.deserialize_keys(localStorage['user_princ_keys']);
-	return new Principal("user", Meteor.user().username, keys);
-    };
-
-    
     // loads secret keys for the principal self.id
     // by finding a chain to the current user and decrypts the secret keys
     Principal.prototype._load_secret_keys = function (on_complete) {
@@ -469,18 +462,21 @@ if (Meteor.isClient) {
 	    p._load_secret_keys(on_complete);
 	});
     } 
+
     // returns the principal corresponding to the current user
     Principal.user = function () {
-	var pname = localStorage['user_princ_name'];
-	var pkeys = localStorage['user_princ_keys'];
+	var pkeys = deserialize_keys(localStorage['user_princ_keys']);
+
+	var user = Meteor.user();
 	
-	if (!pname || !pkeys) {
+	if (!user || !pkeys) {
 	    return undefined;
 	}
 	
-	return new Principal('user', pname, deserialize_keys(pkeys));
+	return new Principal('user', user.username, pkeys);
     }
 
+    
     // p1.allowSearch(p2) : p1 can now search on data encrypted for p2
     // since p2 can see p2's data, if p1 searches for a word that matches a word in p2's document
     // p2 knows which word p1 searched for because p2 knows p2's document
