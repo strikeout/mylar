@@ -262,9 +262,10 @@ lookup_princ_func = function(f, container) {
 }
 
 Meteor.Collection.prototype._encrypted_fields = function(lst) {
-    // check that one can still declare annotations
-    var add_access_happened = GlobalEnc.findOne({key : "add_access"})["value"];
-    if (add_access_happened) {
+    // check that one can still declare annotations,
+    // that is, no one gave access to some principal 
+    var aa = GlobalEnc.findOne({key : "add_access"});
+    if (aa && aa["value"]) {//add_access_happened
 	throw new Error("cannot declare enc fields after add access requests");
     }
 
@@ -310,7 +311,7 @@ Meteor.Collection.prototype.dec_fields = function(container, fields, callback) {
 			  if (!verif_princ.verify(container[f+'_enc'], container[f + '_signature'])) {
 			      throw new Error("signature does not verify on field " + f);
 			  }
-			  delete container[f+'_signature'];
+			  //delete container[f+'_signature'];
 		      }
 		      if (dec_princ) {
 			  var res  = dec_princ.decrypt(container[f+"_enc"]);
@@ -321,7 +322,7 @@ Meteor.Collection.prototype.dec_fields = function(container, fields, callback) {
 			  } else {
 			      container[f] = res;
 			  }
-			  delete container[f+"_enc"];
+			  //delete container[f+"_enc"];
 		      }
 		      cb();
 		  });	
@@ -363,7 +364,7 @@ Meteor.Collection.prototype.enc_row = function(container, callback) {
 		     if (enc_princ) {
 			 container[f+"_enc"] = enc_princ.sym_encrypt(container[f]);
 			 if (!ENC_DEBUG) {
-			     delete container[f];
+			     //delete container[f];
 			 }
 		     }
 			 

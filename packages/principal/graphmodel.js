@@ -35,11 +35,40 @@ PrincType = new Meteor.Collection("princtype");
  */
 
 GlobalEnc = new Meteor.Collection("globalenc");
-GlobalEnc.insert({key: "add_access", value: false});
 /*
   Holds some global variables:
-  key
-  value
+  key : name of variable
+  value : value of variable
 
   e.g. "add_access", true/false -> whether an add access happened in the system
   */
+
+if (Meteor.isServer) {
+
+    var allow_all_writes = {
+        insert: function () { return true; },
+        update: function () { return true; }
+    };
+    
+    //TODO: needs to be restricted
+    Principals.allow(allow_all_writes);
+    WrappedKeys.allow(allow_all_writes);
+    Certs.allow(allow_all_writes);
+    PrincType.allow(allow_all_writes);
+
+    GlobalEnc.allow(allow_all_writes);
+    var res = GlobalEnc.findOne({key: "add_access"});
+    if (!res) {
+	GlobalEnc.insert({key: "add_access", value: false}); // since Meteor does not have save
+    }
+    Meteor.publish("globalenc", function() {
+	return GlobalEnc.find({});
+    });
+}
+
+if (Meteor.isClient) {
+    Deps.autorun(function(){
+	Meteor.subscribe("globalenc");
+    });
+
+}

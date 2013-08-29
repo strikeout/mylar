@@ -2,6 +2,17 @@
   Implements principals
 */
 
+/* Principal object
+   type
+   name
+   id : public key of principal
+   keys: encrypt, decrypt (pk)
+         sign, verify (pk),
+	 sim_key (sym),
+	 mk_key  (multi-key)
+	 
+   id, type, name correspond to _id, type, name in the Principals collection
+*/
 
 var debug = true;
 var crypto = base_crypto;
@@ -42,17 +53,7 @@ wrapped_keys = function() {
 /*****************************************************/
 
 if (Meteor.isServer) {
-
-    var allow_all_writes = {
-        insert: function () { return true; },
-        update: function () { return true; }
-    };
-    //TODO: needs to be restricted
-    Principals.allow(allow_all_writes);
-    WrappedKeys.allow(allow_all_writes);
-    Certs.allow(allow_all_writes);
-
-
+    
     // gets the wrapped key, symmetric or public
     getWKey = function(doc) {
 	if (doc.wrapped_sym_keys) {
@@ -190,8 +191,11 @@ if (Meteor.isClient) {
 
     var add_access_happened = undefined;
 
-    Deps.autorun(function(){
-	add_access_happened = GlobalEnc.findOne({key : "add_access"})["value"];
+    Deps.autorun(function() {
+	var x = GlobalEnc.findOne({key : "add_access"});
+	if (x) {
+	    add_access_happened = x["value"];
+	}
     });
     
     // Constructs a new principal
@@ -228,7 +232,7 @@ if (Meteor.isClient) {
     // runs callback cb upon completion
     Principal.create = function(type, name, creator, cb) {
 
-	if (!type || !name || !creator) {
+	if (!type || !name || (type != "user" && !creator)) {
 	    throw new Error("cannot create principal with invalid (type, name, creator) : ("
 			    + type + ", " + name + ", " + creator +")");
 	}
@@ -246,7 +250,9 @@ if (Meteor.isClient) {
 	_generate_keys(type, function(keys) {
 	    var p = new Principal(type, name, keys);
 	    Principal._store(p, creator);
-	    Principal.add_access(creator, p, cb);
+	    if (creator) {
+		Principal.add_access(creator, p, cb);	
+	    }
 	});
     }
 
@@ -650,12 +656,10 @@ if (Meteor.isClient) {
     };
 
     
-    //TODO: remove new Principal which gets name instead of id 
-    
     processAccessInbox = function() {
-	if (Meteor.user) {
-	    var user = Principal.user();
-	    var accessinbox = Principals.findOne({_id : user.id}).accessInbox;
+	if (Meteor.userId()) {
+	    var uprinc = Principal.user();
+	    var accessinbox = Principals.findOne({_id : uprinc.id}).accessInbox;
 	    _.each(accessinbox, function(wid){
 		var w = WrappedKeys.findOne(wid);
 		if (!w) {

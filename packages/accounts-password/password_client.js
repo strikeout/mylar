@@ -83,18 +83,17 @@ Accounts.createUser = function (options, callback) {
     // strip old password, replacing with the verifier object
     delete options.password;
     options.srp = verifier;
-    
-    idp.create_keys(uname, pwd, function(keys) {
+
+    Principal.create("user", uname, null, function(uprinc){
 	localStorage['user_princ_name'] = uname;
-	localStorage['user_princ_keys'] = keys;
-	var user_princ = new Principal('user', uname, deserialize_keys(keys));
-	Principal._store(user_princ);
+	localStorage['user_princ_keys'] = uprinc.keys;
+	Principal._store(uprinc);
 	
 	Accounts.callLoginMethod({
 	    methodName: 'createUser',
 	    methodArguments: [options],
 	    userCallback: callback
-	});
+	});	
     });
 };
 
