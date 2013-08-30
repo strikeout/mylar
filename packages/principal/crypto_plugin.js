@@ -73,7 +73,7 @@ Crypto.encrypt = function(k1, word, cb) {
 };
 
 var tokenize_for_search = function(text) {
-    return text.split(); check
+    return text.match(/\w+|"[^"]+"/g); 
 }
 
 Crypto.text_encrypt = function(k, text, cb) {
