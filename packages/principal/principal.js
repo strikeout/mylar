@@ -11,12 +11,18 @@
 	 sym_key (sym),
 	 mk_key  (multi-key)
 
-   Serialiazation of keys:
+   every principal has mk_key whether used or not
+   
+   Serialization of keys:
    - Principal.keys is unserialized	 	 
    - id, type, name correspond to _id, type, name in the Principals collection
    - localStorage contains user_princ_keys serialized
    - idp server gets and returns serialized keys
-   
+
+   token : the token used to search for a word in a column "col"
+     princ : princ under which the token is encrypted for
+     princ_field: field of a collection where the principal for "col" is
+     token: the actual cryptographic token
 */
 
 var debug = true;
@@ -286,6 +292,13 @@ if (Meteor.isClient) {
 	
 	} 
 
+    }
+
+    Principal.token = function(word) {
+	return {
+	    princ: this.id,
+	    token: Crypto.token(this.keys.mk_key, word),
+	};
     }
        
     //TODO: all this should run at the client

@@ -129,9 +129,13 @@ _Mongo = function (url) {
 	  sys_coll.save(
 	      {	  "_id": "search",
 		  "value": new MongoDB.Code(
-		      function(doc, enctext, token) { 
-                          var newtoken = token + doc['adjust']; // temporary placeholder  
-			  return enctext.search(newtoken) != -1; 
+		      function(doc, princ_field, enctext, token) { 
+			  var wk = WrappedKeys.findOne(doc[princ_field], token.princ);
+			  if (!wk || !wk.delta) {
+			      throw new Error("cannot search over this field with token " + JSON.stringify(token));
+			  }
+			  var adjusted = crypto_server.adjust(token, wk.delta);
+			  return crypto_server.match(adjusted, enctext);
                       }
 		  )
 	      },
