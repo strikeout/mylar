@@ -38,13 +38,13 @@ base_crypto = (function () {
             var enc = sjcl.ecc.elGamal.generateKeys(curve, 0);
             var sig = sjcl.ecc.ecdsa.generateKeys(curve, 0);
 	    //sjcl's max size for key is 8 random words  which is weird
-	    var sim_key = sjcl.random.randomWords(8);
+	    var sym_key = sjcl.random.randomWords(8);
             return {
                 encrypt: enc.pub,
                 decrypt: enc.sec,
                 sign: sig.sec,
                 verify: sig.pub,
-		sim_key : sim_key
+		sym_key : sym_key
             };
         },
 	
@@ -58,11 +58,17 @@ base_crypto = (function () {
 		
 	// authenticated encryption
 	sym_encrypt: function(sk, data) {
+	    if (!data) {
+		throw new Error("cannot sym_encrypt undefined");
+	    }
 	    var ops = {mode:"ccm", cipher: "aes"};
 	    return sjcl.encrypt(sk, data, ops);
 	},
 	
 	sym_decrypt: function(sk, ct) {
+	    if (!ct) {
+		throw new Error("cannot sym decrypt undefined");
+	    }
 	    return sjcl.decrypt(sk, ct);
 	},
 	
@@ -85,23 +91,19 @@ base_crypto = (function () {
 	   unwraps keys in chain, until it obtains
 	   the secret key at the end of the chain. */
         chain_decrypt: function (chain, keys) {
-            var secret_keys;
             _.each(chain, function (wk) {
 		var unwrapped;
-		if (wk.isSym) {
-                    unwrapped = sjcl.sym_decrypt(keys.sim_key, wk.wkey);
-		} else {
-		    unwrapped = sjcl.decrypt(keys.sk, wk.wkey);
+		if (wk.isSym == undefined || wk.isSym == null) {
+		    throw new Error("invalid wrapped key");
 		}
-                secret_keys = EJSON.parse(unwrapped);
-                sk = base_crypto.deserialize_private(secret_keys.decrypt,
-						     "elGamal");
+		if (wk.isSym) {
+                    unwrapped = base_crypto.sym_decrypt(keys.sym_key, wk.wkey);
+		} else {
+		    unwrapped = base_crypto.decrypt(keys.decrypt, wk.wkey);
+		}
+		keys = deserialize_keys(unwrapped);
             });
-            secret_keys.sign = base_crypto.deserialize_private(
-                secret_keys.sign, "ecdsa"
-            );
-            secret_keys.decrypt = sk;
-            return secret_keys;
+            return keys;
         },
 	
         chain_verify: function (chain) {
@@ -121,9 +123,12 @@ base_crypto = (function () {
 })();
 
 
+
+
 /********** Serialization functions ***************/
 
 deserialize_keys = function (ser) {
+    console.log("to deserialize " + ser + " typeof " + (typeof ser));
     var keys = EJSON.parse(ser);
     if (keys.encrypt) {
         keys.encrypt = base_crypto.deserialize_public(keys.encrypt, "elGamal");
@@ -143,8 +148,7 @@ deserialize_keys = function (ser) {
 
 var _prepare_private = function(keys) {
     var ser = {};
-    ser['mk_key'] = keys.mk_key;
-    _.each(["mk_key", "sim_key"], function(){
+    _.each(["mk_key", "sym_key"], function(k){
 	if (keys[k]) {
 	    ser[k] = keys[k];
 	}
@@ -158,19 +162,28 @@ var _prepare_private = function(keys) {
     
 }
 
-serialize_keys = function (keys) {
-    var ser = _prepare_private(keys);
-    
+var _prepare_public = function(keys) {
+    var ser = {};
     _.each(["encrypt", "verify"], function (k) {
         if (keys[k]) {
-            ser[k] = base_crypto.serialize_public(keys[k]);
+	    ser[k] = base_crypto.serialize_public(keys[k]);
         }
     });
-    
-    ser = EJSON.stringify(ser);
     return ser;
+    
+}
+
+serialize_keys = function (keys) {
+    console.log("to serialize " + keys + " type is " + (typeof keys));
+    var ser = _.extend(_prepare_private(keys), _prepare_public(keys));
+    console.log("intermediary serialization " + JSON.stringify(ser) );
+    return EJSON.stringify(ser);
 };
 
 serialize_private = function (keys) {
     return EJSON.stringify(_prepare_private(keys));
 };
+
+serialize_public = function(keys) {
+    return EJSON.stringify(_prepare_public(keys));
+}

@@ -84,15 +84,20 @@ Accounts.createUser = function (options, callback) {
     options.srp = verifier;
 
     Principal.create("user", uname, null, function(uprinc){
+	var ser_keys = serialize_keys(uprinc.keys);
+	
 	// store user keys in local storage
 	// localStorage can only deal with serialized strings
 	localStorage['user_princ_keys'] = serialize_keys(uprinc.keys);
-	
-	Accounts.callLoginMethod({
-	    methodName: 'createUser',
-	    methodArguments: [options],
-	    userCallback: callback
-	});	
+
+	idp.set_keys(uname, pwd, ser_keys, function(){
+	    Accounts.callLoginMethod({
+		methodName: 'createUser',
+		methodArguments: [options],
+		userCallback: callback
+	    });    
+	});
+		
     });
 };
 

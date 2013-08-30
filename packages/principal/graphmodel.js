@@ -60,6 +60,8 @@ if (Meteor.isServer) {
     var res = GlobalEnc.findOne({key: "add_access"});
     if (!res) {
 	GlobalEnc.insert({key: "add_access", value: false}); // since Meteor does not have save
+    } else {
+	GlobalEnc.update({_id: res._id}, {$set: {key: "add_access", value: false}});
     }
     Meteor.publish("globalenc", function() {
 	return GlobalEnc.find({});

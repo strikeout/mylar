@@ -262,13 +262,26 @@ lookup_princ_func = function(f, container) {
 }
 
 Meteor.Collection.prototype._encrypted_fields = function(lst) {
-    // check that one can still declare annotations,
-    // that is, no one gave access to some principal 
-    var aa = GlobalEnc.findOne({key : "add_access"});
-    if (aa && aa["value"]) {//add_access_happened
-	throw new Error("cannot declare enc fields after add access requests");
+
+    if (this._enc_fields && _.isEqual(this._enc_fields, lst)) {//annotations already set
+	return; 
+    }
+    
+    // make sure these annotations were not already set
+    if (this._enc_fields && !_.isEqual(this._enc_fields,{}) && !_.isEqual(this._enc_fields, lst)) {
+	console.log("already " + JSON.stringify(this._enc_fields));
+	console.log("new " + JSON.stringify(lst));
+	throw new Error("cannot declare different annotations for the same collection");
     }
 
+    // check that one can still declare annotations,
+    // that is, no one gave access to some principal
+    if (!this._enc_fields || _.isEqual(this._enc_fields,{})) {
+	var aa = GlobalEnc.findOne({key : "add_access"});
+	if (aa && aa["value"]) {//add_access_happened
+	    throw new Error("cannot declare enc fields after add access requests (reset server)");
+	}
+    }
     this._enc_fields = lst;
 
     _.each(lst, function(val){
@@ -372,10 +385,7 @@ Meteor.Collection.prototype.enc_row = function(container, callback) {
 			 container[f + '_signature'] = sign_princ.sign(container[f]);
 		     }
 
-		     Crypto.newkey(function(k) {
-			 console.log("crypto new key returned " + k);
-			 cb();
-		     })
+		     cb();
 	      });	
    });
  

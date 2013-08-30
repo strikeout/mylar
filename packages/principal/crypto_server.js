@@ -55,10 +55,11 @@ if (Meteor.isClient) { // client must be asynchronous
 	// calls cb on the content of the response
 	function send_request(url_extension, cb) {
 	    Meteor.http.call("GET", base_url+url_extension, {}, function(error, res){
-		if (res.statusCode == 200) {
+		if (!error && res && res.statusCode == 200) {
 		    cb(res.content);
 		} else {
-		    cb();
+		    throw new Error("bad result from cryptoserver");
+		    //cb();
 		}
 	    });
 	}
