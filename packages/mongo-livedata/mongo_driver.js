@@ -129,8 +129,9 @@ _Mongo = function (url) {
 	  sys_coll.save(
 	      {	  "_id": "search",
 		  "value": new MongoDB.Code(
-		      function(doc, princ_field, enctext, token) { 
-			  var wk = WrappedKeys.findOne(doc[princ_field], token.princ);
+		      function(enc_princ, enctext, token) {
+			  token = EJSON.parse(token);
+			  var wk = WrappedKeys.findOne(token.princ, enc_princ);
 			  if (!wk || !wk.delta) {
 			      throw new Error("cannot search over this field with token " + JSON.stringify(token));
 			  }

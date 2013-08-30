@@ -72,6 +72,36 @@ Crypto.encrypt = function(k1, word, cb) {
     enc_module.postMessage("encrypt(" +  k1 + "," + word + ")");
 };
 
+var tokenize_for_search = function(text) {
+    return text.split(); check
+}
+
+Crypto.text_encrypt = function(k, text, cb) {
+    var items = tokenize_for_search(text);
+    var encitems = [];
+
+    callback = _.after(items.length, function() {
+	cb(encitems);
+    })
+    
+    _.each(items, function(item, index) {
+	Crypto.encrypt(k, item, function(encitem) {
+	    encitems.push(encitem);
+	    callback();
+	});
+    });
+}
+
+// check if enctext is a correct encryption of text
+// calls cb with true or false
+Crypto.is_consistent = function(k, text, enctext, cb) {
+    Crypto.text_encrypt(k, text, function(good_enctext) {
+	cb(_.isEqual(enctext, good_enctext));
+    });
+}
+
+validate
+
 Crypto.adjust = function(tok, delta, cb) {
     enc_return = cb;
     if (USE_CRYPTO_SERVER) {
