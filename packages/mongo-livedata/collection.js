@@ -342,6 +342,14 @@ Meteor.Collection.prototype.dec_fields = function(container, fields, callback) {
     });
 }
 
+var is_searchable = function(enc_fields, field) {
+    var annot = enc_fields[field];
+    if (annot && annot['attr'] == 'SEARCHABLE') 
+	return true;
+    else
+	return false;
+}
+
 // encrypts & signs a document
 // container is a map of key to values 
 Meteor.Collection.prototype.enc_row = function(container, callback) {
@@ -373,18 +381,37 @@ Meteor.Collection.prototype.enc_row = function(container, callback) {
 		     }
 		     var enc_princ = results[0];
 		     var sign_princ = results[1];
-		     
+
+		     // encrypt value
 		     if (enc_princ) {
 			 container[f+"_enc"] = enc_princ.sym_encrypt(container[f]);
-			 if (!ENC_DEBUG) {
-			     //delete container[f];
+			 if (sign_princ) {
+			     container[f + '_signature'] = sign_princ.sign(container[f+"_enc"]);
 			 }
-		     }
+
+			 var done_encrypt = function() {
+			     if (!ENC_DEBUG) {
+				 delete container[f];
+			     }
+			     cb();
+			 }
 			 
+			 if (is_searchable(self._enc_fields, f)) {
+			     container[f + "_mk"] = Crypto.text_encrypt(enc_princ.keys.mk_key, container[f],
+									function(ciph) {
+									    container[f+"_mk"] = ciph;
+									    done_encrypt();
+									});
+			 } else {
+			     done_encrypt();
+			 }
+			 return;
+		     }
+
+		     // do not encrypt value
 		     if (sign_princ) {
 			 container[f + '_signature'] = sign_princ.sign(container[f]);
 		     }
-
 		     cb();
 	      });	
    });

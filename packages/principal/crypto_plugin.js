@@ -1,6 +1,8 @@
 
 /*
-  NaCl crypto interface for multi-key crypto
+  Multi-key search client-side interface
+  -- NaCl
+  -- or crypto_server in debug mode
 */
 
 
