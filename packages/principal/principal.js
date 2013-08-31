@@ -341,7 +341,7 @@ if (Meteor.isClient) {
 	    return entry._id;
 	}
     }
-
+    
     // give princ1 access to princ2
     // encrypt's the keys of princ2 with princ 1's keys and
     // stores these new wrapped keys
@@ -687,10 +687,14 @@ if (Meteor.isClient) {
 		    }
 		    var subject_keys = base_crypto.decrypt(user.keys.decrypt, w["wrapped_keys"]);
 		    var sym_wrapped = base_crypto.sym_encrypt(user.keys.sym_key, subject_keys);
-		    WrappedKeys.update({_id: wid},
-				       {$set : {wrapped_sym_keys : sym_wrapped,
-						wrapped_keys: undefined}
-				       });
+		    // compute delta as well
+		    var delta = Crypto.delta(uprinc.keys.mk_key, subject_keys.mk_key, function(delta) {
+			WrappedKeys.update({_id: wid},
+					   {$set : {wrapped_keys: undefined,
+						    delta : delta, 
+						    wrapped_sym_keys : sym_wrapped}
+					   });
+		    }
 		});
 	    }
 	}
