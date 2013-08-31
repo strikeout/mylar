@@ -74,12 +74,23 @@ Crypto.encrypt = function(k1, word, cb) {
     enc_module.postMessage("encrypt(" +  k1 + "," + word + ")");
 };
 
+
+Crypto.index_enc = function(k, word, cb) {
+    enc_return = cb;
+    if (USE_CRYPTO_SERVER) {
+	crypto_server.index_enc(k, word, cb);
+	return;
+    }
+
+    enc_module.postMessage("index_enc(" +  k + "," + word + ")");
+};
+
 var tokenize_for_search = function(text) {
     return text.match(/\w+|"[^"]+"/g); 
 }
 
-Crypto.text_encrypt = function(k, text, cb) {
-    var items = tokenize_for_search(text);
+Crypto.text_encrypt = function(k, ptext, cb) {
+    var items = tokenize_for_search(ptext);
     var encitems = [];
 
     callback = _.after(items.length, function() {
@@ -88,18 +99,42 @@ Crypto.text_encrypt = function(k, text, cb) {
     
     _.each(items, function(item, index) {
 	Crypto.encrypt(k, item, function(encitem) {
-	    encitems.push(encitem);
+	    encitems[index] = encitem;
 	    callback();
 	});
     });
 }
 
+var _check_index = function(k, word, ciph, cb) {
+    Crypto.index_enc(k, word, function(iciph) {
+	Crypto.match(iciph, ciph, cb);
+    });
+}
+
 // check if enctext is a correct encryption of text
 // calls cb with true or false
-Crypto.is_consistent = function(k, text, enctext, cb) {
-    Crypto.text_encrypt(k, text, function(good_enctext) {
-	cb(_.isEqual(enctext, good_enctext));
-    });
+Crypto.is_consistent = function(k, ptext, enctext, cb) {
+    ptext = tokenize_for_search(ptext);
+    if (ptext.length != enctext.length) {
+	cb(false);
+	return;
+    }
+
+    var done = false;
+    for (var i = 0; i < ptext.length; i++){
+	var word = ptext[i];
+	_check_index(k, word, enctext[i], function(res) {
+	    if (!res) {
+		cb(false);
+		done = true;
+		return;
+	    }
+	    console.log("matched");
+	});
+	if (done) return;
+    }
+
+    cb(true);
 }
 
 
