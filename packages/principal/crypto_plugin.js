@@ -119,7 +119,6 @@ Crypto.is_consistent = function(k, ptext, enctext, cb) {
 	cb(false);
 	return;
     }
-
     var done = false;
     for (var i = 0; i < ptext.length; i++){
 	var word = ptext[i];
