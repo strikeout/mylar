@@ -19,12 +19,14 @@ public:
 
     ec_point token(const ec_scalar & k, const std::string & word) const;
     std::string encrypt(const ec_scalar & k, const std::string & word);
-    ec_point index_enc(const ec_scalar & k, const std::string & word);
-    
+
     std::string adjust(const ec_point & tok, const ec_point & delta) const;
     bool match(const std::string & searchtok, const std::string & ciph) const;
 
-
+    std::string index_enc(const ec_scalar & k, const std::string & word);
+    // index_enc is a deterministic encryption and 
+    // match(index_enc(k, w), encrypt(k, w)) = true;
+ 
     // serialization
     std::string serialize();
     mksearch(std::string g_ser);
