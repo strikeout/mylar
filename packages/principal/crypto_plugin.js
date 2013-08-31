@@ -102,7 +102,6 @@ Crypto.is_consistent = function(k, text, enctext, cb) {
     });
 }
 
-validate
 
 Crypto.adjust = function(tok, delta, cb) {
     enc_return = cb;

@@ -324,7 +324,6 @@ Meteor.Collection.prototype.dec_fields = function(container, fields, callback) {
 			  if (!verif_princ.verify(container[f+'_enc'], container[f + '_signature'])) {
 			      throw new Error("signature does not verify on field " + f);
 			  }
-			  //delete container[f+'_signature'];
 		      }
 		      if (dec_princ) {
 			  var res  = dec_princ.decrypt(container[f+"_enc"]);
@@ -335,7 +334,17 @@ Meteor.Collection.prototype.dec_fields = function(container, fields, callback) {
 			  } else {
 			      container[f] = res;
 			  }
-			  //delete container[f+"_enc"];
+			  if (is_searchable(this._enc_fields, f)) {
+			      Crypto.is_consistent(dec_princ.keys.mk_key, container[f], container[f+"enc"],
+					function(res) {
+					    if (!res)
+						throw new Error(
+						    "search encryption not consistent for "
+							+ f + " content " + container[f]);
+					    cb();
+					});
+			      return;
+			  } 
 		      }
 		      cb();
 		  });	

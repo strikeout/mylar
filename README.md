@@ -1,3 +1,3 @@
 Meteor-enc
 
-Requires packages: principal, accounts-password
+Requires packages: principal, accounts-password, accounts-base

@@ -136,7 +136,12 @@ _Mongo = function (url) {
 			      throw new Error("cannot search over this field with token " + JSON.stringify(token));
 			  }
 			  var adjusted = crypto_server.adjust(token, wk.delta);
-			  return crypto_server.match(adjusted, enctext);
+			  _.each(enctext, function(encword){
+			      if (crypto_server.match(adjusted, encword)) {
+				  return true;
+			      }
+			  });
+			  return false;
                       }
 		  )
 	      },

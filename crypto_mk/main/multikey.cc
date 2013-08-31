@@ -50,6 +50,11 @@ mksearch::encrypt(const ec_scalar & k, const string & word)  {
     return ec.xor_pattern(ec.pair(ec.hash(word)^k, g));
 }
 
+ec_point
+mksearch::index_enc(const ec_scalar & k, const string & word)  {
+    return ec.pair(ec.hash(word)^k, g);
+}
+
 string
 mksearch::adjust(const ec_point & tok, const ec_point & delta) const {
     string res = ec.pair(tok, delta).to_bytes();
