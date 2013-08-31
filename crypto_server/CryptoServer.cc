@@ -85,6 +85,11 @@ encrypt(b64mk & mk, const map<string, string> & args) {
 		      get_assert(args, "word"));
 }
 
+static string
+index_enc(b64mk & mk, const map<string, string> & args) {
+    return mk.index_enc(get_assert(args, "k"),
+			get_assert(args, "word"));
+}
 
 
 static string
@@ -121,6 +126,9 @@ CryptoServer::process(const string & request) {
     }
     else if (action == "encrypt") {
 	resp << encrypt(mk, args);
+    }
+    else if (action == "index_enc") {
+	resp << index_enc(mk, args);
     }
     else if (action == "adjust") {
 	resp << adjust(mk, args);
