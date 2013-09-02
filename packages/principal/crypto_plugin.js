@@ -54,24 +54,24 @@ Crypto.delta = function(k1, k2, cb) {
     enc_module.postMessage("delta(" + k1 + "," + k2 + ")");
 };
 
-Crypto.token = function(k1, word, cb) {
+Crypto.token = function(k, word, cb) {
     enc_return = cb;
     if (USE_CRYPTO_SERVER) {
 	crypto_server.token(k, word, cb);
 	return;
     }
   
-    enc_module.postMessage("token(" + k1 + "," + word + ")");
+    enc_module.postMessage("token(" + k + "," + word + ")");
 };
 
-Crypto.encrypt = function(k1, word, cb) {
+Crypto.encrypt = function(k, word, cb) {
     enc_return = cb;
     if (USE_CRYPTO_SERVER) {
-	crypto_server.encrypt(k1, word, cb);
+	crypto_server.encrypt(k, word, cb);
 	return;
     }
   
-    enc_module.postMessage("encrypt(" +  k1 + "," + word + ")");
+    enc_module.postMessage("encrypt(" +  k + "," + word + ")");
 };
 
 

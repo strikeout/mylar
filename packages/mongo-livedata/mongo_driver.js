@@ -120,7 +120,8 @@ _Mongo = function (url) {
         db.collection(c.name, c.callback);
       }).run();
     }
-            
+
+      		 
       // define a new MongoDB function
       // for search on encrypted data
       Fiber(function () {
@@ -129,20 +130,20 @@ _Mongo = function (url) {
 	  sys_coll.save(
 	      {	  "_id": "search",
 		  "value": new MongoDB.Code(
-		      function(enc_princ, enctext, token) {
-			  token = EJSON.parse(token);
-			  var wk = WrappedKeys.findOne(token.princ, enc_princ);
+		      function(enc_princ, enctext, tokprinc, toktoken) {
+			  //tok = EJSON.parse(tok);
+			  var wk = db.wrapped_keys.findOne(tokprinc, enc_princ);
 			  if (!wk || !wk.delta) {
-			      throw new Error("cannot search over this field with token " + JSON.stringify(token));
+			      throw new Error("cannot search over this field with token ");
 			  }
-			  var adjusted = crypto_server.adjust(token, wk.delta);
+			  var adjusted = crypto_server.adjust(toktoken, wk.delta);
 			  _.each(enctext, function(encword){
 			      if (crypto_server.match(adjusted, encword)) {
 				  return true;
 			      }
 			  });
-			  return false;
-                      }
+			  return false; 
+		      }
 		  )
 	      },
 	      {safe:true},

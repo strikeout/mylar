@@ -294,11 +294,17 @@ if (Meteor.isClient) {
 
     }
 
-    Principal.token = function(word) {
-	return {
-	    princ: this.id,
-	    token: Crypto.token(this.keys.mk_key, word),
-	};
+    // todo : remove hardcoded Messages
+    Principal.prototype.token = function(word, collection, field, cb) {
+	var self = this;
+	console.log("the right token");
+	var enc_princ = Messages._enc_fields[field].princ;
+	Crypto.token(this.keys.mk_key, word, function(tok){
+	    cb(EJSON.stringify({princ: self.id,
+				enc_princ: enc_princ,
+				field: field,
+			       token: tok})); 
+	});
     }
        
     //TODO: all this should run at the client
@@ -427,18 +433,30 @@ if (Meteor.isClient) {
 	return { decrypt: self.keys.decrypt, sign: self.keys.sign };
     };
 
-    
+    // returns true if it has all secret keys
+    // throws exception if it only has a subset of the secret keys
+    Principal.prototype._has_secret_keys = function() {
+	if (!self.keys) {
+	    return false;
+	}
+	if (self.keys.decrypt && self.keys.sign && self.keys.mk_key && self.keys.sym_key) {
+	    return true;
+	}
+	if (self.keys.decrypt || self.keys.sign || self.keys.mk_key || self.keys.sym_key) {
+	    throw new Error("principal " + princ.id + " type " + princ.type + " has partial secret keys" );
+	}
+	return false;
+    }
     // loads secret keys for the principal self.id
     // by finding a chain to the current user and decrypts the secret keys
     Principal.prototype._load_secret_keys = function (on_complete) {
 	var self = this;
-	if (self.keys.decrypt && self.keys.sign) {
+	if (self._has_secret_keys()) {
 	    if (debug) console.log("secret keys available");
             on_complete(self);
 	} else {
-	    var auth = new Principal("user", Meteor.user().username,
-				     deserialize_keys(localStorage['user_princ_keys']));
-	    
+	    var auth = Principal.user();
+		
 	    if (debug) console.log("no sk keys:  invoke key chain");
 
 	    // hack: rpc cannot stringify keys with json
@@ -694,7 +712,7 @@ if (Meteor.isClient) {
 						    delta : delta, 
 						    wrapped_sym_keys : sym_wrapped}
 					   });
-		    }
+		    });
 		});
 	    }
 	}

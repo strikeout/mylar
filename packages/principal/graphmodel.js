@@ -14,7 +14,7 @@ WrappedKeys = new Meteor.Collection("wrapped_keys");
    delta
    wrapped_sym_keys : wrapped secret keys, symmetric
 
-   There is a bijection between each edge of the graph and each document. 
+   There is a bijection between each edge of the graph and each document.
 */
    
 Certs = new Meteor.Collection("certs");
