@@ -253,9 +253,7 @@ lookup_princ_func = function(f, container) {
 	}
 	
 	Principal._lookupByID(princ_id, function(princ){
-	    princ._load_secret_keys(function(fullprinc) {
-		cb(undefined, fullprinc);
-	    });
+		cb(undefined, princ);
 	});
     }
     
@@ -391,6 +389,8 @@ Meteor.Collection.prototype.enc_row = function(container, callback) {
 		     var enc_princ = results[0];
 		     var sign_princ = results[1];
 
+		     console.log("enc_princ " + pretty(enc_princ) + " \n");
+		     console.log("sign_princ " + pretty(sign_princ) + " \n");
 		     // encrypt value
 		     if (enc_princ) {
 			 container[f+"_enc"] = enc_princ.sym_encrypt(container[f]);

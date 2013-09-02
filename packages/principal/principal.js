@@ -59,6 +59,22 @@ wrapped_keys = function() {
     return res;
 }
 
+pretty = function(princ) {
+    var res = "";
+    if (princ.name) {
+	res = res + princ.name + " ";
+    }
+    if (princ.type) {
+	res = res  + princ.type + " ";
+    }
+    if (princ.keys) {
+	res = res + serialize_keys(princ.keys);
+    }
+
+    return res;
+    
+}
+
 /*****************************************************/
 
 if (Meteor.isServer) {
@@ -127,8 +143,9 @@ if (Meteor.isServer) {
 	    return undefined;
         },
 
-	// returns a principal with id from the principal graph
-	lookupByID: function(id) {
+	// returns the decription of a principal with _id;
+	// the description is the doc in the Principals collection
+	princInfo: function(id) {
 	    return Principals.findOne({_id: id});
 	},
 
@@ -328,7 +345,10 @@ if (Meteor.isClient) {
 	// we do these in reverse order due to callbacks
 	
 	princ2._load_secret_keys(function(){
-	    Principal._add_access(princ1, princ2, on_complete);
+	    Principal._add_access(princ1, princ2);
+	    if (on_complete) {
+		on_complete();
+	    }
 	});
     };
     
@@ -351,15 +371,13 @@ if (Meteor.isClient) {
     // give princ1 access to princ2
     // encrypt's the keys of princ2 with princ 1's keys and
     // stores these new wrapped keys
-    Principal._add_access = function (princ1, princ2, cb) {
-        var keys = princ2._secret_keys();
-
-	if (!keys) {
+    Principal._add_access = function (princ1, princ2) {
+	if (!princ2.keys) {
 	    throw new Error("princ2 should have secret keys loaded");
 	}
 		
-	var wrap = princ1.encrypt(serialize_private(keys));
-
+	var wrap = princ1.encrypt(serialize_private(princ2.keys));
+	console.log("encrypted " + serialize_private(princ2.keys));
 	if (wrap.isSym) {
 	    // no need for access inbox
 	    updateWrappedKeys(princ2.id, princ1.id, null, wrap.ct);
@@ -372,10 +390,6 @@ if (Meteor.isClient) {
 	    }
 	}
 		
-	if (cb) {
-	    cb();
-	}
-	
     };
     
     // Removes princ1 access to princ2
@@ -387,8 +401,7 @@ if (Meteor.isClient) {
 
 
     Principal._remove_access = function (princ1, princ2, on_complete) {
-	return function () {
-        var originalKeys = princ2._secret_keys();
+	return function () { 
 
         // Remove WK from princ1.
 	    var wrappedID = WrappedKeys.findOne({principal: princ2.id, wrapped_for: princ1.id})._id;
@@ -426,16 +439,10 @@ if (Meteor.isClient) {
 	return new Certificate(princ, self.id, sig);
     };
     
-
-
-    Principal.prototype._secret_keys = function () {
-	var self = this;
-	return { decrypt: self.keys.decrypt, sign: self.keys.sign };
-    };
-
     // returns true if it has all secret keys
     // throws exception if it only has a subset of the secret keys
     Principal.prototype._has_secret_keys = function() {
+	var self = this;
 	if (!self.keys) {
 	    return false;
 	}
@@ -452,14 +459,14 @@ if (Meteor.isClient) {
     Principal.prototype._load_secret_keys = function (on_complete) {
 	var self = this;
 	if (self._has_secret_keys()) {
-	    if (debug) console.log("secret keys available");
+	    if (debug) console.log("secret keys available" + pretty(self));
             on_complete(self);
 	} else {
 	    var auth = Principal.user();
 		
 	    if (debug) console.log("no sk keys:  invoke key chain");
 
-	    // hack: rpc cannot stringify keys with json
+	    // create principals with no keys for the server
 	    var auth2 = new Principal(auth.type, auth.name, auth.keys);
 	    auth2.keys = {};
 	    var self2 = new Principal(self.type, self.name, self.keys);
@@ -468,7 +475,7 @@ if (Meteor.isClient) {
 			self2, function (err, chain) {
 			    //if (debug) console.log("keychain returns: " + chain);
 			    if (chain) {
-				self.keys = base_crypto.chain_decrypt(chain, auth.keys);
+				self.keys = _.extend(self.keys, base_crypto.chain_decrypt(chain, auth.keys));
 				if (on_complete) {
 				    on_complete(self);
 				}
@@ -487,15 +494,16 @@ if (Meteor.isClient) {
 	this.keys.sign = undefined;
 	this.keys.decrypt = undefined;
     }
-    
+
+    // finds a principal based on his ID and gives this principal
+    // to on_complete callback; this principal will have secret keys loaded
     Principal._lookupByID = function(id, on_complete) {
 	if (debug) console.log("lookupByID princ id " + id);
 
-	Meteor.call("lookupByID", id, function(err, result) {
+	Meteor.call("princInfo", id, function(err, princ_info) {
 	    if (err) {
 		throw new Error("could not find princ with id " + id);
 	    }
-	    var princ_info = result;
 	    var p = new Principal(princ_info["type"], princ_info["name"], _get_keys(id));
 	    
 	    p._load_secret_keys(on_complete);
@@ -629,14 +637,7 @@ if (Meteor.isClient) {
 
     // transforms an id into keys - crypto instance of public keys
     _get_keys = function(id) {
-	var pk = EJSON.parse(id);
-
-	return {
-	    encrypt: crypto.deserialize_public(pk.encrypt, "elGamal"),
-	    decrypt: undefined,
-	    verify: crypto.deserialize_public(pk.verify, "ecdsa"),
-	    sign: undefined
-	}
+	return deserialize_keys(id);
     }
 
     // requires symmetric key of this principal to be set

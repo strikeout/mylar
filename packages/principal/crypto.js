@@ -174,9 +174,7 @@ var _prepare_public = function(keys) {
 }
 
 serialize_keys = function (keys) {
-    console.log("to serialize " + keys + " type is " + (typeof keys));
     var ser = _.extend(_prepare_private(keys), _prepare_public(keys));
-    console.log("intermediary serialization " + JSON.stringify(ser) );
     return EJSON.stringify(ser);
 };
 
