@@ -350,6 +350,9 @@ Meteor.Collection.prototype.dec_fields = function(container, fields, callback) {
 }
 
 var is_searchable = function(enc_fields, field) {
+    if (!enc_fields) {
+	return false;
+    }
     var annot = enc_fields[field];
     if (annot && annot['attr'] == 'SEARCHABLE') 
 	return true;

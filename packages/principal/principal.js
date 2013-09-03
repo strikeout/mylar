@@ -642,7 +642,8 @@ if (Meteor.isClient) {
 
     // requires symmetric key of this principal to be set
     Principal.prototype.sym_encrypt = function(pt) {
-	if (this.keys.sym_key) {
+	var self = this;
+	if (self.keys.sym_key) {
 	    return crypto.sym_encrypt(self.keys.sym_key, pt);
 	}
 	throw new Error("encrypt key must be set");
