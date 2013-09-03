@@ -345,25 +345,23 @@ if (Meteor.isClient) {
 	// we do these in reverse order due to callbacks
 	
 	princ2._load_secret_keys(function(){
-	    Principal._add_access(princ1, princ2);
-	    if (on_complete) {
-		on_complete();
-	    }
+	    Principal._add_access(princ1, princ2, on_complete);
 	});
     };
     
-    var updateWrappedKeys = function(pid, pid_for, wpk, wsym) {
+    var updateWrappedKeys = function(pid, pid_for, wpk, wsym, delta) {
 	var entry = WrappedKeys.findOne({principal: pid, wrapped_for: pid_for});
 
 	if (!entry) {
 	    var entry_id = WrappedKeys.insert({principal:pid,
 					       wrapped_for:pid_for,
 					       wrapped_keys: wpk,
-					       wrapped_sym_keys: wsym });
+					       wrapped_sym_keys: wsym,
+					       delta: delta});
 	    return entry_id;
 	} else {
 	    WrappedKeys.update({_id: entry._id},
-			       {$set: {principal:pid, wrapped_for:pid_for, wrapped_keys: wpk, wrapped_sym_keys: wsym}});
+			       {$set: {principal:pid, wrapped_for:pid_for, wrapped_keys: wpk, wrapped_sym_keys: wsym, delta:delta}});
 	    return entry._id;
 	}
     }
@@ -371,24 +369,31 @@ if (Meteor.isClient) {
     // give princ1 access to princ2
     // encrypt's the keys of princ2 with princ 1's keys and
     // stores these new wrapped keys
-    Principal._add_access = function (princ1, princ2) {
-	if (!princ2.keys) {
+    Principal._add_access = function (princ1, princ2, cb) {
+	if (!princ2._has_secret_keys()) {
 	    throw new Error("princ2 should have secret keys loaded");
 	}
-		
-	var wrap = princ1.encrypt(serialize_private(princ2.keys));
-	console.log("encrypted " + serialize_private(princ2.keys));
-	if (wrap.isSym) {
-	    // no need for access inbox
-	    updateWrappedKeys(princ2.id, princ1.id, null, wrap.ct);
+
+	var pt = serialize_private(princ2.keys);
+
+	if (princ1._has_secret_keys()) { // encrypt symmetrically
+	    wrap = princ1.sym_encrypt(pt);
+	    // can compute delta as well so no need for access inbox
+	    Crypto.delta(princ1.keys.mk_key, princ2.keys.mk_key, function(delta) {
+		updateWrappedKeys(princ2.id, princ1.id, undefined, wrap, delta);
+		if (cb) { cb(); }
+	    });
+	    return;
 	}
-	else {
-	    var entry_id = updateWrappedKeys(princ2.id, princ1.id, wrap.ct, null);
-	    // update user inbox
-	    if (princ1.type == "user") {
-		Principals.update({_id : princ1.id}, {$push: {accessInbox: entry_id}});
-	    }
+
+	// encrypt using public keys
+	var wrap = crypto.encrypt(princ1.keys.encrypt, pt);
+	var entry_id = updateWrappedKeys(princ2.id, princ1.id, wrap.ct, null);
+	// update user inbox for delta
+	if (princ1.type == "user") {
+	    Principals.update({_id : princ1.id}, {$push: {accessInbox: entry_id}});
 	}
+	if (cb)  {cb(); }
 		
     };
     
@@ -648,19 +653,6 @@ if (Meteor.isClient) {
 	}
 	throw new Error("encrypt key must be set");
     }
-
-    // encrypts with either sym_key or public key
-    // requires sym_key or public enc key to be set
-    Principal.prototype.encrypt = function (pt) {
-	var self = this;
-	if (self.keys.sym_key) {
-	    return {isSym: true, ct:crypto.sym_encrypt(self.keys.sym_key, pt)};
-	}
-	if (self.keys.encrypt) {
-	    return {isSym: false, ct:crypto.encrypt(self.keys.encrypt, pt)};
-	} 
-	throw new Error("encrypt key must be set");
-    };
 
     // requires keys.decrypt to be set
     Principal.prototype.decrypt = function (ct) {

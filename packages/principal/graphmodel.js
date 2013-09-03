@@ -11,9 +11,9 @@ WrappedKeys = new Meteor.Collection("wrapped_keys");
 /* principal: princ.id
    wrapped_for : princ.id -- the id of the princ that gets new access
    wrapped_keys : wrapped secret asymmetric keys
-   delta
    wrapped_sym_keys : wrapped secret keys, symmetric
-
+   delta
+   
    There is a bijection between each edge of the graph and each document.
 */
    
