@@ -10,6 +10,8 @@
 
 using namespace std;
 
+
+
 static void
 parse_args(string argstr, map<string, string> & args) {
   int eq = argstr.find("="), amp = 0;
@@ -56,7 +58,7 @@ get_assert(const map<string, string> & args, string key) {
     auto it = args.find(key);
     if (it == args.end()) {
 	if (VERB) cerr << "invalid server request";
-	exit(-1); // todo(raluca): don't fail, just return incorrect
+	throw new MKError("invalid parameters");
     }
 
     return it->second;		 
@@ -114,32 +116,41 @@ CryptoServer::process(const string & request) {
     stringstream resp;
     resp.clear();
     resp << "HTTP/1.0 200 OK\r\nAccess-Control-Allow-Origin: *\r\n\r\n";
+
+    try {
+	if (action == "keygen") {
+	    resp << keygen(mk, args);
+	}
+	else if (action == "delta") {
+	    resp << delta(mk, args);
+	}
+	else if (action == "token") {
+	    resp << token(mk, args);
+	}
+	else if (action == "encrypt") {
+	    resp << encrypt(mk, args);
+	}
+	else if (action == "index_enc") {
+	    resp << index_enc(mk, args);
+	}
+	else if (action == "adjust") {
+	    resp << adjust(mk, args);
+	}
+	else if (action == "match") {
+	    resp << match(mk, args);
+	} else {
+	    cerr << "invalid action \n";
+	    resp.clear();
+	    resp << "HTTP/1.0 406 Not Acceptable\r\nAccess-Control-Allow-Origin: *\r\n\r\n";
+	    return resp.str();
+	}
+    } catch(MKError cs) {
+	cerr << "issue with request";
+	resp.clear();
+	resp << "HTTP/1.0 406 Not Acceptable\r\nAccess-Control-Allow-Origin: *\r\n\r\n";
+	return resp.str();
+    }
     
-    if (action == "keygen") {
-	resp << keygen(mk, args);
-    }
-    else if (action == "delta") {
-	resp << delta(mk, args);
-    }
-    else if (action == "token") {
-	resp << token(mk, args);
-    }
-    else if (action == "encrypt") {
-	resp << encrypt(mk, args);
-    }
-    else if (action == "index_enc") {
-	resp << index_enc(mk, args);
-    }
-    else if (action == "adjust") {
-	resp << adjust(mk, args);
-    }
-    else if (action == "match") {
-	resp << match(mk, args);
-    } else {
-	cerr << "invalid action \n";
-    }
-    
-   
     if (VERB) cerr << "resp is " << resp.str() << "\n===================\n";
     return resp.str();
     

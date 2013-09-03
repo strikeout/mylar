@@ -319,8 +319,8 @@ if (Meteor.isClient) {
 	Crypto.token(this.keys.mk_key, word, function(tok){
 	    cb(EJSON.stringify({princ: self.id,
 				enc_princ: enc_princ,
-				field: field,
-			       token: tok})); 
+				field: enc_field_name(field),
+				token: tok})); 
 	});
     }
        

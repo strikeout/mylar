@@ -13,7 +13,7 @@ ec_serializable::to_bytes() const {
     unsigned char data[size];
 	if(element_to_bytes(data, e) != size) {
 	  cerr << "ERROR: incorrect serialization\n";
-	  throw "incorrect serialization";
+	  throw MKError("incorrect serialization");
 	}
     return string((const char *)data, size);
 }
@@ -161,7 +161,7 @@ EC::EC() {
     
     if(!(SEEDSIZE < CTSIZE && CTSIZE <= SEEDSIZE + (int)sha1::hashsize)) {
 	  cerr << "ERROR: CTSIZE sanity check failed\n";
-	  throw "CTSIZE sanity check failed";
+	  throw MKError("CTSIZE sanity check failed");
 	}
 }
 
@@ -220,18 +220,18 @@ EC::pair(const ec_point & p1, const ec_point & p2) const {
 string
 EC::xor_pattern (const ec_point & n) {
     int size = element_length_in_bytes(n.e);
-
-	if(size < CTSIZE) {
-	  cerr << "ERROR: size of point is smaller than ciphertext size\n";
-	  throw "size of point is smaller than ciphertext size";
-	}
+    
+    if(size < CTSIZE) {
+	cerr << "ERROR: size of point is smaller than ciphertext size\n";
+	throw MKError("size of point is smaller than ciphertext size");
+    }
     unsigned char data[size];
     
-	if(element_to_bytes(data, n.e) != size) {
-	  cerr << "ERROR: incorrect serialization\n";
-	  throw "incorrect serialization";
-	}
-
+    if(element_to_bytes(data, n.e) != size) {
+	cerr << "ERROR: incorrect serialization\n";
+	throw MKError("incorrect serialization");
+    }
+    
     std::string seed = u.rand_string(SEEDSIZE);
     std::string hseed = sha1::hash(seed);
     
@@ -254,7 +254,7 @@ EC::has_pattern(const string & tok, const string & ciph) const {
     string tmp;
     if(tok.size() != ciph.size()) {
 	  cerr << "ERROR: inconsistent tok/ciph sizes\n";
-	  throw "inconsistent tok/ciph sizes";
+	  throw MKError("inconsistent tok/ciph sizes");
 	}
     
     for (uint i = 0; i < tok.size(); i++) {

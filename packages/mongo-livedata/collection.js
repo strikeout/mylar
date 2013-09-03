@@ -1,9 +1,27 @@
 // connection, if given, is a LivedataClient or LivedataServer
 // XXX presently there is no way to destroy/clean up a Collection
 
+/* MeteorEnc: Each field names f gets extra fields: f_enc, f_sig,
+   and optionally f_mk for search.
+   The field f contains plaintext and is not sent to the server
+   unless ENC_DEBUG is true */
+
+
 var debug = false;
 
 var ENC_DEBUG = true; // if true, an unencrypted copy of the fields will be kept for debugging mode
+
+
+enc_field_name = function(f) {
+    return f + "_enc";
+}
+sig_field_name = function(f) {
+    return f + "_sig";
+}
+
+search_field_name = function(f) {
+    return f + "_mk";
+}
 
 Meteor.Collection = function (name, options) {
   var self = this;
@@ -319,12 +337,12 @@ Meteor.Collection.prototype.dec_fields = function(container, fields, callback) {
 		      var verif_princ = results[1];
 		      
 		      if (verif_princ) {
-			  if (!verif_princ.verify(container[f+'_enc'], container[f + '_signature'])) {
+			  if (!verif_princ.verify(container[enc_field_name(f)], container[sig_field_name(f)])) {
 			      throw new Error("signature does not verify on field " + f);
 			  }
 		      }
 		      if (dec_princ) {
-			  var res  = dec_princ.decrypt(container[f+"_enc"]);
+			  var res  = dec_princ.decrypt(container[enc_field_name(f)]);
 			  if (ENC_DEBUG) {
 			      if (res != container[f]) {
 				  throw new Error ("inconsistency in the value decrypted and plaintext");
@@ -396,9 +414,9 @@ Meteor.Collection.prototype.enc_row = function(container, callback) {
 		     console.log("sign_princ " + pretty(sign_princ) + " \n");
 		     // encrypt value
 		     if (enc_princ) {
-			 container[f+"_enc"] = enc_princ.sym_encrypt(container[f]);
+			 container[enc_field_name(f)] = enc_princ.sym_encrypt(container[f]);
 			 if (sign_princ) {
-			     container[f + '_signature'] = sign_princ.sign(container[f+"_enc"]);
+			     container[sig_field_name(f)] = sign_princ.sign(container[enc_field_name(f)]);
 			 }
 
 			 var done_encrypt = function() {
@@ -409,9 +427,9 @@ Meteor.Collection.prototype.enc_row = function(container, callback) {
 			 }
 			 
 			 if (is_searchable(self._enc_fields, f)) {
-			     container[f + "_mk"] = Crypto.text_encrypt(enc_princ.keys.mk_key, container[f],
+			     container[search_field_name(f)] = Crypto.text_encrypt(enc_princ.keys.mk_key, container[f],
 									function(ciph) {
-									    container[f+"_mk"] = ciph;
+									    container[search_field_name(f)] = ciph;
 									    done_encrypt();
 									});
 			 } else {
@@ -422,7 +440,7 @@ Meteor.Collection.prototype.enc_row = function(container, callback) {
 
 		     // do not encrypt value
 		     if (sign_princ) {
-			 container[f + '_signature'] = sign_princ.sign(container[f]);
+			 container[sig_field_name(f)] = sign_princ.sign(container[f]);
 		     }
 		     cb();
 	      });	

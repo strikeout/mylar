@@ -15,6 +15,7 @@ WrappedKeys = new Meteor.Collection("wrapped_keys");
    delta
    
    There is a bijection between each edge of the graph and each document.
+   Currently computing delta for any edge.
 */
    
 Certs = new Meteor.Collection("certs");
