@@ -9,6 +9,10 @@ if (Meteor.isServer) { // server is synchronous
 	// synchronous send request
 	function send_request(url_extension) {
 	    var res =  Meteor.http.call("GET", base_url+url_extension);
+	    if (!res.content || !res.content.length) {
+		console.log("crypto server could not service request: " + res.headers + " " + res.content);
+		return null;
+	    }
 	    return res.content;
 	}
 	
@@ -25,12 +29,12 @@ if (Meteor.isServer) { // server is synchronous
 	    },
 
 	    encrypt : function(k, word) {
-	    var url_ext = 'encrypt?k=' + k + '&word=' + word;
+		var url_ext = 'encrypt?k=' + k + '&word=' + word;
 		return send_request(url_ext);
 	    },
 	    
 	    index_enc : function(k, word) {
-	    var url_ext = 'index_enc?k=' + k + '&word=' + word;
+		var url_ext = 'index_enc?k=' + k + '&word=' + word;
 		return send_request(url_ext);
 	    },
 
