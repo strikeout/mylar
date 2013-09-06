@@ -23,7 +23,7 @@ search_cb = undefined;
 search_collec = undefined;
 
 if (Meteor.isClient) {
-Meteor.Collection.prototype.search = function(wordmap, princ, filter_args, callback) {
+Meteor.Collection.prototype.search = function(pubname, wordmap, princ, filter_args, callback) {
     var self = this;
     
     var mapkeys = _.keys(wordmap);
@@ -45,6 +45,7 @@ Meteor.Collection.prototype.search = function(wordmap, princ, filter_args, callb
 	search_info["enc_princ"] = self._enc_fields[field].princ;
 	search_info["token"] = token;
 	search_info["field"] = field;
+        search_info["pubname"] = pubname;
 	
 	search_cb = callback;
 	search_collec = self;
@@ -60,7 +61,7 @@ Deps.autorun(function(){
     
     if (search_info) {
 	var token = search_info.token;
-	Meteor.subscribe("_search", search_info["args"], token,
+	Meteor.subscribe(search_info["pubname"], search_info["args"], token,
 			 search_info["enc_princ"], search_info["princ"], search_field_name(search_info["field"]),
 			 function(){ // on ready handle
 			     var cb = search_cb;
@@ -92,11 +93,11 @@ function getProj(proj, doc, token) {
     return res;
 }
 
-Meteor.Collection.prototype.search_filter = function(filter, proj) {
+Meteor.Collection.prototype.publish_search_filter = function(pubname, filter, proj) {
 	
     var self_col = this;
     
-    Meteor.publish("_search", function(args, token, enc_princ, princ, field){
+    Meteor.publish(pubname, function(args, token, enc_princ, princ, field){
 	
 	var self = this;
 	
