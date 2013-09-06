@@ -315,29 +315,33 @@ if (Meteor.isClient) {
     }
 
 
-    //TODO: remove hardcoded Messages
     // word to search for by principal indicated by this
     // info must have fields collection and field,
     // and optionally args and cb
-    Principal.prototype.search = function(word, info, cb) {
+    Meteor.Collection.prototype.search = function(wordmap, princ, filter_args, callback) {
 	var self = this;
+
+	var mapkeys = _.keys(wordmap);
+	
+	if (_.keys(wordmap).length != 1) {
+	    throw new Error("must specify one word");
+	}
+	var field = mapkeys[0];
+	var word = wordmap[field];
 	
 	if (!word || word == "") {
 	    return;
 	}
-	if (!info.collection && !info.field) {
-	    throw new Error("must specify collection and field so I know where to search");
-	}
-
-	Crypto.token(self.keys.mk_key, word, function(token){
+	
+	Crypto.token(princ.keys.mk_key, word, function(token){
 	    var search_info = {};
 	    search_info["args"] = info.args;
-	    search_info["princ"] = self.id;
-	    search_info["enc_princ"] = Messages._enc_fields[info.field].princ;
+	    search_info["princ"] = princ.id;
+	    search_info["enc_princ"] = self._enc_fields[info.field].princ;
 	    search_info["token"] = token;
-	    search_info["field"] = info.field;
+	    search_info["field"] = field;
 
-	    search_cb = cb;
+	    search_cb = callback;
 	    Session.set("_search_info", search_info);
 	});
 	
@@ -355,7 +359,7 @@ if (Meteor.isClient) {
 			     function(){ // on ready handle
 				 var cb = search_cb;
 				 if (cb) {
-				     cb(Messages.find({_tag: token}).fetch());
+				     cb(search_info["collec"].find({_tag: token}).fetch());
 				 }
 				 Session.set("_search_info", null);
 				 _search_cb = undefined;
