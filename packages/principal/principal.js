@@ -29,8 +29,6 @@
 var debug = true;
 var crypto = base_crypto;
 
-search_cb = undefined;
-
 /******* Data structures ****/
 
 PrincAttr = function (type, name) {
@@ -215,6 +213,7 @@ if (Meteor.isServer) {
     });
 }
 
+
 /***** Client ***************/
 
 if (Meteor.isClient) {
@@ -314,59 +313,6 @@ if (Meteor.isClient) {
 
     }
 
-
-    // word to search for by principal indicated by this
-    // info must have fields collection and field,
-    // and optionally args and cb
-    Meteor.Collection.prototype.search = function(wordmap, princ, filter_args, callback) {
-	var self = this;
-
-	var mapkeys = _.keys(wordmap);
-	
-	if (_.keys(wordmap).length != 1) {
-	    throw new Error("must specify one word");
-	}
-	var field = mapkeys[0];
-	var word = wordmap[field];
-	
-	if (!word || word == "") {
-	    return;
-	}
-	
-	Crypto.token(princ.keys.mk_key, word, function(token){
-	    var search_info = {};
-	    search_info["args"] = info.args;
-	    search_info["princ"] = princ.id;
-	    search_info["enc_princ"] = self._enc_fields[info.field].princ;
-	    search_info["token"] = token;
-	    search_info["field"] = field;
-
-	    search_cb = callback;
-	    Session.set("_search_info", search_info);
-	});
-	
-    }
-
-    Deps.autorun(function(){
-	// check if subscriptions get closed properly
-	
-	var search_info = Session.get("_search_info");
-	
-	if (search_info) {
-	    var token = search_info.token;
-	    Meteor.subscribe("_search", search_info["args"], token,
-			     search_info["enc_princ"], search_info["princ"], search_field_name(search_info["field"]),
-			     function(){ // on ready handle
-				 var cb = search_cb;
-				 if (cb) {
-				     cb(search_info["collec"].find({_tag: token}).fetch());
-				 }
-				 Session.set("_search_info", null);
-				 _search_cb = undefined;
-			     });
-	}
-    });
-    
 
     record_add_access = function() {
 	if (!add_access_happened) {
