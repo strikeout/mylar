@@ -331,14 +331,12 @@ if (Meteor.isClient) {
 
 	Crypto.token(self.keys.mk_key, word, function(token){
 	    var search_info = {};
+	    search_info["args"] = info.args;
 	    search_info["princ"] = self.id;
 	    search_info["enc_princ"] = Messages._enc_fields[info.field].princ;
 	    search_info["token"] = token;
 	    search_info["field"] = info.field;
-	    search_info["args"] = info.args;
 
-	    console.log("in search cb is " +  cb);
-	    Session.set("_search_cb", cb);
 	    search_cb = cb;
 	    Session.set("_search_info", search_info);
 	});
@@ -355,14 +353,12 @@ if (Meteor.isClient) {
 	    Meteor.subscribe("_search", search_info["args"], token,
 			     search_info["enc_princ"], search_info["princ"], search_field_name(search_info["field"]),
 			     function(){ // on ready handle
-				 console.log("on ready for token " + token);
 				 var cb = search_cb;
-				 console.log("cb in deps is " + cb);
 				 if (cb) {
 				     cb(Messages.find({_tag: token}).fetch());
 				 }
 				 Session.set("_search_info", null);
-				 Session.set("_search_cb", null);
+				 _search_cb = undefined;
 			     });
 	}
     });
