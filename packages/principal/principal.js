@@ -2,6 +2,7 @@
   Implements principals
 */
 
+
 /* Principal object
    type
    name
@@ -27,6 +28,8 @@
 
 var debug = true;
 var crypto = base_crypto;
+
+search_cb = undefined;
 
 /******* Data structures ****/
 
@@ -311,20 +314,59 @@ if (Meteor.isClient) {
 
     }
 
-    // todo : remove hardcoded Messages
-    Principal.prototype.token = function(word, collection, field, cb) {
+
+    //TODO: remove hardcoded Messages
+    // word to search for by principal indicated by this
+    // info must have fields collection and field,
+    // and optionally args and cb
+    Principal.prototype.search = function(word, info, cb) {
 	var self = this;
-	console.log("the right token");
-	var enc_princ = Messages._enc_fields[field].princ;
-	Crypto.token(this.keys.mk_key, word, function(tok){
-	    cb(EJSON.stringify({princ: self.id,
-				enc_princ: enc_princ,
-				field: search_field_name(field),
-				token: tok})); 
+	
+	if (!word || word == "") {
+	    return;
+	}
+	if (!info.collection && !info.field) {
+	    throw new Error("must specify collection and field so I know where to search");
+	}
+
+	Crypto.token(self.keys.mk_key, word, function(token){
+	    var search_info = {};
+	    search_info["princ"] = self.id;
+	    search_info["enc_princ"] = Messages._enc_fields[info.field].princ;
+	    search_info["token"] = token;
+	    search_info["field"] = info.field;
+	    search_info["args"] = info.args;
+
+	    console.log("in search cb is " +  cb);
+	    Session.set("_search_cb", cb);
+	    search_cb = cb;
+	    Session.set("_search_info", search_info);
 	});
+	
     }
-       
-    //TODO: all this should run at the client
+
+    Deps.autorun(function(){
+	// check if subscriptions get closed properly
+	
+	var search_info = Session.get("_search_info");
+	
+	if (search_info) {
+	    var token = search_info.token;
+	    Meteor.subscribe("_search", search_info["args"], token,
+			     search_info["enc_princ"], search_info["princ"], search_field_name(search_info["field"]),
+			     function(){ // on ready handle
+				 console.log("on ready for token " + token);
+				 var cb = search_cb;
+				 console.log("cb in deps is " + cb);
+				 if (cb) {
+				     cb(Messages.find({_tag: token}).fetch());
+				 }
+				 Session.set("_search_info", null);
+				 Session.set("_search_cb", null);
+			     });
+	}
+    });
+    
 
     record_add_access = function() {
 	if (!add_access_happened) {
