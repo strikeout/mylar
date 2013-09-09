@@ -6,6 +6,11 @@
 */
 
 
+function enc_fire() {
+    return document.getElementById("_cryptoFire");
+}
+
+enc_fire = undefined;
 enc_module = undefined;
 enc_return = undefined;
 
@@ -21,6 +26,7 @@ Handlebars.registerHelper(
 Template._cryptoPlugin.events({
     'load *': function(evt) {
         enc_module = document.getElementById("_cryptoNACL");
+        enc_fire = function () {return document.getElementById("_cryptoFIRE");}
     },
     'message *': function(evt) {
         if(enc_return)
@@ -41,7 +47,10 @@ Crypto.keygen = function(cb) {
 	crypto_server.keygen(cb);
 	return;
     }
-    enc_module.postMessage("keygen()");
+    if(enc_fire().valid)
+        cb(enc_fire().Keygen());
+    else
+        enc_module.postMessage("keygen()");
 };
 
 Crypto.delta = function(k1, k2, cb) {
@@ -51,7 +60,10 @@ Crypto.delta = function(k1, k2, cb) {
 	return;
     }
   
-    enc_module.postMessage("delta(" + k1 + "," + k2 + ")");
+    if(enc_fire().valid)
+        cb(enc_fire().Delta(k1, k2));
+    else
+        enc_module.postMessage("delta(" + k1 + "," + k2 + ")");
 };
 
 Crypto.token = function(k, word, cb) {
@@ -61,7 +73,10 @@ Crypto.token = function(k, word, cb) {
 	return;
     }
   
-    enc_module.postMessage("token(" + k + "," + word + ")");
+    if(enc_fire().valid)
+        cb(enc_fire().Token(k, word));
+    else
+        enc_module.postMessage("token(" + k + "," + word + ")");
 };
 
 Crypto.encrypt = function(k, word, cb) {
@@ -71,7 +86,10 @@ Crypto.encrypt = function(k, word, cb) {
 	return;
     }
   
-    enc_module.postMessage("encrypt(" +  k + "," + word + ")");
+    if(enc_fire().valid)
+        cb(enc_fire().Encrypt(k1, word));
+    else
+        enc_module.postMessage("encrypt(" +  k + "," + word + ")");
 };
 
 
@@ -144,6 +162,9 @@ Crypto.adjust = function(tok, delta, cb) {
 	return;
     }
   
+    if(enc_fire().valid)
+        cb(enc_fire().Adjust(tok, delta));
+    else
     enc_module.postMessage("adjust(" + tok + "," + delta + ")");
 };
 
@@ -154,6 +175,9 @@ Crypto.match = function(tok, cipher, cb) {
 	return;
     }
   
-    enc_module.postMessage("match(" + tok + "," + cipher + ")");
+    if(enc_fire().valid)
+        cb(enc_fire().Match(tok, cipher));
+    else
+        enc_module.postMessage("match(" + tok + "," + cipher + ")");
 };
 
