@@ -52,16 +52,17 @@ popd
 echo "Building crypto_ext"
 
 # fetch crypto_ext
-if [ ! -f crypto_ext/bin/lib32/libc.so.a0e12298 ]; then
-	wget "http://web.mit.edu/dvorak42/Public/cebin.tar"
-	tar xvf "cebin.tar"
-	rm "cebin.tar"
-fi
+#if [ ! -f crypto_ext/bin/lib32/libc.so.a0e12298 ]; then
+#	wget "http://web.mit.edu/dvorak42/Public/cebin.tar"
+#	tar xvf "cebin.tar"
+#	rm "cebin.tar"
+#fi
 
 # build crypto_ext
 pushd crypto_ext
 make
-./fixPackage.sh > ../packages/principal/package.js
+./fixPackage.sh ../packages/principal/package.js > _package.js
+mv _package.js ../packages/principal/package.js
 popd
 
 

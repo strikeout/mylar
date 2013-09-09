@@ -1,7 +1,27 @@
 // connection, if given, is a LivedataClient or LivedataServer
 // XXX presently there is no way to destroy/clean up a Collection
 
+/* MeteorEnc: Each field names f gets extra fields: f_enc, f_sig,
+   and optionally f_mk for search.
+   The field f contains plaintext and is not sent to the server
+   unless ENC_DEBUG is true */
+
+
 var debug = false;
+
+var ENC_DEBUG = true; // if true, an unencrypted copy of the fields will be kept for debugging mode
+
+
+enc_field_name = function(f) {
+    return f + "_enc";
+}
+sig_field_name = function(f) {
+    return f + "_sig";
+}
+
+search_field_name = function(f) {
+    return f + "_mk";
+}
 
 Meteor.Collection = function (name, options) {
   var self = this;
@@ -67,7 +87,7 @@ Meteor.Collection = function (name, options) {
   self._collection = options._driver.open(name);
   self._name = name;
   self._decrypt_cb = [];   // callbacks for running decryptions
-  self._encrypted_fields = {};
+  self._enc_fields = {};
     self._signed_fields = {};
 
   if (name && self._connection.registerStore) {
@@ -229,10 +249,12 @@ enc_fields = function(enc_fields, signed_fields, container) {
 }
 
 
+
+
 // returns a function F, such that F
 // looks up the enc and sign principals for the field f
 lookup_princ_func = function(f, container) {
-    // given a list of annotations, such as self._encrypted_fields,
+    // given a list of annotations, such as self._enc_fields,
     // looks-up the principal in the annotation of field f
     return function(annot, cb) {
 
@@ -249,13 +271,49 @@ lookup_princ_func = function(f, container) {
 	}
 	
 	Principal._lookupByID(princ_id, function(princ){
-	    princ._load_secret_keys(function(fullprinc) {
-		cb(undefined, fullprinc);
-	    });
+		cb(undefined, princ);
 	});
     }
     
 }
+
+Meteor.Collection.prototype._encrypted_fields = function(lst) {
+
+    if (this._enc_fields && _.isEqual(this._enc_fields, lst)) {//annotations already set
+	return; 
+    }
+    
+    // make sure these annotations were not already set
+    if (this._enc_fields && !_.isEqual(this._enc_fields,{}) && !_.isEqual(this._enc_fields, lst)) {
+	console.log("already " + JSON.stringify(this._enc_fields));
+	console.log("new " + JSON.stringify(lst));
+	throw new Error("cannot declare different annotations for the same collection");
+    }
+
+    // check that one can still declare annotations,
+    // that is, no one gave access to some principal
+    if (!this._enc_fields || _.isEqual(this._enc_fields,{})) {
+	var aa = GlobalEnc.findOne({key : "add_access"});
+	if (aa && aa["value"]) {//add_access_happened
+	    throw new Error("cannot declare enc fields after add access requests (reset server)");
+	}
+    }
+    this._enc_fields = lst;
+
+    _.each(lst, function(val){
+	var type = val["princtype"];
+	var attr = val["attr"];
+
+	var pt = PrincType.findOne({type: type});
+	if (pt == undefined) {
+	    PrincType.insert({type: type, searchable: (attr == "SEARCHABLE")});
+	} else {
+	    if (attr == "SEARCHABLE" && !pt['searchable'] ) {
+		PrincType.update({type:type}, {$set: {'searchable' : true}});
+	    }	    
+	}
+    });
+} 
 
 /*
   Given container -- an object with key (field name) and value (enc value) 
@@ -270,7 +328,7 @@ Meteor.Collection.prototype.dec_fields = function(container, fields, callback) {
     });
     
     _.each(fields, function(f) {
-	async.map([self._encrypted_fields, self._signed_fields], lookup_princ_func(f, container),
+	async.map([self._enc_fields, self._signed_fields], lookup_princ_func(f, container),
 		  function(err, results) {
 		      if (err) {
 			  throw new Error("could not find princs");
@@ -279,18 +337,46 @@ Meteor.Collection.prototype.dec_fields = function(container, fields, callback) {
 		      var verif_princ = results[1];
 		      
 		      if (verif_princ) {
-			  if (!verif_princ.verify(container[f], container[f + '_signature'])) {
+			  if (!verif_princ.verify(container[enc_field_name(f)], container[sig_field_name(f)])) {
 			      throw new Error("signature does not verify on field " + f);
 			  }
 		      }
 		      if (dec_princ) {
-			  container[f] = dec_princ.decrypt(container[f]);
+			  var res  = dec_princ.decrypt(container[enc_field_name(f)]);
+			  if (ENC_DEBUG) {
+			      if (res != container[f]) {
+				  throw new Error ("inconsistency in the value decrypted and plaintext");
+			      }
+			  } else {
+			      container[f] = res;
+			  }
+			  if (is_searchable(this._enc_fields, f)) {
+			      Crypto.is_consistent(dec_princ.keys.mk_key, container[f], container[f+"enc"],
+					function(res) {
+					    if (!res)
+						throw new Error(
+						    "search encryption not consistent for "
+							+ f + " content " + container[f]);
+					    cb();
+					});
+			      return;
+			  } 
 		      }
 		      cb();
 		  });	
     });
 }
 
+var is_searchable = function(enc_fields, field) {
+    if (!enc_fields) {
+	return false;
+    }
+    var annot = enc_fields[field];
+    if (annot && annot['attr'] == 'SEARCHABLE') 
+	return true;
+    else
+	return false;
+}
 // encrypts & signs a document
 // container is a map of key to values 
 Meteor.Collection.prototype.enc_row = function(container, callback) {
@@ -302,7 +388,7 @@ Meteor.Collection.prototype.enc_row = function(container, callback) {
     }
 
     /* r is the set of fields in this row that we need to encrypt or sign */
-    var r = enc_fields(self._encrypted_fields, self._signed_fields, container);
+    var r = enc_fields(self._enc_fields, self._signed_fields, container);
 
     if (r.length == 0) {
         callback();
@@ -315,26 +401,47 @@ Meteor.Collection.prototype.enc_row = function(container, callback) {
 
    _.each(r, function(f) {
 
-       async.map([self._encrypted_fields, self._signed_fields], lookup_princ_func(f, container),
+       async.map([self._enc_fields, self._signed_fields], lookup_princ_func(f, container),
 		 function(err, results) {
 		     if (err) {
 			 throw new Error("could not find princs");
 		     }
 		     var enc_princ = results[0];
 		     var sign_princ = results[1];
-		     
+
+		     console.log("enc_princ " + pretty(enc_princ) + " \n");
+		     console.log("sign_princ " + pretty(sign_princ) + " \n");
+		     // encrypt value
 		     if (enc_princ) {
-			 container[f] = enc_princ.encrypt(container[f]);
-		     }
+			 container[enc_field_name(f)] = enc_princ.sym_encrypt(container[f]);
+			 if (sign_princ) {
+			     container[sig_field_name(f)] = sign_princ.sign(container[enc_field_name(f)]);
+			 }
+
+			 var done_encrypt = function() {
+			     if (!ENC_DEBUG) {
+				 delete container[f];
+			     }
+			     cb();
+			 }
 			 
-		     if (sign_princ) {
-			 container[f + '_signature'] = sign_princ.sign(container[f]);
+			 if (is_searchable(self._enc_fields, f)) {
+			     container[search_field_name(f)] = Crypto.text_encrypt(enc_princ.keys.mk_key, container[f],
+									function(ciph) {
+									    container[search_field_name(f)] = ciph;
+									    done_encrypt();
+									});
+			 } else {
+			     done_encrypt();
+			 }
+			 return;
 		     }
 
-		     Crypto.newkey(function(k) {
-			 console.log("crypto new key returned " + k);
-			 cb();
-		     })
+		     // do not encrypt value
+		     if (sign_princ) {
+			 container[sig_field_name(f)] = sign_princ.sign(container[f]);
+		     }
+		     cb();
 	      });	
    });
  
@@ -357,7 +464,7 @@ Meteor.Collection.prototype.dec_msg = function(container, callback) {
     };
 
     if (Meteor.isClient && container) {
-        var r = enc_fields(self._encrypted_fields, self._signed_fields, container);
+        var r = enc_fields(self._enc_fields, self._signed_fields, container);
         if (r.length > 0) {
             self.dec_fields(container, r, callback2);
         } else {

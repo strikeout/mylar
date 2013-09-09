@@ -1,37 +1,43 @@
-Principals = new Meteor.Collection("princs");
 /*
-  id : unique over all principals (currently, serialized public keys)
-  name
-  type 
-  */
-
-WrappedKeys = new Meteor.Collection("wrapped_keys");
-/* principal: princ.id
-   wrapped_for : princ.id -- the id of the princ that gets new access
-   wrapped_keys : wrapped secret asymmetric keys
-   delta
-   wrapped_sym_keys : wrapped secret keys, symmetric
+  Implements principals
 */
-   
-Certs = new Meteor.Collection("certs");
-/*
-  subject_id : princ id
-  subject_type
-  subject_name
-  subject_pk
-  signer : id of principal signer
-  signature
- */
 
-var crypto;
+
+/* Principal object
+   type
+   name
+   id : public key of principal
+   keys: encrypt, decrypt (pk)
+         sign, verify (pk),
+	 sym_key (sym),
+	 mk_key  (multi-key)
+
+   every principal has mk_key whether used or not
+   
+   Serialization of keys:
+   - Principal.keys is unserialized	 	 
+   - id, type, name correspond to _id, type, name in the Principals collection
+   - localStorage contains user_princ_keys serialized
+   - idp server gets and returns serialized keys
+
+   token : the token used to search for a word in a column "col"
+     princ : princ under which the token is encrypted for
+     princ_field: field of a collection where the principal for "col" is
+     token: the actual cryptographic token
+*/
 
 var debug = true;
+var crypto = base_crypto;
+
+/******* Data structures ****/
 
 PrincAttr = function (type, name) {
     this.type = type;
     this.name = name;
 };
 
+
+/****** Pretty printing for debug *****************/
 
 // for debugging purposes, it returns a string representing the princ graph
 princ_graph = function() {
@@ -40,7 +46,7 @@ princ_graph = function() {
     _.each(princs, function(princ) {
 	res = res + "{'type': " + princ["type"] + ", 'name': " +  princ["name"] + "}" +  " id "+ princ["_id"] + "\n";
     });
-	return res;
+    return res;
 }
 
 wrapped_keys = function() {
@@ -54,62 +60,34 @@ wrapped_keys = function() {
     return res;
 }
 
-all_certs = function() {
-    var certs = Certs.find({}).fetch();
-	var res = "";
-    _.each(certs, function(doc) {
-	res = res + "subject: " + doc["subject_id"] + " type " + doc["subject_type"] + " name " + doc["subject_name"] + " SIGNER: " + doc["signer"] + "\n";
-    });
+pretty = function(princ) {
+    var res = "";
+    if (princ.name) {
+	res = res + princ.name + " ";
+    }
+    if (princ.type) {
+	res = res  + princ.type + " ";
+    }
+    if (princ.keys) {
+	res = res + serialize_keys(princ.keys);
+    }
+
     return res;
+    
 }
 
-
-deserialize_keys = function (ser) {
-    var keys = EJSON.parse(ser);
-    if (keys.encrypt) {
-        keys.encrypt = crypto.deserialize_public(keys.encrypt, "elGamal");
-    }
-    if (keys.decrypt) {
-        keys.decrypt = crypto.deserialize_private(keys.decrypt, "elGamal");
-    }
-    if (keys.sign) {
-        keys.sign = crypto.deserialize_private(keys.sign, "ecdsa");
-    }
-    if (keys.verify) {
-        keys.verify = crypto.deserialize_public(keys.verify, "ecdsa");
-    }
-    return keys;
-};
-
-
-serialize_keys = function (keys) {
-    var ser = {};
-    _.each(["encrypt", "verify"], function (k) {
-        if (keys[k]) {
-            ser[k] = crypto.serialize_public(keys[k]);
-        }
-    });
-    _.each(["sign", "decrypt"], function (k) {
-        if (keys[k]) {
-            ser[k] = crypto.serialize_private(keys[k]);
-        }
-    });
-    ser = EJSON.stringify(ser);
-    return ser;
-};
+/*****************************************************/
 
 if (Meteor.isServer) {
-
-    var allow_all_writes = {
-        insert: function () { return true; },
-        update: function () { return true; }
-    };
     
-    Principals.allow(allow_all_writes);
-    WrappedKeys.allow(allow_all_writes);
-    Certs.allow(allow_all_writes);
-
-  
+    // gets the wrapped key, symmetric or public
+    getWKey = function(doc) {
+	if (doc.wrapped_sym_keys) {
+	    return {isSym: true, wkey: doc.wrapped_sym_keys};
+	} else {
+	    return {isSym: false, wkey: doc.wrapped_keys};
+	}
+    }
     
     Meteor.methods({
 
@@ -151,7 +129,7 @@ if (Meteor.isServer) {
 		    
                     var next_hops = WrappedKeys.find({ wrapped_for: frontier_id }).fetch();
                     _.each(next_hops, function (next_hop) {
-                        var new_chain = frontier_chain.concat([ next_hop.wrapped_key ]);
+                        var new_chain = frontier_chain.concat([getWKey(next_hop)]);
                         new_frontier.push([ next_hop.principal, new_chain ]);
                     });
                 });
@@ -166,8 +144,9 @@ if (Meteor.isServer) {
 	    return undefined;
         },
 
-	// returns a principal with id from the principal graph
-	lookupByID: function(id) {
+	// returns the decription of a principal with _id;
+	// the description is the doc in the Principals collection
+	princInfo: function(id) {
 	    return Principals.findOne({_id: id});
 	},
 
@@ -220,7 +199,8 @@ if (Meteor.isServer) {
             }
 
             if (_.isEmpty(princs)) {
-                console.log("No principal found!");
+                console.log("No principal found! Here is princ graph:");
+		console.log(princ_graph());
                 return undefined;
             }
             var p = _.keys(princs)[0];
@@ -234,116 +214,27 @@ if (Meteor.isServer) {
 }
 
 
+/***** Client ***************/
+
 if (Meteor.isClient) {
-    crypto = (function () {
-        var curve = 192;
-        return {
-            serialize_public: function (key) {
-                return sjcl.codec.hex.fromBits(
-                    key._point.toBits()
-                );
-            },
-            serialize_private: function (key) {
-                return sjcl.codec.hex.fromBits(
-                    key._exponent.toBits()
-                );
-            },
-            deserialize_public: function (ser, system) {
-                var c = sjcl.ecc.curves['c' + curve];
-                var pt = c.fromBits(
-                    sjcl.codec.hex.toBits(ser)
-                );
-                return new sjcl.ecc[system].publicKey(c, pt);
-            },
-            deserialize_private: function (ser, system) {
-                var c = sjcl.ecc.curves['c' + curve];
-                var exp = sjcl.bn.fromBits(
-                    sjcl.codec.hex.toBits(ser)
-                );
-                return new sjcl.ecc[system].secretKey(c, exp);
-            },
 
-            generate_keys: function () {
-                var enc = sjcl.ecc.elGamal.generateKeys(curve, 0);
-                var sig = sjcl.ecc.ecdsa.generateKeys(curve, 0);
-                return {
-                    encrypt: enc.pub,
-                    decrypt: enc.sec,
-                    sign: sig.sec,
-                    verify: sig.pub
-                };
-            },
+    var add_access_happened = undefined;
 
-            encrypt: function (pk, data) {
-                return sjcl.encrypt(pk, data);
-            },
-
-            decrypt: function (sk, ct) {
-                return sjcl.decrypt(sk, ct);
-            },
-
-            sign: function (msg, sk) {
-                var hash = sjcl.hash.sha256.hash(msg);
-                return sk.sign(hash);
-            },
-
-            verify: function (msg, sig, pk, on_complete) {
-                var hash = sjcl.hash.sha256.hash(msg);
-                try {
-                    pk.verify(hash, sig);
-                    return true;
-                } catch (e) {
-                    return false;
-                }
-            },
-
-	    /* Starting with a secret key sk,
-	       unwraps keys in chain, until it obtains
-	       the secret key at the end of the chain. */
-            chain_decrypt: function (chain, sk) {
-                var secret_keys;
-                _.each(chain, function (wk) {
-                    var unwrapped = sjcl.decrypt(sk, wk);
-                    secret_keys = EJSON.parse(unwrapped);
-                    sk = crypto.deserialize_private(secret_keys.decrypt,
-                                                    "elGamal");
-                });
-                secret_keys.sign = crypto.deserialize_private(
-                    secret_keys.sign, "ecdsa"
-                );
-                secret_keys.decrypt = sk;
-                return secret_keys;
-            },
-
-            chain_verify: function (chain) {
-                chain = _.map(chain, function (cert) {
-                    var hash = sjcl.hash.sha256.hash(cert.m);
-                    var pk = cert.pk;
-                    try {
-                        pk.verify(hash, cert.sig);
-                        return true;
-                    } catch (e) {
-                        return false;
-                    }
-                });
-                return _.every(chain, _.identity);
-            }
-        };
-    })();
-
+    Deps.autorun(function() {
+	var x = GlobalEnc.findOne({key : "add_access"});
+	if (x) {
+	    add_access_happened = x["value"];
+	}
+    });
+    
     // Constructs a new principal
     // keys is optional, and is generated randomly if missing
     Principal = function(type, name, keys) {
-	if (type == '')
-	    throw new Error("Principal needs a type");
+	if (type == '' || !keys)
+	    throw new Error("Principal needs a type & keys must be set");
 	
 	this.type = type;
 	this.name = name;
-	
-	if (!keys) {
-	    keys = crypto.generate_keys();
-	}
-	
 	this.keys = keys;
         
 	/* Currently, id is public keys. 
@@ -353,28 +244,47 @@ if (Meteor.isClient) {
 
     }
 
+    // generates keys: standard crypto + multi-key
+    _generate_keys = function(cb) {
+	keys = crypto.generate_keys();
+	Crypto.keygen(function(key) {
+	    keys['mk_key'] = key;
+	    cb(keys);
+	});
+    }
+
     // creates a principal of type and name
     // as certified by principal authority
     // and stores it in the principal graph
     // as certified by creator
     // naturally, creator gets access to this principal
-    // runs callback cb upon completion
-    // returns the principal created
+    // runs callback cb upon completion on input the new principal
     Principal.create = function(type, name, creator, cb) {
 
-	if (!type || !name || !creator) {
+	if (!type || !name || (type != "user" && !creator)) {
 	    throw new Error("cannot create principal with invalid (type, name, creator) : ("
 			    + type + ", " + name + ", " + creator +")");
 	}
 
-	if (!creator.keys.sign) {
+	if (creator && !creator.keys.sign) {
 	    throw new Error("creator " + creator.name + " does not have sign keys available");
 	}
-	
-	var p = new Principal(type, name);
-	Principal._store(p, creator);
-	Principal.add_access(creator, p, cb);
-	return p;
+
+	// check if type exists in Princ type, else create it
+	var pt = PrincType.findOne({type: type});
+	if (!pt) {
+	    PrincType.insert({type:type, searchable: false});
+	}
+
+	_generate_keys(function(keys) {
+	    var p = new Principal(type, name, keys);
+	    Principal._store(p, creator);
+	    if (creator) {
+		Principal.add_access(creator, p, function(){cb(p);});	
+	    } else {
+		cb(p);
+	    }
+	});
     }
 
     // Creates a new node in the principal graph for the given principal
@@ -389,6 +299,7 @@ if (Meteor.isClient) {
 	    '_id': princ.id,
 	    'type' : princ.type,
 	    'name' : princ.name,
+	    accessInbox: []
 	});
 
 	if (authority) {
@@ -401,44 +312,77 @@ if (Meteor.isClient) {
 	} 
 
     }
-       
-    //TODO: all this should run at the client
+
+
+    record_add_access = function() {
+	if (!add_access_happened) {
+	    var aa = GlobalEnc.findOne({key: "add_access"});
+	    // update must be only by id in meteor
+	    GlobalEnc.update({_id: aa._id}, {$set: {value: true}});
+	    add_access_happened = true;
+	}
+    }
     
     // Gives princ1 access to princ2
     Principal.add_access = function (princ1, princ2, on_complete) {
+
+	record_add_access();
 
 	if (debug) console.log("add_access princ1 " + princ1.name + " to princ2 " + princ2.name);
 	// need to load secret keys for princ2 and then add access to princ1
 	// we do these in reverse order due to callbacks
 	
-	var inner = Principal._add_access(princ1, princ2, on_complete);
-	princ2._load_secret_keys(inner);
+	princ2._load_secret_keys(function(){
+	    Principal._add_access(princ1, princ2, on_complete);
+	});
     };
     
+    var updateWrappedKeys = function(pid, pid_for, wpk, wsym, delta) {
+	var entry = WrappedKeys.findOne({principal: pid, wrapped_for: pid_for});
+
+	if (!entry) {
+	    var entry_id = WrappedKeys.insert({principal:pid,
+					       wrapped_for:pid_for,
+					       wrapped_keys: wpk,
+					       wrapped_sym_keys: wsym,
+					       delta: delta});
+	    return entry_id;
+	} else {
+	    WrappedKeys.update({_id: entry._id},
+			       {$set: {principal:pid, wrapped_for:pid_for, wrapped_keys: wpk, wrapped_sym_keys: wsym, delta:delta}});
+	    return entry._id;
+	}
+    }
     
+    // give princ1 access to princ2
     // encrypt's the keys of princ2 with princ 1's keys and
     // stores these new wrapped keys
-    Principal._add_access = function (princ1, princ2, on_complete) {
-	return function () {
-            var keys = princ2._secret_keys();
-	    if (!keys) {
-		throw new Error("princ2 should have secret keys loaded");
-	    }
-	    keys.decrypt = crypto.serialize_private(keys.decrypt);
-            keys.sign = crypto.serialize_private(keys.sign);
-            var wrapped = princ1.encrypt(EJSON.stringify(keys));
-	    
-            WrappedKeys.insert({
-		principal: princ2.id,
-		wrapped_for: princ1.id,
-		wrapped_key: wrapped
-            });
+    Principal._add_access = function (princ1, princ2, cb) {
+	if (!princ2._has_secret_keys()) {
+	    throw new Error("princ2 should have secret keys loaded");
+	}
 
-	    if (on_complete) {
-		on_complete();
-	    }
-	    
-	};
+	var pt = serialize_private(princ2.keys);
+
+	if (princ1._has_secret_keys()) { // encrypt symmetrically
+	    wrap = princ1.sym_encrypt(pt);
+	    // can compute delta as well so no need for access inbox
+	    Crypto.delta(princ1.keys.mk_key, princ2.keys.mk_key, function(delta) {
+		updateWrappedKeys(princ2.id, princ1.id, undefined, wrap, delta);
+		if (cb) { cb(); }
+	    });
+	    return;
+	}
+
+	// encrypt using public keys
+	var wrap = crypto.encrypt(princ1.keys.encrypt, pt);
+	var entry_id = updateWrappedKeys(princ2.id, princ1.id, wrap.ct, null);
+	// update user inbox for delta
+	if (princ1.type == "user") {
+	    Principals.update({_id : princ1.id}, {$push: {accessInbox: entry_id}});
+	}
+	if (cb)  {cb(); }
+		
     };
     
     // Removes princ1 access to princ2
@@ -450,38 +394,35 @@ if (Meteor.isClient) {
 
 
     Principal._remove_access = function (princ1, princ2, on_complete) {
-	return function () {
-        var originalKeys = princ2._secret_keys();
+	return function () { 
 
         // Remove WK from princ1.
 	    var wrappedID = WrappedKeys.findOne({principal: princ2.id, wrapped_for: princ1.id})._id;
         WrappedKeys.remove(wrappedID);
 
         // Create a new principal.
-        var newPrincipal = Principal.create(princ2.type, princ2.name, undefined);
+        Principal.create(princ2.type, princ2.name, function(newPrincipal){
+		    // Add new WK for new principal.
+		    var parentOriginal = WrappedKeys.find({principal: princ2.id});
+            var cb = _.after(parentOriginal.length, function() {
+		        // The following are required to remove the possibility the client cached keys.
+		        // TODO:Reencrypt data
+		        
+		        // Remove the children's pointers to the parent.
+		        // var childrenOriginal = WrappedKeys.find({wrapped_for:princ2.id});
+		        // childrenOriginal.forEach(function(wk){
+		        //     var child = wk.principal;
+		        //     Principal._remove_access(princ2, child, undefined);
+		        // });
+                on_complete();
+            });
+		    parentOriginal.forEach(function(wk) {
+		        var princ = Principals.findOne(wk.wrapped_for);
+		        Principal.add_access(princ, newPrincipal, cb);
+		    });
+	    });
 
-        // Add new WK for new principal.
-        var parentOriginal = WrappedKeys.find({principal: princ2.id});
-        parentOriginal.forEach(function(wk) {
-            var princ = Principals.findOne(wk.wrapped_for);
-            Principal.add_access(princ, newPrincipal, undefined);
-        });
-
-        // The following are required to remove the possibility the client cached keys.
-        // TODO:Reencrypt data
-
-        // Remove the children's pointers to the parent.
-        // var childrenOriginal = WrappedKeys.find({wrapped_for:princ2.id});
-        // childrenOriginal.forEach(function(wk){
-        //     var child = wk.principal;
-        //     Principal._remove_access(princ2, child, undefined);
-        // });
-
-	    if (on_complete) {
-		    on_complete();
-	    }
-	};
-    };
+	}};
 
     Principal.prototype.create_certificate = function (princ) {
 	var self = this;
@@ -491,36 +432,34 @@ if (Meteor.isClient) {
 	return new Certificate(princ, self.id, sig);
     };
     
-
-
-    Principal.prototype._secret_keys = function () {
+    // returns true if it has all secret keys
+    // throws exception if it only has a subset of the secret keys
+    Principal.prototype._has_secret_keys = function() {
 	var self = this;
-	return { decrypt: self.keys.decrypt, sign: self.keys.sign };
-    };
-
-    
-    // Assumes user's private keys are sitting in localStorage.
-    // How did they get there? What happens if they're not there?
-    Principal.prototype.user = function () {
-	var keys = Principal.deserialize_keys(localStorage['user_princ_keys']);
-	return new Principal(keys);
-    };
-
-    
+	if (!self.keys) {
+	    return false;
+	}
+	if (self.keys.decrypt && self.keys.sign && self.keys.mk_key && self.keys.sym_key) {
+	    return true;
+	}
+	if (self.keys.decrypt || self.keys.sign || self.keys.mk_key || self.keys.sym_key) {
+	    throw new Error("principal " + princ.id + " type " + princ.type + " has partial secret keys" );
+	}
+	return false;
+    }
     // loads secret keys for the principal self.id
     // by finding a chain to the current user and decrypts the secret keys
     Principal.prototype._load_secret_keys = function (on_complete) {
 	var self = this;
-	if (self.keys.decrypt && self.keys.sign) {
-	    if (debug) console.log("secret keys available");
+	if (self._has_secret_keys()) {
+	    if (debug) console.log("secret keys available" + pretty(self));
             on_complete(self);
 	} else {
-	    var auth = new Principal("user", Meteor.user().username,
-				     deserialize_keys(localStorage['user_princ_keys']));
-	    
+	    var auth = Principal.user();
+		
 	    if (debug) console.log("no sk keys:  invoke key chain");
 
-	    // hack: rpc cannot stringify keys with json
+	    // create principals with no keys for the server
 	    var auth2 = new Principal(auth.type, auth.name, auth.keys);
 	    auth2.keys = {};
 	    var self2 = new Principal(self.type, self.name, self.keys);
@@ -529,10 +468,7 @@ if (Meteor.isClient) {
 			self2, function (err, chain) {
 			    //if (debug) console.log("keychain returns: " + chain);
 			    if (chain) {
-				var sk = auth.keys.decrypt;
-				var unwrapped = crypto.chain_decrypt(chain, sk);
-				self.keys.decrypt = unwrapped.decrypt;
-				self.keys.sign = unwrapped.sign;
+				self.keys = _.extend(self.keys, base_crypto.chain_decrypt(chain, auth.keys));
 				if (on_complete) {
 				    on_complete(self);
 				}
@@ -551,32 +487,36 @@ if (Meteor.isClient) {
 	this.keys.sign = undefined;
 	this.keys.decrypt = undefined;
     }
-    
+
+    // finds a principal based on his ID and gives this principal
+    // to on_complete callback; this principal will have secret keys loaded
     Principal._lookupByID = function(id, on_complete) {
 	if (debug) console.log("lookupByID princ id " + id);
 
-	Meteor.call("lookupByID", id, function(err, result) {
+	Meteor.call("princInfo", id, function(err, princ_info) {
 	    if (err) {
 		throw new Error("could not find princ with id " + id);
 	    }
-	    var princ_info = result;
 	    var p = new Principal(princ_info["type"], princ_info["name"], _get_keys(id));
 	    
 	    p._load_secret_keys(on_complete);
 	});
     } 
+
     // returns the principal corresponding to the current user
     Principal.user = function () {
-	var pname = localStorage['user_princ_name'];
-	var pkeys = localStorage['user_princ_keys'];
+	var pkeys = deserialize_keys(localStorage['user_princ_keys']);
+
+	var user = Meteor.user();
 	
-	if (!pname || !pkeys) {
+	if (!user || !pkeys) {
 	    return undefined;
 	}
 	
-	return new Principal('user', pname, deserialize_keys(pkeys));
+	return new Principal('user', user.username, pkeys);
     }
 
+    
     // p1.allowSearch(p2) : p1 can now search on data encrypted for p2
     // since p2 can see p2's data, if p1 searches for a word that matches a word in p2's document
     // p2 knows which word p1 searched for because p2 knows p2's document
@@ -598,7 +538,7 @@ if (Meteor.isClient) {
 		if (debug) console.log("no keys found for " + uname);
 		return;
 	    }
-	    cb(new Principal("user", uname, keys));
+	    cb(new Principal("user", uname, deserialize_keys(keys)));
         });
     }
     
@@ -609,17 +549,19 @@ if (Meteor.isClient) {
     */
     Principal.lookup = function (attrs, authority, on_complete) {
 
-	if (debug) console.log("Principal.lookup: " + authority + " attrs[0]: " + attrs[0].type + "=" + attrs[0].name);
+	if (debug)
+	    console.log("Principal.lookup: " + authority + " attrs[0]: " + attrs[0].type + "=" + attrs[0].name);
 	
 	idp.lookup(authority, function (authority_pk) {
-	    var auth_id =  get_id(authority_pk);
+	    if (!authority_pk) {
+		throw new Error("idp did not find user " + authority);
+	    }
+	    var auth_id =  get_id(deserialize_keys(authority_pk));
 
 	    Meteor.call("lookup", attrs, auth_id, function (err, result) {
 	
                 if (err || !result) {
-                    console.log("Principal lookup fails");
-                    on_complete(undefined);
-                    return;
+                    throw new Error("Principal lookup fails");
                 }
 	
                 var princ = result.principal;
@@ -678,10 +620,7 @@ if (Meteor.isClient) {
 
     /* Given an object keys, returns the id of a princ with those keys */
     get_id = function (keys) {
-	var pk = {};
-	pk.encrypt = crypto.serialize_public(keys.encrypt);
-	pk.verify = crypto.serialize_public(keys.verify);
-	return EJSON.stringify(pk);
+	return serialize_public(keys);
     }
     
     Principal.prototype.set_id = function () {
@@ -691,35 +630,28 @@ if (Meteor.isClient) {
 
     // transforms an id into keys - crypto instance of public keys
     _get_keys = function(id) {
-	var pk = EJSON.parse(id);
-
-	return {
-	    encrypt: crypto.deserialize_public(pk.encrypt, "elGamal"),
-	    decrypt: undefined,
-	    verify: crypto.deserialize_public(pk.verify, "ecdsa"),
-	    sign: undefined
-	}
+	return deserialize_keys(id);
     }
 
-
-    // requires public key to be set
-    Principal.prototype.encrypt = function (pt) {
+    // requires symmetric key of this principal to be set
+    Principal.prototype.sym_encrypt = function(pt) {
 	var self = this;
-	if (self.keys.encrypt) {
-	    return crypto.encrypt(self.keys.encrypt, pt);
-	} else {
-	    throw new Error("encrypt key must be set");
+	if (self.keys.sym_key) {
+	    return crypto.sym_encrypt(self.keys.sym_key, pt);
 	}
-    };
+	throw new Error("encrypt key must be set");
+    }
 
     // requires keys.decrypt to be set
     Principal.prototype.decrypt = function (ct) {
 	var self = this;
+	if (self.keys.sym_key) {
+	    return crypto.sym_decrypt(self.keys.sym_key, ct);
+	}
 	if (self.keys.decrypt) {
 	    return crypto.decrypt(self.keys.decrypt, ct);
-	} else {
-	    throw new Error("cannot decrypt without decrypt key");
-	}
+	} 
+	throw new Error("cannot decrypt without decrypt key");
     };
 
     // requires sign key to be set
@@ -740,87 +672,51 @@ if (Meteor.isClient) {
 	    throw new Error("verify key must be set");
 	}
     };
+
     
-    idp = (function () {
-        var idp = "localhost:3001";
-        var conn = Meteor.connect(idp);
-        return {
-            //find user's public keys on idp, returns keys deserialized
-            lookup: function (name, on_complete) {
-                conn.call("get_public", name, function (err, result) {
-                    if (debug) console.log("get public keys from idp for " + name);
-                    var keys = deserialize_keys(result);
-                    on_complete(keys);
-                });
-            },
-            //fetch user's private keys on idp
-            get_keys: function (name, pwd, on_complete) {
-		if (debug) console.log("get keys for " + name);
-                conn.call("get_keys", name, pwd, function (err, result) {
-                    on_complete(result);
-                });
-            },
-            //update user's keys on idp, create new user if not exists
-            create_keys: function (name, pwd, on_complete) {
-		if (debug) console.log("create keys on idp for " + name);
-		var nkeys = crypto.generate_keys();
-                conn.call("create_keys", name, pwd, serialize_keys(nkeys),
-			  function (err, result) {
-                              on_complete(result);
-			  });
-            }
-        };
-    })();
+    processAccessInbox = function() {
+	if (Meteor.user()) {
+	    console.log("userid is " + Meteor.user().username);
+	    var uprinc = Principal.user();
+	    var dbprinc = Principals.findOne({_id : uprinc.id});
+	    if (dbprinc) {
+		_.each(db.accessInbox, function(wid){
+		    var w = WrappedKeys.findOne(wid);
+		    if (!w) {
+			Console.log("issue with access inbox and wrapped keys");
+		    }
+		    var subject_keys = base_crypto.decrypt(user.keys.decrypt, w["wrapped_keys"]);
+		    var sym_wrapped = base_crypto.sym_encrypt(user.keys.sym_key, subject_keys);
+		    // compute delta as well
+		    var delta = Crypto.delta(uprinc.keys.mk_key, subject_keys.mk_key, function(delta) {
+			WrappedKeys.update({_id: wid},
+					   {$set : {wrapped_keys: undefined,
+						    delta : delta, 
+						    wrapped_sym_keys : sym_wrapped}
+					   });
+		    });
+		});
+	    }
+	}
+    }
+    
+    Deps.autorun(processAccessInbox);
     
 }
 
+/* Algorithm for switching access from public key to private key.
 
-/*
-   Receives as input
-   subject : Principal
-   signer: id of signinig Principal
-   signature
-   verified 
- */
-Certificate = function (subject, signer, signature) {
+   This happens in two ways:
 
-    this.subject = subject; // Principal
-    this.signer = signer; // Principal id
-    this.signature = signature; // string
-    this.verified = false;
-};
+   1. Access given to a user -- common case
+   The user has an accessinbox which gets filled with information about a new access, and the user
+   converts these to secret key as soon as the user logs in, in processAccessInbox
 
-/*
-   This must have the following fields set:
-   id, type, name, pk
-*/
-Certificate.prototype.store = function () {
-    var self = this;
-    Certs.insert({
-        subject_id: self.subject.id,
-	subject_type: self.subject.type,
-	subject_name: self.subject.name,
-	signer: self.signer,
-	signature: self.signature
-    });
-
- };
+   2. Access given to an inner principal : NOT  YET IMPLEMENTED
+   - the access is granted using the public key of the inner principal, if secret key is not available
+   - when one searches for inner principal later and obtains its keys, one updates the wrapped key to be encrypted under the symmetric keys
 
 
-Certificate.prototype.verify = function (on_complete) {
-    var self = this;
-    var msg = Certificate.contents(self.subject);
-    var vk = self.signer.keys.verify;
+   TODO: can avoid generating pks for terminal principals if we know the type graph ahead of time
+   */
 
-    function verified(passed) {
-        self.verified = passed;
-        on_complete(self.verified);
-    }
-
-    crypto.verify(msg, self.signature, vk, verified);
-};
-
-//TODO: verify consistency public keys and id
-Certificate.contents = function (princ) {
-    return "(" + princ.id + ", " + princ.type + ", " + princ.name + ")"; 
-};

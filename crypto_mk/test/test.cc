@@ -124,8 +124,13 @@ test_b64MK() {
 	    for (uint k = 0; k < num_words; k++) {
 		if (word_to_search == words[k]) {
 		    assert_s(mk.match(search_token, ciph[i][k]), "should have matched");
+		    assert_s(mk.match(mk.index_enc(keys[i], word_to_search), ciph[i][k]),
+			     "index enc does not match"); 
 		} else {
 		    assert_s(!mk.match(search_token, ciph[i][k]), "should not have matched");
+		    assert_s(!mk.match(mk.index_enc(keys[i], word_to_search), ciph[i][k]),
+			     "index enc matches when it shouldn't"); 
+				    
 		}
 	    }
 	}

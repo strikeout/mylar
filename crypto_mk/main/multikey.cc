@@ -51,6 +51,12 @@ mksearch::encrypt(const ec_scalar & k, const string & word)  {
 }
 
 string
+mksearch::index_enc(const ec_scalar & k, const string & word)  {
+    string res = ec.pair(ec.hash(word)^k, g).to_bytes();
+    return res.substr(0, EC::CTSIZE);
+}
+
+string
 mksearch::adjust(const ec_point & tok, const ec_point & delta) const {
     string res = ec.pair(tok, delta).to_bytes();
 //    cerr << "result of adjust is len " << res.length() << " content " << res << "\n";

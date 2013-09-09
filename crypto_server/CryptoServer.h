@@ -10,6 +10,7 @@
  * keygen                   -> k
  * delta k1 k2              -> delta
  * encrypt k word           -> ciph
+ * index_enc k word         -> ciph
  * token k word             -> tok
  * adjust tok delta         -> searchtok
  * match searchtok ciph     -> boolean

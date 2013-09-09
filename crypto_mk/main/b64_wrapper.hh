@@ -23,6 +23,7 @@ public:
 
     std::string token(const std::string & k, const std::string & word);
     std::string encrypt(const std::string & k, const std::string & word);
+    std::string index_enc(const std::string &k, const std::string & word);
     
     std::string adjust(const std::string & tok, const std::string & delta);
     bool match(const std::string & searchtok, const std::string & ciph);

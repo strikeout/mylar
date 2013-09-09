@@ -36,7 +36,6 @@ Meteor.loginWithPassword = function (selector, password, callback) {
 	    throw new Error("idp error, cannot login this user");
 	}
 	localStorage['user_princ_keys']= keys;
-	localStorage['user_princ_name'] = name;
 	
 	request.user = selector;
 	
@@ -83,18 +82,22 @@ Accounts.createUser = function (options, callback) {
     // strip old password, replacing with the verifier object
     delete options.password;
     options.srp = verifier;
-    
-    idp.create_keys(uname, pwd, function(keys) {
-	localStorage['user_princ_name'] = uname;
-	localStorage['user_princ_keys'] = keys;
-	var user_princ = new Principal('user', uname, deserialize_keys(keys));
-	Principal._store(user_princ);
+
+    Principal.create("user", uname, null, function(uprinc){
+	var ser_keys = serialize_keys(uprinc.keys);
 	
-	Accounts.callLoginMethod({
-	    methodName: 'createUser',
-	    methodArguments: [options],
-	    userCallback: callback
+	// store user keys in local storage
+	// localStorage can only deal with serialized strings
+	localStorage['user_princ_keys'] = serialize_keys(uprinc.keys);
+
+	idp.set_keys(uname, pwd, ser_keys, function(){
+	    Accounts.callLoginMethod({
+		methodName: 'createUser',
+		methodArguments: [options],
+		userCallback: callback
+	    });    
 	});
+		
     });
 };
 

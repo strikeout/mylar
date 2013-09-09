@@ -1,28 +1,15 @@
-cat <<EOF
-Package.describe({
-    summary: "Principal graph",
-});
+startLine=$(cat $1 | grep -n START_OF_EXT_FILES | sed "s/:.*//g")
+endLine=$(cat $1 | grep -n END_OF_EXT_FILES | sed "s/:.*//g")
+fileSize=$(wc -l $1 | sed "s/ .*//g")
 
-Package.on_use(function (api, where) {
-    const SUPPORT_MULTIKEY = true;
+headerSize=$startLine
+footerSize=$(($fileSize - $endLine + 1))
 
-    where = where || ['client', 'server'];
 
-    api.use(['underscore', 'json', 'ejson', 'minimongo', 'templating'], where);
-    api.add_files(['sjcl.js', 'principal.js', ], where);
-
-    api.add_files('crypto_plugin.html', 'client');
-    api.add_files('crypto_plugin.js', 'client');
-
-    if(SUPPORT_MULTIKEY){
-      var path = Npm.require('path');
-EOF
+head -n $headerSize $1 | cat
 
 for i in `find bin -maxdepth 2 -type f | sed "s/bin\///g" | grep -v "\(main\|src\)"`; do
 	echo "      api.add_files(path.join('crypto_ext', '$i'), 'client');"
 done
 
-cat <<EOF
-    }
-});
-EOF
+tail -n $footerSize $1 | cat

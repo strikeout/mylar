@@ -55,12 +55,8 @@ if (Meteor.isServer) {
             return undefined;
           }
           console.log("idp: get_public for " + name);
-          var keys = EJSON.parse(user.keys);
+          return serialize_public(deserialize_keys(user.keys));
 
-          return EJSON.stringify({
-              encrypt: keys.encrypt,
-              verify: keys.verify
-          });
       },
 
 
@@ -83,9 +79,9 @@ if (Meteor.isServer) {
       // args: username, password, new keys
       // returns: new keys
       create_keys:  function (name, pwd, nkeys) {
-          var user = Meteor.users.findOne({
-              'username': name
-          });
+	  console.log("create user " + name + " " + nkeys);
+          var user = Meteor.users.findOne({'username': name});
+	  console.log("idp gets keys " + nkeys);	  
           if (user) {//TODO: must check password!
 	      if (!nkeys) {
 		  throw new Error("nkeys is null");
@@ -98,11 +94,9 @@ if (Meteor.isServer) {
               }
               return user.keys;
           } else {
-              console.log('creating keys for  '+name);
-       
-	      console.log("NEW KEYS for " + name + " keys " + nkeys);
-	      Meteor.users.insert({username: name , keys: nkeys});
-	      console.log('keys added for ' + name);
+
+              Meteor.users.insert({username: name , keys: nkeys});
+	      console.log('keys inserted for ' + name);
 	      
               return nkeys;
           }

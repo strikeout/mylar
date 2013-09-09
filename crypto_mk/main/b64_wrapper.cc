@@ -71,6 +71,11 @@ b64mk::encrypt(const std::string & k, const std::string & word) {
 }
 
 std::string
+b64mk::index_enc(const std::string & k, const std::string & word) {
+    return marshall(mk.index_enc(unmarshall_scalar(mk, k), word));
+}
+
+std::string
 b64mk::adjust(const std::string & tok, const std::string & delta) {
     return marshall(mk.adjust(unmarshall_tok(mk, tok),
 			      unmarshall_delta(mk, delta)));
