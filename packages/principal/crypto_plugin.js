@@ -7,10 +7,9 @@
 
 
 function enc_fire() {
-    return document.getElementById("_cryptoFire");
+    return document.getElementById("_cryptoFIRE");
 }
 
-enc_fire = undefined;
 enc_module = undefined;
 enc_return = undefined;
 
@@ -26,7 +25,6 @@ Handlebars.registerHelper(
 Template._cryptoPlugin.events({
     'load *': function(evt) {
         enc_module = document.getElementById("_cryptoNACL");
-        enc_fire = function () {return document.getElementById("_cryptoFIRE");}
     },
     'message *': function(evt) {
         if(enc_return)
