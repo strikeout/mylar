@@ -1,0 +1,9 @@
+In order to build the Firefox plugin, you'll need to do the following:
+
+1) Download the FireBreath framework.
+2) Move the CryptoExt folder into the firebreath projects folder, you may need to create the directory. (firebreath/projects/)
+3) Run ./premake.sh in the firebreath folder.
+4) Build the crypto_mk library.
+5) Modify firebreath/projects/CryptoExt/X11/projectDef.cmake to change the CRYPTO_LIBRARY path to be the location of crypto_mk.
+6) Go to the firebreath/build/ folder and run 'make'.
+
