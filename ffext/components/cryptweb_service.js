@@ -40,6 +40,7 @@ if ("undefined" == typeof(CFNamespace)) {
 
 //wrap global stuff in a namespace to make sure we don't pollute
 CFNamespace = {
+    //serialized_public: false,
     safe_pages: {},
     tainted_pages: {},
     allowed_unsafe_paths: {
@@ -74,21 +75,22 @@ CFNamespace = {
         return decodeURIComponent( escape( s ) );
     },
 
-  //include sjcl and load developer public key
-  //TODO: should this be fetched from idp for all cf pages at startup
-    init: function() {
+    //include sjcl and load developer public key
+    set_public_key: function(serialized_key) {
+        if(serialized_key == this.serialized_public)
+            return; //no need to recompute
         try{
-        this.serialized_public = "1bd7cee0c382ccebc599cd46f903dc849b392a0cb0de1aa26831c4d0c52d4e48f6689917b6e09ae6697f7618b52e5bd3";
-        c = sjcl.ecc.curves['c192'];
-        pt = c.fromBits(sjcl.codec.hex.toBits(this.serialized_public));
-        this.pub = new sjcl.ecc["ecdsa"].publicKey(c,pt);
+            this.serialized_public = serialized_key;
+            c = sjcl.ecc.curves['c192'];
+            pt = c.fromBits(sjcl.codec.hex.toBits(this.serialized_public));
+            this.pub = new sjcl.ecc["ecdsa"].publicKey(c,pt);
+            dump('initialized public key\n');
         } catch (e) {
             dump("CF Error: " + e + "\n");
         }
     },
 };
 CFN = CFNamespace;
-CFN.init();
 
 cryptweb_service.flag = 1;
 
@@ -113,18 +115,45 @@ cryptweb_service.prototype =
     },
 
     observe: function(aSubject, aTopic, aData) {
-        if (aTopic == "app-startup" || aTopic == "profile-after-change") { // FF 4+: profile-after-change
+        if (aTopic == "app-startup" || aTopic == "profile-after-change") { 
+        // FF 4+: profile-after-change
             this.observers = [];
             this.delays    = [];
 
-            var observerService = Components.classes["@mozilla.org/observer-service;1"].getService(Components.interfaces.nsIObserverService);
+            var observerService = Components.classes["@mozilla.org/observer-service;1"].
+                getService(Components.interfaces.nsIObserverService);
             observerService.addObserver(this, "http-on-modify-request", false);
             observerService.addObserver(this, "http-on-examine-response", false);
+
         } else if (aTopic == "http-on-modify-request") {
             aSubject.QueryInterface(Components.interfaces.nsIHttpChannel);
             this.onModifyRequest(aSubject);
+
         } else if (aTopic == "http-on-examine-response") {
             aSubject.QueryInterface(Components.interfaces.nsIHttpChannel);
+            var si = aSubject.securityInfo;
+
+            //extract developer sig from cert. currently stored in 'locality' field
+            // of Subject Name
+            if(si){
+                si.QueryInterface(Components.interfaces.nsISSLStatusProvider);
+                var st = si.SSLStatus;
+                if (st){
+                    st.QueryInterface(Components.interfaces.nsISSLStatus);
+                    var cert = st.serverCert;
+                    if(cert){
+                        var sn = cert.subjectName;
+                        //var arr = sn.match("/L=(\w+)/g");
+                        //regexp didn't work in FF..., so here's a low-tech approach
+                        var mark = 'L=cf-dev-sig:';
+                        if(sn.indexOf(mark)>=0){
+                            var k = sn.slice(sn.indexOf(mark)+mark.length).split(',')[0]
+                            dump('sig ' + k + '\n');
+                            CFN.set_public_key(k);
+                        }
+                    }
+                }
+            }
             this.onExamineResponse(aSubject);
         }
     },
