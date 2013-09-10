@@ -83,7 +83,8 @@ var sign = function (contents,filename,toplevel,uri_filename) {
 
     //infer content type to sign header
     contentType = mime.lookup(filename);
-    charset = mime.charsets.lookup(contentType, 'UTF-8'); //TODO: not sure if correct for img
+    //TODO: not sure if correct for img
+    charset = mime.charsets.lookup(contentType, 'UTF-8'); 
     //console.log(charset + " charset");
     contentTypeMatch = /*options.contentTypeMatch ||*/ /text|javascript|json/
     if(contentTypeMatch.test(contentType)){
@@ -98,7 +99,8 @@ var sign = function (contents,filename,toplevel,uri_filename) {
     //var hash = sjcl.hash.sha256.hash(contents);
     //hash = sjcl.codec.hex.fromBits(hash)
     //console.log(filename + " has hashes " + hash + " and " + hash2);
-    var paranoia = 0; //TODO: is this unsafe? why do we need randomness?
+    var paranoia = 0; //TODO: is this unsafe or an omission in sjcl?
+                      // we don't need randomness for a deterministic calculation, right?
     return sjcl.codec.hex.fromBits(sec.sign(hash2,paranoia));
   //var sk = 0; //super secret key!!! don't give this to anyone ;-)
   //var hash = sjcl.hash.sha256.hash(msg);

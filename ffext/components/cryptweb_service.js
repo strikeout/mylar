@@ -2,8 +2,7 @@
 // author: helfer@csail.mit.edu
 // some code based on HeaderSpy
 
-//TODO: combine host + port for same-origin check?
-//TODO: do we need to clear cache at beginning of safe page load to ensure no unsafe content can be loaded?
+//TODO: combine host + port + protocol for same-origin check
 
 //dump("service start ---\n");
 
@@ -19,7 +18,6 @@ if (typeof CCIN == "undefined") {
         return Components.classes[cName].createInstance(Components.interfaces[ifaceName]);
     }
 }
-//dump("imports done ---\n");
 
 const CRYPTWEB_SERVICE_NAME = "CryptWeb Service";
 const CRYPTWEB_SERVICE_CID = Components.ID("{f6480eac-e13a-494c-85ba-4de1817abbbd}");
@@ -36,6 +34,9 @@ function cryptweb_service() { // FF 4+
 
 if ("undefined" == typeof(CFNamespace)) {
   var CFNamespace = {};
+}
+if ("undefined" === typeof(Ci)) {
+  var Ci = Components.interfaces;
 }
 
 //wrap global stuff in a namespace to make sure we don't pollute
@@ -73,6 +74,15 @@ CFNamespace = {
 
     decode_utf8: function(s) {
         return decodeURIComponent( escape( s ) );
+    },
+
+    is_safe_page: function(uri) {
+        uri = parseUri(uri);
+        return this.safe_pages.hasOwnProperty(uri['host']);
+    },
+
+    add_safe_page: function(uri) {
+        return 0;
     },
 
     //include sjcl and load developer public key
@@ -122,13 +132,13 @@ cryptweb_service.prototype =
 
             var observerService = Components.classes["@mozilla.org/observer-service;1"].
                 getService(Components.interfaces.nsIObserverService);
-            observerService.addObserver(this, "http-on-modify-request", false);
+            //observerService.addObserver(this, "http-on-modify-request", false);
             observerService.addObserver(this, "http-on-examine-response", false);
 
-        } else if (aTopic == "http-on-modify-request") {
+        /*} else if (aTopic == "http-on-modify-request") {
             aSubject.QueryInterface(Components.interfaces.nsIHttpChannel);
             this.onModifyRequest(aSubject);
-
+        */
         } else if (aTopic == "http-on-examine-response") {
             aSubject.QueryInterface(Components.interfaces.nsIHttpChannel);
             var si = aSubject.securityInfo;
@@ -150,11 +160,12 @@ cryptweb_service.prototype =
                             var k = sn.slice(sn.indexOf(mark)+mark.length).split(',')[0]
                             dump('sig ' + k + '\n');
                             CFN.set_public_key(k);
+                            this.attachChannelListener(aSubject);
                         }
                     }
                 }
             }
-            this.onExamineResponse(aSubject);
+            //no other tests needed, we rely on FF to have verified the cert.
         }
     },
 
@@ -169,20 +180,13 @@ cryptweb_service.prototype =
     },
   
     onModifyRequest: function(oHttp) {
-        //dump("modify " + oHttp.URI.spec + "\n");
-        var uri = parseUri(oHttp.originalURI.spec);
-        if(CFNamespace.safe_pages.hasOwnProperty(uri['host'])){
+        if(CFN.is_safe_page(oHttporiginalURI.spec)){
           //prevent loading from cache in secure origin
-          oHttp.loadFlags |= Components.interfaces.nsICachingChannel.LOAD_BYPASS_LOCAL_CACHE;
-          //dump("bypass cache\n");
-        } else {
-          //dump("cache active\n");
+         oHttp.loadFlags |= Components.interfaces.nsICachingChannel.LOAD_BYPASS_LOCAL_CACHE;
         }
-        //dump("eom\n");
     },
 
-    onExamineResponse: function(oHttp) {
-        //dump("examine " + oHttp.URI.spec + "\n");
+    attachChannelListener: function(oHttp) {
         try{
             //intercept http response content in inITraceableChannel
             var newListener = new CopyTracingListener();
@@ -217,6 +221,35 @@ function CopyTracingListener() {
 
 CopyTracingListener.prototype =
 {
+
+  requiresVerification: false, //local variable
+
+  onStartRequest: function(request, context) {
+      var httpChannel = request.QueryInterface(Components.interfaces.nsIHttpChannel);
+      //dump("URI:" + request.URI.spec + "\n");
+      this.receivedData = [];   // array for incoming data.
+      this.offsetcount = [];  //array for passing on chunks of data
+      this.pageIsSigned = false; //true iff header contains cryptframe-signature
+      this.pageSignature = null;
+      this.requiresVerification = false; //true if signed or in signed origin
+      try {
+          var httpChannel = request.QueryInterface(Components.interfaces.nsIHttpChannel);
+          this.ContentType = httpChannel.getResponseHeader("Content-Type");
+          this.pageSignature = httpChannel.getResponseHeader("cryptframe-signature");
+          this.pageIsSigned = true;
+          this.requiresVerification = true;
+          //dump("PAGE SIGNED\n");
+      } catch (anError) {
+          this.pageIsSigned = false
+          //dump("page not signed\n");
+          var uri = parseUri(request.originalURI.spec);
+          if(CFNamespace.safe_pages.hasOwnProperty(uri['host'])){
+              this.requiresVerification = true; 
+          }
+      }
+      this.originalListener.onStartRequest(request, context);
+  },
+  
   onDataAvailable: function(request, context, inputStream, offset, count)
   {
     //dump("av");
@@ -243,33 +276,6 @@ CopyTracingListener.prototype =
     //dump("ailable\n");
   },
 
-  onStartRequest: function(request, context) {
-      //dump("start request\n");
-      var httpChannel = request.QueryInterface(Components.interfaces.nsIHttpChannel);
-      //dump("URI:" + request.URI.spec + "\n");
-      this.receivedData = [];   // array for incoming data.
-      this.offsetcount = [];  //array for passing on chunks of data
-      this.pageIsSigned = false; //true iff header contains cryptframe-signature
-      this.pageSignature = null;
-      this.requiresVerification = false; //true if signed or in signed origin
-      try {
-          var httpChannel = request.QueryInterface(Components.interfaces.nsIHttpChannel);
-          this.ContentType = httpChannel.getResponseHeader("Content-Type");
-          this.pageSignature = httpChannel.getResponseHeader("cryptframe-signature");
-          this.pageIsSigned = true;
-          this.requiresVerification = true;
-          //dump("PAGE SIGNED\n");
-      } catch (anError) {
-          this.pageIsSigned = false
-          //dump("page not signed\n");
-          var uri = parseUri(request.originalURI.spec);
-          if(CFNamespace.safe_pages.hasOwnProperty(uri['host'])){
-              this.requiresVerification = true; 
-          }
-      }
-      this.originalListener.onStartRequest(request, context);
-  },
-  
   onStopRequest: function(request, context, statusCode)
   {
     var uri = parseUri(request.originalURI.spec);
