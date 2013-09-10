@@ -76,7 +76,8 @@ var deserialize_private = function (ser, system) {
             }
 
 var sign = function (contents,filename,toplevel,uri_filename) {
-    var serialized_private = "000000c12004626b9660b82694210edda6593c9894a99351d3b30d";   
+    //var serialized_private = "000000c12004626b9660b82694210edda6593c9894a99351d3b30d";   
+    var serialized_private = process.env.DEVELOPER_PK;
     var serialized_public = "1bd7cee0c382ccebc599cd46f903dc849b392a0cb0de1aa26831c4d0c52d4e48f6689917b6e09ae6697f7618b52e5bd3"; //doesn't need to be here...
 
     var sec = deserialize_private(serialized_private,"ecdsa");
