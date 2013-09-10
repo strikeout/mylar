@@ -95,7 +95,7 @@ var sign = function (contents,filename,toplevel,uri_filename) {
     tl = toplevel ? '1' : '0';
     var hash = sha1(contents); //hash twice because content might not be utf8
     //console.log("uri_filename is " + uri_filename);
-    var hash2 = sha1(contentType+':'+hash+':'+tl+':'+uri_filename);
+    var hash2 = sha1(contentType+':'+hash+':'+uri_filename);
     //var hash = sjcl.hash.sha256.hash(contents);
     //hash = sjcl.codec.hex.fromBits(hash)
     //console.log(filename + " has hashes " + hash + " and " + hash2);

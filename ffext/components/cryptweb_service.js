@@ -51,21 +51,21 @@ CFNamespace = {
       //XXX: is this dangerous or does firefox treat json and javascript the same?
       '\/sockjs\/[\w\/]*':'application/javascript; charset=UTF-8'
     },
-    //tests if an unsafe path matches
-    test_unsafe_path: function(p) { 
+    //tests if an unsafe path with content type ctype is allowed
+    allow_unsafe_path: function(p,ctype) { 
       try{
       for (var allowed in CFNamespace.allowed_unsafe_paths){
         re = new RegExp(allowed);
         if (re.test(p)) {
           dump("REGEXP match " + allowed + " for " + p + "\n");
-          return [true,CFNamespace.allowed_unsafe_paths[allowed]];
+          return CFNamespace.allowed_unsafe_paths[allowed] == ctype;
         }
         dump("no regexp match " + allowed + " for " + p + "\n");
       }
       } catch (e) {
         dump("E: " + e + "\n");
       }
-      return [false,''];
+      return false;
     },
     /* A bit of unicode gymnastics for correct hashing of response content*/
     encode_utf8: function(s) {
@@ -82,7 +82,7 @@ CFNamespace = {
     },
 
     add_safe_page: function(uri) {
-        return 0;
+        this.safe_pages[uri['host']] = true;
     },
 
     //include sjcl and load developer public key
@@ -132,13 +132,13 @@ cryptweb_service.prototype =
 
             var observerService = Components.classes["@mozilla.org/observer-service;1"].
                 getService(Components.interfaces.nsIObserverService);
-            //observerService.addObserver(this, "http-on-modify-request", false);
+            observerService.addObserver(this, "http-on-modify-request", false);
             observerService.addObserver(this, "http-on-examine-response", false);
 
-        /*} else if (aTopic == "http-on-modify-request") {
+        } else if (aTopic == "http-on-modify-request") {
             aSubject.QueryInterface(Components.interfaces.nsIHttpChannel);
             this.onModifyRequest(aSubject);
-        */
+        
         } else if (aTopic == "http-on-examine-response") {
             aSubject.QueryInterface(Components.interfaces.nsIHttpChannel);
             var si = aSubject.securityInfo;
@@ -158,7 +158,7 @@ cryptweb_service.prototype =
                         var mark = 'L=cf-dev-sig:';
                         if(sn.indexOf(mark)>=0){
                             var k = sn.slice(sn.indexOf(mark)+mark.length).split(',')[0]
-                            dump('sig ' + k + '\n');
+                            //dump('sig ' + k + '\n');
                             CFN.set_public_key(k);
                             this.attachChannelListener(aSubject);
                         }
@@ -180,7 +180,7 @@ cryptweb_service.prototype =
     },
   
     onModifyRequest: function(oHttp) {
-        if(CFN.is_safe_page(oHttporiginalURI.spec)){
+        if(CFN.is_safe_page(oHttp.originalURI.spec)){
           //prevent loading from cache in secure origin
          oHttp.loadFlags |= Components.interfaces.nsICachingChannel.LOAD_BYPASS_LOCAL_CACHE;
         }
@@ -201,8 +201,8 @@ cryptweb_service.prototype =
     hello: function() {
         return CFNamespace.safe_pages;
     },
-    check_safety: function(host) {
-        return CFNamespace.safe_pages.hasOwnProperty(host);
+    check_safety: function(uri) {
+        return CFN.is_safe_page(uri);
     },
     //-------------------------------------------------------------
 
@@ -222,7 +222,7 @@ function CopyTracingListener() {
 CopyTracingListener.prototype =
 {
 
-  requiresVerification: false, //local variable
+  pageIsSigned: false, //local variable
 
   onStartRequest: function(request, context) {
       var httpChannel = request.QueryInterface(Components.interfaces.nsIHttpChannel);
@@ -231,37 +231,20 @@ CopyTracingListener.prototype =
       this.offsetcount = [];  //array for passing on chunks of data
       this.pageIsSigned = false; //true iff header contains cryptframe-signature
       this.pageSignature = null;
-      this.requiresVerification = false; //true if signed or in signed origin
       try {
           var httpChannel = request.QueryInterface(Components.interfaces.nsIHttpChannel);
           this.ContentType = httpChannel.getResponseHeader("Content-Type");
           this.pageSignature = httpChannel.getResponseHeader("cryptframe-signature");
           this.pageIsSigned = true;
-          this.requiresVerification = true;
-          //dump("PAGE SIGNED\n");
       } catch (anError) {
-          this.pageIsSigned = false
           //dump("page not signed\n");
-          var uri = parseUri(request.originalURI.spec);
-          if(CFNamespace.safe_pages.hasOwnProperty(uri['host'])){
-              this.requiresVerification = true; 
-          }
       }
       this.originalListener.onStartRequest(request, context);
   },
-  
+ 
+  //no logic here, just cache data for hashing later 
   onDataAvailable: function(request, context, inputStream, offset, count)
   {
-    //dump("av");
-    if(!this.requiresVerification){
-      //dump("passing on data without verification\n");
-      this.originalListener.onDataAvailable(
-        request,context,inputStream,offset,count
-      );
-      return;
-    } else {
-      //dump("CONTENT REQUIRES VERIFICATION\n");
-    }
     try {
       var binaryInputStream = CCIN("@mozilla.org/binaryinputstream;1", 
                              "nsIBinaryInputStream");
@@ -273,7 +256,6 @@ CopyTracingListener.prototype =
     } catch (e) {
         dump("CF Error: " + e + "\n");
     }
-    //dump("ailable\n");
   },
 
   onStopRequest: function(request, context, statusCode)
@@ -281,104 +263,41 @@ CopyTracingListener.prototype =
     var uri = parseUri(request.originalURI.spec);
     //dump("uri is: " + uri['source'] + "\n");
 
-    if(!this.requiresVerification){
-      if(!CFNamespace.tainted_pages.hasOwnProperty(uri['host'])){
-        CFNamespace.tainted_pages[uri['host']] = true;
-      }
-      this.originalListener.onStopRequest(request, context, Components.results.NS_OK);
-      return;
-    }
-      
-    var unsafe = true;
     try{
       var httpRequest = request.QueryInterface(Components.interfaces.nsIRequest);
-      //dump("onStopRequest\n");
       var responseSource = this.receivedData.join('');
-      //dump("SHA1 not string: " + Sha1.hash(responseSource,false) + "\n");
-     
-      var loadContext;
-      try { 
-          loadContext = request.QueryInterface(Components.interfaces.nsIChannel) // aRequest is equivalent to aSubject from observe
-                                .notificationCallbacks 
-                                .getInterface(Components.interfaces.nsILoadContext);
-      } catch (ex) { 
-          //dump("ex: " + ex + "\n");
-          try { 
-              loadContext = request.loadGroup.notificationCallbacks 
-                                    .getInterface(Components.interfaces.nsILoadContext); 
-          } catch (ex) {
-              dump("ex: " + ex + "\n");
-              loadContext = null;
-          }
-      }
-      //dump("load context: " + loadContext.associatedWindow.location + "\n");
-      var top_uri = parseUri(loadContext.associatedWindow.location);
-      //dump("toplevel uri: " + top_uri['source'] + "\n");
-      //dump("channel uri: " + uri['source'] + "\n");
-      var is_toplevel = (uri['source'] == top_uri['source'])
 
-      if(is_toplevel){
-        dump("TOP LEVEL page load: " + top_uri['source'] + "\n");
-      }
-
-
-      check_unsafe = CFN.test_unsafe_path(uri['path']);
-      if(responseSource.length > 0 && !check_unsafe[0] && !this.verifySignature(this.pageSignature,responseSource,this.ContentType,is_toplevel,uri['file'])){
-        dump("ERROR: invalid signature on signed page!!!");
-        this.emitFakeResponse(request,context,statusCode,uri);
+        
+      //don't verify if no data (websocket)
+      if(responseSource.length == 0){
+        dump('data is empty\n');
+        this.passOnData(request,context,statusCode,uri);
         return;
       }
-      //for unsafe paths, check content type:
-      if(check_unsafe[0]){
-        if(this.ContentType !== check_unsafe[1]){
-          dump("ERROR: invalid content type "+this.ContentType+" for path "+uri['path']+"\n");
-          dump(">"+responseSource+"<\n");
-          this.emitFakeResponse(request,context,statusCode,uri);
-          return;
-        } 
-      }
 
-
-
-      //dump("signature is valid\n");
- 
-      if (is_toplevel) {
-          if(!CFNamespace.tainted_pages.hasOwnProperty(uri['host'])){
-            if(!CFNamespace.safe_pages.hasOwnProperty(uri['host'])){
-              CFNamespace.safe_pages[uri['host']] = true;
-            }
-            unsafe = false;
-          } else {
-            dump("ERROR: Tainted origin. clear cache, close browser and retry\n")
-          }  
-      } else {
-         if(responseSource.length == 0){
-          dump("response length == 0\n");
-         }
-         if(responseSource.length > 0 && !check_unsafe[0] ){
-            var hash = Sha1.hash(responseSource,false)
-            if(this.pageIsSigned && uri['query'] === hash ){
-              unsafe = false;
-            } else {
-              dump("INVALID HASH ("+hash+"): " + uri['source'] + "\n");
-              dump('query was: ' + uri['query'] + "\n");
-            }
-          } else {
-            unsafe = false;
-          }
-      }
-      //makes sure files from secure origin cannot be loaded separately
-      //but still allows including files from unsafe origin on secured origin page
-      if(uri['host'] != top_uri['host']) {
-        dump("different hosts: " + uri['host'] + ' ' + top_uri['host'] + "\n");
-        unsafe = true;
-      }
-      //
-      if(!unsafe){
+      //allow paths exempt from checking
+      if(!this.pageIsSigned && CFN.allow_unsafe_path(uri['path'],this.ContentType)){
+        dump('check exempt path\n');
         this.passOnData(request,context,statusCode,uri);
-      } else {
-        this.emitFakeResponse(request,context,statusCode,uri);
+        return;
       }
+      
+      //verify signature on all other content
+      if(this.verifySignature(
+            this.pageSignature,
+            responseSource,
+            this.ContentType,
+            uri['file'])
+      ){
+        dump('page is signed and passed check\n');
+        this.passOnData(request,context,statusCode,uri);
+        return;
+      }
+
+      //if in doubt, throw it out.
+      dump("no checks passed, block content");
+      this.emitFakeResponse(request,context,statusCode,uri);
+
     } catch (anError) {
       dump("CF ERROR: " + anError + "\n");
     }
@@ -392,15 +311,14 @@ CopyTracingListener.prototype =
       throw Components.results.NS_NOINTERFACE;
   },
 
-  verifySignature: function(sig,responseSource,contentType,is_toplevel,uri_filename){
+  verifySignature: function(sig,responseSource,contentType,uri_filename){
     //dump("verify\n");
     try{
       sn = sjcl.codec.hex.toBits(sig) 
       //var bithash = sjcl.hash.sha256.hash(CFN.decode_utf8(responseSource));
       //var hashed = sjcl.codec.hex.fromBits(bithash);
-      var tl = is_toplevel ? '1':'0';
       var hashed = Sha1.hash(responseSource,false);
-      var hstring = contentType + ':' + hashed + ':' + tl + ":" + uri_filename;
+      var hstring = contentType + ':' + hashed + ':' + uri_filename;
       //dump(hstring + '\n');
       var hash2 = Sha1.hash(hstring,true);
       //dump("simple hash: " + hashed + "\n");
@@ -409,20 +327,6 @@ CopyTracingListener.prototype =
       CFN.pub.verify(hash2,sn);//throws error if not safe
       return true;
     } catch (anError) {
-      try {
-        var tl = !is_toplevel ? '1':'0';
-        var hashed = Sha1.hash(responseSource,false);
-        //dump("uri_filename is " + uri_filename + "\n");
-        var hash2 = Sha1.hash(contentType + ':' + hashed + ':' + tl+':' + uri_filename,true);
-        CFN.pub.verify(hash2,sn);//throws error if not safe
-        if(is_toplevel){
-          dump("WARNING: other document trying to load toplevel page");
-        } else {
-          dump("WARNING: non-toplevel document trying to load as top-level page");
-        }
-      } catch (e) {
-        //pass
-      } 
       return false;
     }
     return false;
@@ -430,6 +334,7 @@ CopyTracingListener.prototype =
 
   //passes data held back by onAvailable to next listener in queue.
   passOnData: function(request,context,statusCode,uri) {
+    CFN.add_safe_page(uri)
     //dump("safe " + uri['source'] + "\n");
     for (var i = 0; i < this.receivedData.length; i++) {
       //dump("do ");
