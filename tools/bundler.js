@@ -76,14 +76,19 @@ var deserialize_private = function (ser, system) {
             }
 
 var sign = function (contents,filename,toplevel,uri_filename) {
-    var serialized_private = "000000c12004626b9660b82694210edda6593c9894a99351d3b30d";   
-    var serialized_public = "1bd7cee0c382ccebc599cd46f903dc849b392a0cb0de1aa26831c4d0c52d4e48f6689917b6e09ae6697f7618b52e5bd3"; //doesn't need to be here...
+    //var serialized_private = "000000c12004626b9660b82694210edda6593c9894a99351d3b30d";   
+    var serialized_private = process.env.DEVELOPER_PK;
+    if(typeof serialized_private == "undefined")
+        serialized_private = "000000c12004626b9660b82694210edda6593c9894a99351d3b30d";   
+
+    //var serialized_public = "1bd7cee0c382ccebc599cd46f903dc849b392a0cb0de1aa26831c4d0c52d4e48f6689917b6e09ae6697f7618b52e5bd3"; //doesn't need to be here...
 
     var sec = deserialize_private(serialized_private,"ecdsa");
 
     //infer content type to sign header
     contentType = mime.lookup(filename);
-    charset = mime.charsets.lookup(contentType, 'UTF-8'); //TODO: not sure if correct for img
+    //TODO: not sure if correct for img
+    charset = mime.charsets.lookup(contentType, 'UTF-8'); 
     //console.log(charset + " charset");
     contentTypeMatch = /*options.contentTypeMatch ||*/ /text|javascript|json/
     if(contentTypeMatch.test(contentType)){
@@ -94,11 +99,12 @@ var sign = function (contents,filename,toplevel,uri_filename) {
     tl = toplevel ? '1' : '0';
     var hash = sha1(contents); //hash twice because content might not be utf8
     //console.log("uri_filename is " + uri_filename);
-    var hash2 = sha1(contentType+':'+hash+':'+tl+':'+uri_filename);
+    var hash2 = sha1(contentType+':'+hash+':'+uri_filename);
     //var hash = sjcl.hash.sha256.hash(contents);
     //hash = sjcl.codec.hex.fromBits(hash)
     //console.log(filename + " has hashes " + hash + " and " + hash2);
-    var paranoia = 0; //TODO: is this unsafe? why do we need randomness?
+    var paranoia = 0; //TODO: is this unsafe or an omission in sjcl?
+                      // we don't need randomness for a deterministic calculation, right?
     return sjcl.codec.hex.fromBits(sec.sign(hash2,paranoia));
   //var sk = 0; //super secret key!!! don't give this to anyone ;-)
   //var hash = sjcl.hash.sha256.hash(msg);

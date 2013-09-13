@@ -177,6 +177,7 @@ Accounts.insertUserDoc = function (options, user) {
   } catch (e) {
     // XXX string parsing sucks, maybe
     // https://jira.mongodb.org/browse/SERVER-3069 will get fixed one day
+    console.log("OOPS: " + e);
     if (e.name !== 'MongoError') throw e;
     var match = e.err.match(/^E11000 duplicate key error index: ([^ ]+)/);
     if (!match) throw e;

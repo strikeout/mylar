@@ -391,20 +391,21 @@ var signup = function () {
 
   var options = {}; // to be passed to Accounts.createUser
 
-  var username = trimmedElementValueById('login-username');
-  if (username !== null) {
-    if (!Accounts._loginButtons.validateUsername(username))
-      return;
-    else
-      options.username = username;
-  }
-
   var email = trimmedElementValueById('login-email');
   if (email !== null) {
     if (!Accounts._loginButtons.validateEmail(email))
       return;
     else
       options.email = email;
+  }
+
+
+  var username = trimmedElementValueById('login-username');
+  if (username !== null) {
+    if (!Accounts._loginButtons.validateUsername(username))
+      return;
+    else
+      options.username = username;
   }
 
   // notably not trimmed. a password could (?) start or end with a space
@@ -417,6 +418,7 @@ var signup = function () {
   if (!matchPasswordAgainIfPresent())
     return;
 
+  console.log("uname " + options.username);
   Accounts.createUser(options, function (error) {
     if (error) {
       loginButtonsSession.errorMessage(error.reason || "Unknown error");

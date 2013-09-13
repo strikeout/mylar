@@ -67,9 +67,9 @@ function newNotifierInstance(window){
         //dump("Notifier location change\n");
         try
         {
-            var uri = parseUri(window.content.document.location.href);
+            var uri = window.content.document.location.href;
             var cfComponent = Components.classes['@cryptweb.csail.mit.edu/service;1'].getService().wrappedJSObject;
-            if(cfComponent.check_safety(uri['host'])){
+            if(cfComponent.check_safety(uri)){
                 //dump("update icon safe\n");
                 icon.src = getIcon("safe");
                 tooltip.value = writeTooltip("safe");
