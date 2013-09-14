@@ -31,12 +31,17 @@ Meteor.loginWithPassword = function (selector, password, callback) {
     }
     
     console.log("loggingin user " + uname);
-    idp.get_keys(uname, password, function(keys) {
-	if (!keys) {
-	    throw new Error("idp error, cannot login this user");
-	}
-	localStorage['user_princ_keys']= keys;
-	
+    if (loadedPrincipal()) {
+	console.log("EXECUTING!");
+	idp.get_keys(uname, password, function(keys) {
+	    if (!keys) {
+		throw new Error("idp error, cannot login this user");
+	    }
+ 	    localStorage['user_princ_keys']= keys;
+	});
+    } else {
+	console.log("NOT LOADED PRINC");
+    }
 	request.user = selector;
 	
 	// Normally, we only set Meteor.loggingIn() to true within
@@ -83,22 +88,32 @@ Accounts.createUser = function (options, callback) {
     delete options.password;
     options.srp = verifier;
 
-    Principal.create("user", uname, null, function(uprinc){
-	var ser_keys = serialize_keys(uprinc.keys);
-	
-	// store user keys in local storage
-	// localStorage can only deal with serialized strings
-	localStorage['user_princ_keys'] = serialize_keys(uprinc.keys);
-
-	idp.set_keys(uname, pwd, ser_keys, function(){
-	    Accounts.callLoginMethod({
-		methodName: 'createUser',
-		methodArguments: [options],
-		userCallback: callback
-	    });    
+    if (loadedPrincipal()) {
+	console.log("LOADED PRINC");
+	Principal.create("user", uname, null, function(uprinc){
+	    var ser_keys = serialize_keys(uprinc.keys);
+	    
+	    // store user keys in local storage
+	    // localStorage can only deal with serialized strings
+	    localStorage['user_princ_keys'] = serialize_keys(uprinc.keys);
+	    
+	    idp.set_keys(uname, pwd, ser_keys, function(){
+		Accounts.callLoginMethod({
+		    methodName: 'createUser',
+		    methodArguments: [options],
+		    userCallback: callback
+		});    
+	    });
+	    
 	});
-		
-    });
+    } else {
+	console.log("NOT LOADED PRINC");
+	Accounts.callLoginMethod({
+	    methodName: 'createUser',
+	    methodArguments: [options],
+	    userCallback: callback
+	}); 
+    }
 };
 
 

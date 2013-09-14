@@ -7,6 +7,10 @@ Meteor.userId = function () {
   return Meteor.default_connection.userId();
 };
 
+loadedPrincipal = function() {
+    return typeof Principal !=  "undefined";
+}
+
 var loggingIn = false;
 var loggingInDeps = new Deps.Dependency;
 // This is mostly just called within this file, but Meteor.loginWithPassword
@@ -172,7 +176,12 @@ Meteor.logout = function (callback) {
 	    Accounts._makeClientLoggedOut();
 	    callback && callback();
 	}
-	localStorage['user_princ_keys'] = undefined;
+	if (loadedPrincipal()) {
+	    console.log("LOADED PRINC");
+	    localStorage['user_princ_keys'] = undefined;
+	} else {
+	    console.log("NOT LOADED PRINC");
+	}
     });
 };
 
