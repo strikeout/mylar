@@ -6,7 +6,6 @@
    The field f contains plaintext and is not sent to the server
    unless ENC_DEBUG is true */
 
-
 var debug = false;
 
 var ENC_DEBUG = true; // if true, an unencrypted copy of the fields will be kept for debugging mode
@@ -381,6 +380,10 @@ var is_searchable = function(enc_fields, field) {
 // container is a map of key to values 
 Meteor.Collection.prototype.enc_row = function(container, callback) {
     var self = this;
+    if (!self._enc_fields) {
+	callback();
+	return;
+    }
 
     if (!Meteor.isClient || !container) {
         callback();
@@ -450,6 +453,11 @@ Meteor.Collection.prototype.enc_row = function(container, callback) {
 // container is an object with key (field name), value (enc field value)
 Meteor.Collection.prototype.dec_msg = function(container, callback) {
     var self = this;
+    
+    if (!self._enc_fields) {
+	callback();
+	return;
+    }
     
     var callback_q = [];
     self._decrypt_cb.push(callback_q);
