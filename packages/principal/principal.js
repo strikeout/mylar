@@ -62,6 +62,11 @@ wrapped_keys = function() {
 
 pretty = function(princ) {
     var res = "";
+    
+    if (!princ) {
+	return res;
+    }
+  
     if (princ.name) {
 	res = res + princ.name + " ";
     }
@@ -84,9 +89,11 @@ if (Meteor.isServer) {
     getWKey = function(doc) {
 	if (doc.wrapped_sym_keys) {
 	    return {isSym: true, wkey: doc.wrapped_sym_keys};
-	} else {
+	}
+	if (doc.wrapped_keys) {
 	    return {isSym: false, wkey: doc.wrapped_keys};
 	}
+	throw new Exception("wrapped keys does not actually have wrappedkeys!");
     }
     
     Meteor.methods({
@@ -376,7 +383,7 @@ if (Meteor.isClient) {
 
 	// encrypt using public keys
 	var wrap = crypto.encrypt(princ1.keys.encrypt, pt);
-	var entry_id = updateWrappedKeys(princ2.id, princ1.id, wrap.ct, null);
+	var entry_id = updateWrappedKeys(princ2.id, princ1.id, wrap, null, null);
 	// update user inbox for delta
 	if (princ1.type == "user") {
 	    Principals.update({_id : princ1.id}, {$push: {accessInbox: entry_id}});
@@ -466,7 +473,7 @@ if (Meteor.isClient) {
 	    self2.keys = {};
             Meteor.call("keychain", auth2,
 			self2, function (err, chain) {
-			    //if (debug) console.log("keychain returns: " + chain);
+			    if (debug) console.log("keychain returns: " + JSON.stringify(chain));
 			    if (chain) {
 				self.keys = _.extend(self.keys, base_crypto.chain_decrypt(chain, auth.keys));
 				if (on_complete) {

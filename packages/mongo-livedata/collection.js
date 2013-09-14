@@ -450,6 +450,8 @@ Meteor.Collection.prototype.enc_row = function(container, callback) {
 // container is an object with key (field name), value (enc field value)
 Meteor.Collection.prototype.dec_msg = function(container, callback) {
     var self = this;
+
+    console.log("to decrypt " + JSON.stringify(container));
     
     var callback_q = [];
     self._decrypt_cb.push(callback_q);
