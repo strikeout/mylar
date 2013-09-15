@@ -76,7 +76,7 @@ if (Meteor.isServer) {
 	wrappedKeyByID: function(id) {
 	    return WrappedKeys.findOne({_id: id});
 	},
-	wrappedKeyByPrincPair: function(princ, princ_for) {
+	wrappedKeyByPrincs: function(princ, princ_for) {
 	    return WrappedKeys.findOne({principal:princ, wrapped_for:princ_for});
 	}
     });
