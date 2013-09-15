@@ -71,6 +71,15 @@ if (Meteor.isServer) {
 	console.log("server runs publish and output is " + JSON.stringify(Principals.findOne({_id: princid})));
 	return Principals.find({_id: princid});
     });
+
+    Meteor.methods({
+	wrappedKeyByID: function(id) {
+	    return WrappedKeys.findOne({_id: id});
+	},
+	wrappedKeyByPrincPair: function(princ, princ_for) {
+	    return WrappedKeys.findOne({principal:princ, wrapped_for:princ_for});
+	}
+    });
 }
 
 if (Meteor.isClient) {

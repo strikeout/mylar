@@ -345,25 +345,26 @@ if (Meteor.isClient) {
     };
     
     var updateWrappedKeys = function(pid, pid_for, wpk, wsym, delta) {
-	var entry = WrappedKeys.findOne({principal: pid, wrapped_for: pid_for});
-
-	if (!entry) {
-	    var entry_id = WrappedKeys.insert({principal:pid,
-					       wrapped_for:pid_for,
-					       wrapped_keys: wpk,
-					       wrapped_sym_keys: wsym,
-					       delta: delta});
-	    return entry_id;
-	} else {
-	    if (entry.wrapped_sym_keys && entry.delta && !wsym && !delta) {
-		throw new Exception("sym keys and delta already exist");
-	    } else {
-		WrappedKeys.update({_id: entry._id},
-				   {$set: {principal:pid, wrapped_for:pid_for, wrapped_keys: wpk,
-					   wrapped_sym_keys: wsym, delta:delta}});
-	    }
-	    return entry._id;
-	}
+	Meteor.call("wrappedKeyByPrincs", pid, pid_for,
+	  function(entry) {
+	      if (!entry) {
+		  var entry_id = WrappedKeys.insert({principal:pid,
+						     wrapped_for:pid_for,
+						     wrapped_keys: wpk,
+						     wrapped_sym_keys: wsym,
+						     delta: delta});
+		  return entry_id;
+	      } else {
+		  if (entry.wrapped_sym_keys && entry.delta && !wsym && !delta) {
+		      throw new Exception("sym keys and delta already exist");
+		  } else {
+		      WrappedKeys.update({_id: entry._id},
+					 {$set: {principal:pid, wrapped_for:pid_for, wrapped_keys: wpk,
+						 wrapped_sym_keys: wsym, delta:delta}});
+		  }
+		  return entry._id;
+	      }
+	  });
     }
     
     // give princ1 access to princ2
@@ -409,7 +410,7 @@ if (Meteor.isClient) {
 	return function () { 
 
         // Remove WK from princ1.
-	    var wrappedID = WrappedKeys.findOne({principal: princ2.id, wrapped_for: princ1.id})._id;
+	var wrappedID = WrappedKeys.findOne({principal: princ2.id, wrapped_for: princ1.id})._id;
         WrappedKeys.remove(wrappedID);
 
         // Create a new principal.
@@ -693,34 +694,39 @@ if (Meteor.isClient) {
 
     
     processAccessInbox = function() {
-	if (Meteor.user()) {
-	    console.log("run PROCESS ACCESS INBOX: ");
-	    var uprinc = Principal.user();
-	    var dbprinc = Principals.findOne({_id : uprinc.id});
-	    if (dbprinc && dbprinc.accessInbox.length) {
-		console.log(" NOT EMPTY ACCESS INBOX " + JSON.stringify(dbprinc.accessInbox));
-		_.each(dbprinc.accessInbox, function(wid){
-		    var w = WrappedKeys.findOne(wid);
-		    if (!w || !w.wrapped_keys) {
-			Console.log("issue with access inbox and wrapped keys");
-		    }
-		    var subject_keys = base_crypto.decrypt(uprinc.keys.decrypt, w["wrapped_keys"]);
-		    var sym_wrapped = base_crypto.sym_encrypt(uprinc.keys.sym_key, subject_keys);
-		    // compute delta as well
-		    var delta = Crypto.delta(uprinc.keys.mk_key, subject_keys.mk_key, function(delta) {
-			console.log("inserting delta with id " + wid);
-			WrappedKeys.update({_id: wid},
-					   {$set : {wrapped_keys: undefined,
-						    delta : delta, 
-						    wrapped_sym_keys : sym_wrapped}
-					   });
-		    });
-		});
-		Principals.update({_id: uprinc.id},
-				  {$set:{accessinbox: []}});
-	    } else {
-		console.log(" EMPTY");
-	    }
+	if (!Meteor.user()) {
+	    return;
+	}
+	// some user is logged in
+	console.log("run PROCESS ACCESS INBOX: ");
+	var uprinc = Principal.user();
+	var dbprinc = Principals.findOne({_id : uprinc.id});
+	
+	if (dbprinc && dbprinc.accessInbox.length) {
+	    console.log(" NOT EMPTY ACCESS INBOX " + JSON.stringify(dbprinc.accessInbox));
+	    _.each(dbprinc.accessInbox, function(wid){
+		Meteor.call("wrappedKeyByID", wid,
+	         function(w) { 
+		     if (!w || !w.wrapped_keys) {
+			 Console.log("issue with access inbox and wrapped keys");
+		     }
+		     var subject_keys = base_crypto.decrypt(uprinc.keys.decrypt, w["wrapped_keys"]);
+		     var sym_wrapped = base_crypto.sym_encrypt(uprinc.keys.sym_key, subject_keys);
+		     // compute delta as well
+		     var delta = Crypto.delta(uprinc.keys.mk_key, subject_keys.mk_key, function(delta) {
+			 console.log("inserting delta with id " + wid);
+			 WrappedKeys.update({_id: wid},
+					    {$set : {wrapped_keys: undefined,
+						     delta : delta, 
+						     wrapped_sym_keys : sym_wrapped}
+					    });
+		     });
+		 });
+	    });
+	    Principals.update({_id: uprinc.id},
+			      {$set:{accessinbox: []}});
+	} else {
+	    console.log(" EMPTY");
 	}
     }
     
