@@ -250,7 +250,7 @@ if (Meteor.isClient) {
 	this.set_id(); 
 
     }
-
+    
     // generates keys: standard crypto + multi-key
     _generate_keys = function(cb) {
 	keys = crypto.generate_keys();
@@ -355,8 +355,13 @@ if (Meteor.isClient) {
 					       delta: delta});
 	    return entry_id;
 	} else {
-	    WrappedKeys.update({_id: entry._id},
-			       {$set: {principal:pid, wrapped_for:pid_for, wrapped_keys: wpk, wrapped_sym_keys: wsym, delta:delta}});
+	    if (entry.wrapped_sym_keys && entry.delta && !wsym && !delta) {
+		throw new Exception("sym keys and delta already exist");
+	    } else {
+		WrappedKeys.update({_id: entry._id},
+				   {$set: {principal:pid, wrapped_for:pid_for, wrapped_keys: wpk,
+					   wrapped_sym_keys: wsym, delta:delta}});
+	    }
 	    return entry._id;
 	}
     }
@@ -522,6 +527,12 @@ if (Meteor.isClient) {
 	
 	return new Principal('user', user.username, pkeys);
     }
+    
+    Deps.autorun(function(){
+	if (Meteor.user()) {
+    	    Meteor.subscribe("myprinc", Principal.user().id);
+	}
+    });
 
     
     // p1.allowSearch(p2) : p1 can now search on data encrypted for p2
@@ -683,19 +694,21 @@ if (Meteor.isClient) {
     
     processAccessInbox = function() {
 	if (Meteor.user()) {
-	    console.log("userid is " + Meteor.user().username);
+	    console.log("run PROCESS ACCESS INBOX: ");
 	    var uprinc = Principal.user();
 	    var dbprinc = Principals.findOne({_id : uprinc.id});
-	    if (dbprinc) {
-		_.each(db.accessInbox, function(wid){
+	    if (dbprinc && dbprinc.accessInbox.length) {
+		console.log(" NOT EMPTY ACCESS INBOX " + JSON.stringify(dbprinc.accessInbox));
+		_.each(dbprinc.accessInbox, function(wid){
 		    var w = WrappedKeys.findOne(wid);
-		    if (!w) {
+		    if (!w || !w.wrapped_keys) {
 			Console.log("issue with access inbox and wrapped keys");
 		    }
-		    var subject_keys = base_crypto.decrypt(user.keys.decrypt, w["wrapped_keys"]);
-		    var sym_wrapped = base_crypto.sym_encrypt(user.keys.sym_key, subject_keys);
+		    var subject_keys = base_crypto.decrypt(uprinc.keys.decrypt, w["wrapped_keys"]);
+		    var sym_wrapped = base_crypto.sym_encrypt(uprinc.keys.sym_key, subject_keys);
 		    // compute delta as well
 		    var delta = Crypto.delta(uprinc.keys.mk_key, subject_keys.mk_key, function(delta) {
+			console.log("inserting delta with id " + wid);
 			WrappedKeys.update({_id: wid},
 					   {$set : {wrapped_keys: undefined,
 						    delta : delta, 
@@ -703,6 +716,10 @@ if (Meteor.isClient) {
 					   });
 		    });
 		});
+		Principals.update({_id: uprinc.id},
+				  {$set:{accessinbox: []}});
+	    } else {
+		console.log(" EMPTY");
 	    }
 	}
     }

@@ -454,8 +454,6 @@ Meteor.Collection.prototype.enc_row = function(container, callback) {
 Meteor.Collection.prototype.dec_msg = function(container, callback) {
     var self = this;
 
-    console.log("to decrypt " + JSON.stringify(container));
-    
     if (!self._enc_fields) {
 	callback();
 	return;

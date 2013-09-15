@@ -144,7 +144,6 @@ Crypto.is_consistent = function(k, ptext, enctext, cb) {
 		done = true;
 		return;
 	    }
-	    console.log("matched");
 	});
 	if (done) return;
     }
