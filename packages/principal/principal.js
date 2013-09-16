@@ -216,7 +216,11 @@ if (Meteor.isServer) {
                 "principal": p,
                 "cert": princs[p]
             };
-        }
+        },
+
+	addToInbox: function(princid, entry) {
+	    Principals.update({_id : princid}, {$push: {accessInbox: entry}});
+	}
     });
 }
 
@@ -392,10 +396,11 @@ if (Meteor.isClient) {
 	var entry_id = updateWrappedKeys(princ2.id, princ1.id, wrap, null, null);
 	// update user inbox for delta
 	if (princ1.type == "user") {
-	    Principals.update({_id : princ1.id}, {$push: {accessInbox: entry_id}});
+	    console.log("updating principal, princs are ");
+	    Meteor.call("addToInbox", princ1.id, entry_id, cb);	  
+	} else {
+	    if (cb)  {cb(); }
 	}
-	if (cb)  {cb(); }
-		
     };
     
     // Removes princ1 access to princ2
