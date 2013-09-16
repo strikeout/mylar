@@ -73,11 +73,36 @@ if (Meteor.isServer) {
     });
 
     Meteor.methods({
-	wrappedKeyByID: function(id) {
-	    return WrappedKeys.findOne({_id: id});
+	updateWrappedKeys: function(pid, pid_for, wpk, wsym, add_to_inbox, delta) {
+	    console.log("inserting wrapped key");
+	    var entry = WrappedKeys.findOne({principal: pid, wrapped_for: pid_for});
+	    var entry_id = "";
+	    if (!entry) {
+		entry_id = WrappedKeys.insert({principal:pid,
+						       wrapped_for:pid_for,
+						       wrapped_keys: wpk,
+						       wrapped_sym_keys: wsym,
+						       delta: delta});
+		console.log("entryid " + entry_id);
+	    } else {
+		if (entry.wrapped_sym_keys && entry.delta && !wsym && !delta) {
+		    throw new Exception("sym keys and delta already exist");
+		} else {
+		    WrappedKeys.update({_id: entry._id},
+				       {$set: {principal:pid, wrapped_for:pid_for, wrapped_keys: wpk,
+					       wrapped_sym_keys: wsym, delta:delta}});
+		}
+		console.log("entry._id" + entry._id);
+		entry_id =  entry._id;
+	    }
+	    if (add_to_inbox) {
+		Principals.update({_id : pid_for}, {$push: {accessInbox: entry_id}});
+	    }
 	},
-	wrappedKeyByPrincs: function(princ, princ_for) {
-	    return WrappedKeys.findOne({principal:princ, wrapped_for:princ_for});
+	
+	wrappedKeyByID: function(id) {
+	    console.log("called by ID, returning " + JSON.stringify(WrappedKeys.findOne({_id: id})));
+	    return WrappedKeys.findOne({_id: id});
 	}
     });
 }

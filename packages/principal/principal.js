@@ -36,7 +36,6 @@ PrincAttr = function (type, name) {
     this.name = name;
 };
 
-
 /****** Pretty printing for debug *****************/
 
 // for debugging purposes, it returns a string representing the princ graph
@@ -216,11 +215,7 @@ if (Meteor.isServer) {
                 "principal": p,
                 "cert": princs[p]
             };
-        },
-
-	addToInbox: function(princid, entry) {
-	    Principals.update({_id : princid}, {$push: {accessInbox: entry}});
-	}
+        }
     });
 }
 
@@ -348,29 +343,6 @@ if (Meteor.isClient) {
 	});
     };
     
-    var updateWrappedKeys = function(pid, pid_for, wpk, wsym, delta) {
-	Meteor.call("wrappedKeyByPrincs", pid, pid_for,
-	  function(entry) {
-	      if (!entry) {
-		  var entry_id = WrappedKeys.insert({principal:pid,
-						     wrapped_for:pid_for,
-						     wrapped_keys: wpk,
-						     wrapped_sym_keys: wsym,
-						     delta: delta});
-		  return entry_id;
-	      } else {
-		  if (entry.wrapped_sym_keys && entry.delta && !wsym && !delta) {
-		      throw new Exception("sym keys and delta already exist");
-		  } else {
-		      WrappedKeys.update({_id: entry._id},
-					 {$set: {principal:pid, wrapped_for:pid_for, wrapped_keys: wpk,
-						 wrapped_sym_keys: wsym, delta:delta}});
-		  }
-		  return entry._id;
-	      }
-	  });
-    }
-    
     // give princ1 access to princ2
     // encrypt's the keys of princ2 with princ 1's keys and
     // stores these new wrapped keys
@@ -385,22 +357,18 @@ if (Meteor.isClient) {
 	    wrap = princ1.sym_encrypt(pt);
 	    // can compute delta as well so no need for access inbox
 	    Crypto.delta(princ1.keys.mk_key, princ2.keys.mk_key, function(delta) {
-		updateWrappedKeys(princ2.id, princ1.id, undefined, wrap, delta);
-		if (cb) { cb(); }
+		Meteor.call("updateWrappedKeys", princ2.id, princ1.id, undefined, wrap, delta, false, cb);
 	    });
 	    return;
 	}
 
 	// encrypt using public keys
 	var wrap = crypto.encrypt(princ1.keys.encrypt, pt);
-	var entry_id = updateWrappedKeys(princ2.id, princ1.id, wrap, null, null);
-	// update user inbox for delta
+	var add_to_inbox = false;
 	if (princ1.type == "user") {
-	    console.log("updating principal, princs are ");
-	    Meteor.call("addToInbox", princ1.id, entry_id, cb);	  
-	} else {
-	    if (cb)  {cb(); }
+	    add_to_inbox = true;
 	}
+	Meteor.call("updateWrappedKeys", princ2.id, princ1.id, wrap, null, null, add_to_inbox, cb);
     };
     
     // Removes princ1 access to princ2
@@ -707,13 +675,14 @@ if (Meteor.isClient) {
 	var uprinc = Principal.user();
 	var dbprinc = Principals.findOne({_id : uprinc.id});
 	
-	if (dbprinc && dbprinc.accessInbox.length) {
+	if (dbprinc && dbprinc.accessInbox.length > 0) {
 	    console.log(" NOT EMPTY ACCESS INBOX " + JSON.stringify(dbprinc.accessInbox));
 	    _.each(dbprinc.accessInbox, function(wid){
 		Meteor.call("wrappedKeyByID", wid,
-	         function(w) { 
+	         function(err, w) {
 		     if (!w || !w.wrapped_keys) {
-			 Console.log("issue with access inbox and wrapped keys");
+			 console.log("smth wrong with this wrapped key "  + wid);
+			 return;
 		     }
 		     var subject_keys = base_crypto.decrypt(uprinc.keys.decrypt, w["wrapped_keys"]);
 		     var sym_wrapped = base_crypto.sym_encrypt(uprinc.keys.sym_key, subject_keys);
@@ -729,7 +698,7 @@ if (Meteor.isClient) {
 		 });
 	    });
 	    Principals.update({_id: uprinc.id},
-			      {$set:{accessinbox: []}});
+			      {$set:{accessInbox: []}});
 	} else {
 	    console.log(" EMPTY");
 	}
