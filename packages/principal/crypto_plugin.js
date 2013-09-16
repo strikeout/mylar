@@ -6,13 +6,11 @@
 */
 
 
-function enc_fire() {
-    return document.getElementById("_cryptoFIRE");
-}
-
 enc_module = undefined;
 enc_return = undefined;
-
+enc_fire = function() {
+    return document.getElementById("_cryptoFIRE");
+}
 USE_CRYPTO_SERVER = true;
 //replaces NaCl with crypto_server; for testing
 
