@@ -13,8 +13,8 @@ function enc_fire() {
 enc_module = undefined;
 enc_return = undefined;
 
-USE_CRYPTO_SERVER = true; //this is a temporary hack until we get NaCl working properly
-// it uses the crypto server instead of NaCl, which is insecure
+USE_CRYPTO_SERVER = true;
+//replaces NaCl with crypto_server; for testing
 
 Handlebars.registerHelper(
     "cryptoPlugin",
@@ -144,7 +144,6 @@ Crypto.is_consistent = function(k, ptext, enctext, cb) {
 		done = true;
 		return;
 	    }
-	    console.log("matched");
 	});
 	if (done) return;
     }

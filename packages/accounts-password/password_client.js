@@ -30,29 +30,42 @@ Meteor.loginWithPassword = function (selector, password, callback) {
 	}
     }
     
-    console.log("loggingin user " + uname);
-    idp.get_keys(uname, password, function(keys) {
-	if (!keys) {
-	    throw new Error("idp error, cannot login this user");
+    request.user = selector;
+    
+    // Normally, we only set Meteor.loggingIn() to true within
+    // Accounts.callLoginMethod, but we'd also like it to be true during the
+    // password exchange. So we set it to true here, and clear it on error; in
+    // the non-error case, it gets cleared by callLoginMethod.
+    Accounts._setLoggingIn(true);
+    Meteor.apply('beginPasswordExchange', [request], function (error, result) {
+	if (error || !result) {
+	    Accounts._setLoggingIn(false);
+	    error = error || new Error("No result from call to beginPasswordExchange");
+	    callback && callback(error);
+	    return;
 	}
-	localStorage['user_princ_keys']= keys;
 	
-	request.user = selector;
+	var response = srp.respondToChallenge(result);
 	
-	// Normally, we only set Meteor.loggingIn() to true within
-	// Accounts.callLoginMethod, but we'd also like it to be true during the
-	// password exchange. So we set it to true here, and clear it on error; in
-	// the non-error case, it gets cleared by callLoginMethod.
-	Accounts._setLoggingIn(true);
-	Meteor.apply('beginPasswordExchange', [request], function (error, result) {
-	    if (error || !result) {
-		Accounts._setLoggingIn(false);
-		error = error || new Error("No result from call to beginPasswordExchange");
-		callback && callback(error);
-		return;
-	    }
+	console.log("logging in user " + uname);
+	if (loadedPrincipal()) {
+	    console.log("EXECUTING!");
+	    idp.get_keys(uname, password, function(keys) {
+		if (!keys) {
+		    throw new Error("idp error, cannot login this user");
+		}
+ 		localStorage['user_princ_keys']= keys;
+		Accounts.callLoginMethod({
+		    methodArguments: [{srp: response}],
+		    validateResult: function (result) {
+			if (!srp.verifyConfirmation({HAMK: result.HAMK}))
+			    throw new Error("Server is cheating!");
+		    },
+		    userCallback: callback});
+	    });
+	} else {
+	    console.log("NOT LOADED PRINC");
 	    
-	    var response = srp.respondToChallenge(result);
 	    Accounts.callLoginMethod({
 		methodArguments: [{srp: response}],
 		validateResult: function (result) {
@@ -60,8 +73,9 @@ Meteor.loginWithPassword = function (selector, password, callback) {
 			throw new Error("Server is cheating!");
 		},
 		userCallback: callback});
-	});
+	}
     });
+    
 };
 
 // Attempt to log in as a new user.
@@ -83,22 +97,32 @@ Accounts.createUser = function (options, callback) {
     delete options.password;
     options.srp = verifier;
 
-    Principal.create("user", uname, null, function(uprinc){
-	var ser_keys = serialize_keys(uprinc.keys);
-	
-	// store user keys in local storage
-	// localStorage can only deal with serialized strings
-	localStorage['user_princ_keys'] = serialize_keys(uprinc.keys);
-
-	idp.set_keys(uname, pwd, ser_keys, function(){
-	    Accounts.callLoginMethod({
-		methodName: 'createUser',
-		methodArguments: [options],
-		userCallback: callback
-	    });    
+    if (loadedPrincipal()) {
+	console.log("LOADED PRINC");
+	Principal.create("user", uname, null, function(uprinc){
+	    var ser_keys = serialize_keys(uprinc.keys);
+	    
+	    // store user keys in local storage
+	    // localStorage can only deal with serialized strings
+	    localStorage['user_princ_keys'] = serialize_keys(uprinc.keys);
+	    
+	    idp.set_keys(uname, pwd, ser_keys, function(){
+		Accounts.callLoginMethod({
+		    methodName: 'createUser',
+		    methodArguments: [options],
+		    userCallback: callback
+		});    
+	    });
+	    
 	});
-		
-    });
+    } else {
+	console.log("NOT LOADED PRINC");
+	Accounts.callLoginMethod({
+	    methodName: 'createUser',
+	    methodArguments: [options],
+	    userCallback: callback
+	}); 
+    }
 };
 
 

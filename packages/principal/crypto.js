@@ -128,7 +128,6 @@ base_crypto = (function () {
 /********** Serialization functions ***************/
 
 deserialize_keys = function (ser) {
-    console.log("to deserialize " + ser + " typeof " + (typeof ser));
     var keys = EJSON.parse(ser);
     if (keys.encrypt) {
         keys.encrypt = base_crypto.deserialize_public(keys.encrypt, "elGamal");
