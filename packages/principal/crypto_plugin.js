@@ -6,7 +6,8 @@
 */
 
 
-enc_fire = function() {
+
+enc_fire =  function() {
     return document.getElementById("_cryptoFIRE");
 }
 
@@ -14,7 +15,8 @@ enc_module = undefined;
 enc_return = undefined;
 
 USE_CRYPTO_SERVER = true;
-//replaces NaCl with crypto_server; for testing
+//replaces NaCl or crypto_fire with crypto_server; for testing
+
 
 Handlebars.registerHelper(
     "cryptoPlugin",
@@ -24,7 +26,6 @@ Handlebars.registerHelper(
 
 Template._cryptoPlugin.events({
     'load *': function(evt) {
-	enc_fire = document.getElementById("_cryptoFIRE");
         enc_module = document.getElementById("_cryptoNACL");
     },
     'message *': function(evt) {

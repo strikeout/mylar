@@ -35,14 +35,6 @@ PrincType = new Meteor.Collection("princtype");
   searchable : True/False
  */
 
-GlobalEnc = new Meteor.Collection("globalenc");
-/*
-  Holds some global variables:
-  key : name of variable
-  value : value of variable
-
-  e.g. "add_access", true/false -> whether an add access happened in the system
-  */
 
 if (Meteor.isServer) {
 
@@ -57,16 +49,9 @@ if (Meteor.isServer) {
     Certs.allow(allow_all_writes);
     PrincType.allow(allow_all_writes);
 
-    GlobalEnc.allow(allow_all_writes);
-    var res = GlobalEnc.findOne({key: "add_access"});
-    if (!res) {
-	GlobalEnc.insert({key: "add_access", value: false}); // since Meteor does not have save
-    } else {
-	GlobalEnc.update({_id: res._id}, {$set: {key: "add_access", value: false}});
-    }
-    Meteor.publish("globalenc", function() {
-	return GlobalEnc.find({});
-    });
+    Meteor.publish("princtype", function(){
+	return PrincType.find({});
+    })
     Meteor.publish("myprinc", function(princid){
 	console.log("server runs publish and output is " + JSON.stringify(Principals.findOne({_id: princid})));
 	return Principals.find({_id: princid});
@@ -109,7 +94,8 @@ if (Meteor.isServer) {
 
 if (Meteor.isClient) {
     Deps.autorun(function(){
-	Meteor.subscribe("globalenc");
+	console.log("deps for subscriptions");
+	Meteor.subscribe("princtype");
     });
 
 }

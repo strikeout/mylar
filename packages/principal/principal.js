@@ -26,7 +26,7 @@
      token: the actual cryptographic token
 */
 
-var debug = false;
+var debug = true;
 var crypto = base_crypto;
 
 /******* Data structures ****/
@@ -223,15 +223,6 @@ if (Meteor.isServer) {
 /***** Client ***************/
 
 if (Meteor.isClient) {
-
-    var add_access_happened = undefined;
-
-    Deps.autorun(function() {
-	var x = GlobalEnc.findOne({key : "add_access"});
-	if (x) {
-	    add_access_happened = x["value"];
-	}
-    });
     
     // Constructs a new principal
     // keys is optional, and is generated randomly if missing
@@ -319,20 +310,9 @@ if (Meteor.isClient) {
 
     }
 
-
-    record_add_access = function() {
-	if (!add_access_happened) {
-	    var aa = GlobalEnc.findOne({key: "add_access"});
-	    // update must be only by id in meteor
-	    GlobalEnc.update({_id: aa._id}, {$set: {value: true}});
-	    add_access_happened = true;
-	}
-    }
     
     // Gives princ1 access to princ2
     Principal.add_access = function (princ1, princ2, on_complete) {
-
-	record_add_access();
 
 	if (debug) console.log("add_access princ1 " + princ1.name + " to princ2 " + princ2.name);
 	// need to load secret keys for princ2 and then add access to princ1
@@ -504,6 +484,7 @@ if (Meteor.isClient) {
     }
     
     Deps.autorun(function(){
+	console.log("myprinc deps");
 	if (Meteor.user()) {
     	    Meteor.subscribe("myprinc", Principal.user().id);
 	}

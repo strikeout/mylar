@@ -292,14 +292,6 @@ Meteor.Collection.prototype._encrypted_fields = function(lst) {
 	throw new Error("cannot declare different annotations for the same collection");
     }
 
-    // check that one can still declare annotations,
-    // that is, no one gave access to some principal
-    if (!this._enc_fields || _.isEqual(this._enc_fields,{})) {
-	var aa = GlobalEnc.findOne({key : "add_access"});
-	if (aa && aa["value"]) {//add_access_happened
-	    throw new Error("cannot declare enc fields after add access requests (reset server)");
-	}
-    }
     this._enc_fields = lst;
 
     _.each(lst, function(val){
