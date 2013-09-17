@@ -177,10 +177,7 @@ Meteor.logout = function (callback) {
 	    callback && callback();
 	}
 	if (loadedPrincipal()) {
-	    console.log("LOADED PRINC");
 	    localStorage['user_princ_keys'] = undefined;
-	} else {
-	    console.log("NOT LOADED PRINC");
 	}
     });
 };

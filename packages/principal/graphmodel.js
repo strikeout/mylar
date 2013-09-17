@@ -73,7 +73,7 @@ if (Meteor.isServer) {
     });
 
     Meteor.methods({
-	updateWrappedKeys: function(pid, pid_for, wpk, wsym, add_to_inbox, delta) {
+	updateWrappedKeys: function(pid, pid_for, wpk, wsym, delta, add_to_inbox) {
 	    console.log("inserting wrapped key");
 	    var entry = WrappedKeys.findOne({principal: pid, wrapped_for: pid_for});
 	    var entry_id = "";

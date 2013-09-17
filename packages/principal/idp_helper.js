@@ -4,7 +4,7 @@
   idp_helper gets and outputs serialized keys
   */
 
-var debug = true;
+var debug = false;
     
 if (Meteor.isClient) {
 

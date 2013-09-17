@@ -26,7 +26,7 @@
      token: the actual cryptographic token
 */
 
-var debug = true;
+var debug = false;
 var crypto = base_crypto;
 
 /******* Data structures ****/
@@ -355,9 +355,10 @@ if (Meteor.isClient) {
 
 	if (princ1._has_secret_keys()) { // encrypt symmetrically
 	    wrap = princ1.sym_encrypt(pt);
+
 	    // can compute delta as well so no need for access inbox
 	    Crypto.delta(princ1.keys.mk_key, princ2.keys.mk_key, function(delta) {
-		Meteor.call("updateWrappedKeys", princ2.id, princ1.id, undefined, wrap, delta, false, cb);
+		Meteor.call("updateWrappedKeys", princ2.id, princ1.id, null, wrap, delta, false, cb);
 	    });
 	    return;
 	}
@@ -671,12 +672,12 @@ if (Meteor.isClient) {
 	    return;
 	}
 	// some user is logged in
-	console.log("run PROCESS ACCESS INBOX: ");
+	if (debug) console.log("run PROCESS ACCESS INBOX: ");
 	var uprinc = Principal.user();
 	var dbprinc = Principals.findOne({_id : uprinc.id});
 	
 	if (dbprinc && dbprinc.accessInbox.length > 0) {
-	    console.log(" NOT EMPTY ACCESS INBOX " + JSON.stringify(dbprinc.accessInbox));
+	    if (debug) console.log(" NOT EMPTY ACCESS INBOX " + JSON.stringify(dbprinc.accessInbox));
 	    _.each(dbprinc.accessInbox, function(wid){
 		Meteor.call("wrappedKeyByID", wid,
 	         function(err, w) {
@@ -684,11 +685,11 @@ if (Meteor.isClient) {
 			 console.log("smth wrong with this wrapped key "  + wid);
 			 return;
 		     }
-		     var subject_keys = base_crypto.decrypt(uprinc.keys.decrypt, w["wrapped_keys"]);
-		     var sym_wrapped = base_crypto.sym_encrypt(uprinc.keys.sym_key, subject_keys);
+		     var subject_keys_ser = base_crypto.decrypt(uprinc.keys.decrypt, w["wrapped_keys"]);
+		     var subject_keys = deserialize_keys(subject_keys_ser);
+		     var sym_wrapped = base_crypto.sym_encrypt(uprinc.keys.sym_key, subject_keys_ser);
 		     // compute delta as well
 		     var delta = Crypto.delta(uprinc.keys.mk_key, subject_keys.mk_key, function(delta) {
-			 console.log("inserting delta with id " + wid);
 			 WrappedKeys.update({_id: wid},
 					    {$set : {wrapped_keys: undefined,
 						     delta : delta, 
@@ -699,9 +700,7 @@ if (Meteor.isClient) {
 	    });
 	    Principals.update({_id: uprinc.id},
 			      {$set:{accessInbox: []}});
-	} else {
-	    console.log(" EMPTY");
-	}
+	} 
     }
     
     Deps.autorun(processAccessInbox);

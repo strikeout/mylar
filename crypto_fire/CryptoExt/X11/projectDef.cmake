@@ -26,7 +26,7 @@ set (SOURCES
 
 add_x11_plugin(${PROJECT_NAME} SOURCES)
 
-set (CRYPTO_LIBRARY "/home/dvorak42/cryptdb/meteor-enc/crypto_mk")
+set (CRYPTO_LIBRARY "/home/raluca/meteor-enc/crypto_mk")
 
 find_library(gmp gmp)
 find_library(pbc pbc)

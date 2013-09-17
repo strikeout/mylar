@@ -123,8 +123,8 @@ Meteor.Collection = function (name, options) {
         var mongoId = Meteor.idParse(msg.id);
         var doc = self._collection.findOne(mongoId);
 
-        //console.log("msg: " + msg.msg );
-
+          console.log("msg: " + JSON.stringify(msg) );
+	  console.log("doc: " + JSON.stringify(doc));
         // Is this a "replace the whole doc" message coming from the quiescence
         // of method writes to an object? (Note that 'undefined' is a valid
         // value meaning "remove it".)
@@ -143,16 +143,19 @@ Meteor.Collection = function (name, options) {
               });
               return;
           } else if (msg.msg === 'added') {
+	      console.log("should add");
               self.dec_msg(msg.fields, function() {
                   var doc = self._collection.findOne({_id: mongoId});
                   if (doc) {
                       throw new Error("Expected not to find a document already present for an add");
                   }
+		  console.log("adding");
                   self._collection.insert(_.extend({_id: mongoId}, msg.fields));
               });
           } else if (msg.msg === 'removed') {
-          if (!doc)
-            throw new Error("Expected to find a document already present for removed");
+              if (!doc) {
+		  throw new Error("Expected to find a document already present for removed");
+	      }
           self._collection.remove(mongoId);
         } else if (msg.msg === 'changed') {
           if (!doc)
@@ -413,7 +416,7 @@ Meteor.Collection.prototype.enc_row = function(container, callback) {
 		     var sign_princ = results[1];
 
 		     console.log("enc_princ " + pretty(enc_princ) + " \n");
-		     console.log("sign_princ " + pretty(sign_princ) + " \n");
+		     console.log("sign_princ " + JSON.stringify(sign_princ) + " \n");
 		     // encrypt value
 		     if (enc_princ) {
 			 container[enc_field_name(f)] = enc_princ.sym_encrypt(container[f]);

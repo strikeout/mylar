@@ -47,9 +47,7 @@ Meteor.loginWithPassword = function (selector, password, callback) {
 	
 	var response = srp.respondToChallenge(result);
 	
-	console.log("logging in user " + uname);
 	if (loadedPrincipal()) {
-	    console.log("EXECUTING!");
 	    idp.get_keys(uname, password, function(keys) {
 		if (!keys) {
 		    throw new Error("idp error, cannot login this user");
@@ -64,8 +62,6 @@ Meteor.loginWithPassword = function (selector, password, callback) {
 		    userCallback: callback});
 	    });
 	} else {
-	    console.log("NOT LOADED PRINC");
-	    
 	    Accounts.callLoginMethod({
 		methodArguments: [{srp: response}],
 		validateResult: function (result) {
@@ -98,7 +94,6 @@ Accounts.createUser = function (options, callback) {
     options.srp = verifier;
 
     if (loadedPrincipal()) {
-	console.log("LOADED PRINC");
 	Principal.create("user", uname, null, function(uprinc){
 	    var ser_keys = serialize_keys(uprinc.keys);
 	    
@@ -116,7 +111,6 @@ Accounts.createUser = function (options, callback) {
 	    
 	});
     } else {
-	console.log("NOT LOADED PRINC");
 	Accounts.callLoginMethod({
 	    methodName: 'createUser',
 	    methodArguments: [options],
