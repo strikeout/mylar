@@ -26,7 +26,7 @@
      token: the actual cryptographic token
 */
 
-var debug = true;
+var debug = false;
 var crypto = base_crypto;
 
 /******* Data structures ****/
@@ -484,7 +484,6 @@ if (Meteor.isClient) {
     }
     
     Deps.autorun(function(){
-	console.log("myprinc deps");
 	if (Meteor.user()) {
     	    Meteor.subscribe("myprinc", Principal.user().id);
 	}

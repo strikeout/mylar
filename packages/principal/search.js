@@ -22,6 +22,12 @@
 search_cb = undefined;
 search_collec = undefined;
 
+
+var sub_name = function(coll, pub) {
+    return coll+"++"+pub;
+}
+
+
 if (Meteor.isClient) {
 Meteor.Collection.prototype.search = function(pubname, wordmap, princ, filter_args, callback) {
     var self = this;
@@ -53,18 +59,19 @@ Meteor.Collection.prototype.search = function(pubname, wordmap, princ, filter_ar
     });
     
 }
+
     
 Deps.autorun(function(){
     // check if subscriptions get closed properly
-    console.log("Deps autorun in search");
     var search_info = Session.get("_search_info");
     
     if (search_info) {
 	var token = search_info.token;
-	Meteor.subscribe(search_info["pubname"], search_info["args"], token,
-			 search_info["enc_princ"], search_info["princ"], search_field_name(search_info["field"]),
+	Meteor.subscribe(sub_name(search_collec._name, search_info["pubname"]),
+			 search_info["args"], token,
+			 search_info["enc_princ"], search_info["princ"],
+			 search_field_name(search_info["field"]),
 			 function(){ // on ready handle
-			     console.log("ready collection has " + JSON.stringify(Messages.find().fetch()));
 			     var cb = search_cb;
 			     if (cb) {
 				 cb(search_collec.find({_tag: token}).fetch());
@@ -98,7 +105,8 @@ Meteor.Collection.prototype.publish_search_filter = function(pubname, filter, pr
 	
     var self_col = this;
     
-    Meteor.publish(pubname, function(args, token, enc_princ, princ, field){
+    Meteor.publish(sub_name(self_col._name, pubname),
+      function(args, token, enc_princ, princ, field){
 	
 	var self = this;
 	
@@ -125,7 +133,7 @@ Meteor.Collection.prototype.publish_search_filter = function(pubname, filter, pr
 			_.some(enctext, function(encword){
 			    if (crypto_server.match(adjusted, encword)) {
 				console.log("found match " + doc.message);
-				self.added("messages", doc._id, getProj(proj, doc, token));
+				self.added(self_col._name, doc._id, getProj(proj, doc, token));
 				
 				return true;
 			    }

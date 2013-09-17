@@ -123,8 +123,8 @@ Meteor.Collection = function (name, options) {
         var mongoId = Meteor.idParse(msg.id);
         var doc = self._collection.findOne(mongoId);
 
-          console.log("msg: " + JSON.stringify(msg) );
-	  console.log("doc: " + JSON.stringify(doc));
+        //  console.log("msg: " + JSON.stringify(msg) );
+	//  console.log("doc: " + JSON.stringify(doc));
         // Is this a "replace the whole doc" message coming from the quiescence
         // of method writes to an object? (Note that 'undefined' is a valid
         // value meaning "remove it".)
@@ -143,13 +143,11 @@ Meteor.Collection = function (name, options) {
               });
               return;
           } else if (msg.msg === 'added') {
-	      console.log("should add");
               self.dec_msg(msg.fields, function() {
                   var doc = self._collection.findOne({_id: mongoId});
                   if (doc) {
                       throw new Error("Expected not to find a document already present for an add");
                   }
-		  console.log("adding");
                   self._collection.insert(_.extend({_id: mongoId}, msg.fields));
               });
           } else if (msg.msg === 'removed') {
@@ -287,8 +285,6 @@ Meteor.Collection.prototype._encrypted_fields = function(lst) {
     
     // make sure these annotations were not already set
     if (this._enc_fields && !_.isEqual(this._enc_fields,{}) && !_.isEqual(this._enc_fields, lst)) {
-	console.log("already " + JSON.stringify(this._enc_fields));
-	console.log("new " + JSON.stringify(lst));
 	throw new Error("cannot declare different annotations for the same collection");
     }
 
@@ -407,8 +403,6 @@ Meteor.Collection.prototype.enc_row = function(container, callback) {
 		     var enc_princ = results[0];
 		     var sign_princ = results[1];
 
-		     console.log("enc_princ " + pretty(enc_princ) + " \n");
-		     console.log("sign_princ " + JSON.stringify(sign_princ) + " \n");
 		     // encrypt value
 		     if (enc_princ) {
 			 container[enc_field_name(f)] = enc_princ.sym_encrypt(container[f]);
@@ -449,14 +443,15 @@ Meteor.Collection.prototype.enc_row = function(container, callback) {
 Meteor.Collection.prototype.dec_msg = function(container, callback) {
     var self = this;
 
-    if (!self._enc_fields) {
+    if (!self._enc_fields || !Meteor.isClient || !container) {
 	callback();
 	return;
     }
-    
+   
     var callback_q = [];
     self._decrypt_cb.push(callback_q);
     callback2 = function () {
+	console.log("callback2 called");
 	if (callback) {
 	    callback();
 	}
@@ -466,16 +461,13 @@ Meteor.Collection.prototype.dec_msg = function(container, callback) {
 	});
     };
 
-    if (Meteor.isClient && container) {
-        var r = enc_fields(self._enc_fields, self._signed_fields, container);
-        if (r.length > 0) {
-            self.dec_fields(container, r, callback2);
-        } else {
-            callback2();
-        }
+    var r = enc_fields(self._enc_fields, self._signed_fields, container);
+    if (r.length > 0) {
+        self.dec_fields(container, r, callback2);
     } else {
         callback2();
     }
+
 }
 
 _.extend(Meteor.Collection.prototype, {
@@ -592,7 +584,7 @@ _.each(["insert", "update", "remove"], function (name) {
     var callback;
     var ret;
 
-    console.log("collection method: " + name + " args= " + args);
+    //console.log("collection method: " + name + " args= " + args);
 
     if (args.length && args[args.length - 1] instanceof Function)
       callback = args.pop();

@@ -1124,6 +1124,18 @@ _.extend(Meteor._LivedataConnection.prototype, {
     });
   },
 
+    _getStore : function(stores, sub) {
+	var store = stores[sub];
+	if (!store) {
+	    //try to see if the collection name is in the pub name
+	    var pos = sub.indexOf("++");
+	    if (pos >=0) {
+		return stores[sub.substring(0, pos)];
+	    }
+	}
+	return store;
+    },
+    
   _process_ready: function (msg, updates) {
     var self = this;
     // Process "sub ready" messages. "sub ready" messages don't take effect
@@ -1147,11 +1159,13 @@ _.extend(Meteor._LivedataConnection.prototype, {
         var subRecord = self._subscriptions[subId];
         if (!subRecord)   // Unsubscribed already?
           return;
-        var store = self._stores[subRecord.name];
-        if (!store)
-          ready_func();
-        else
-          store.runWhenDecrypted(ready_func);
+
+	var store = self._getStore(self._stores, subRecord.name);
+        if (!store) {
+            ready_func();
+	} else {
+            store.runWhenDecrypted(ready_func);
+	}
       });
     });
   },
