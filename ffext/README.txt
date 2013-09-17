@@ -1,4 +1,12 @@
-# to install the extension, run "zip -r ../cf.xpi *" in this folder, then select Tools->addons from the menu in Firefox. In the addon window, click the "tool" icon and select "install from file". Select cf.xpi as file, then restart firefox.
+# to install the extension, run "zip -r ../cf.xpi *" in this folder,
+then select Tools->addons from the menu in Firefox. In the addon window,
+click the "tool" icon and select "install from file". Select cf.xpi as
+file, then restart firefox.
+
+Alternatively, write the path of this directory into the appropriate
+file in the Firefox extensions directory:
+
+  pwd > ~/.mozilla/firefox/<profiledir>/extensions/cryptframeext@pdos.csail.mit.edu
 
 
 
