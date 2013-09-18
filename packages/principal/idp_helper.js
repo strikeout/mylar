@@ -34,7 +34,7 @@ if (Meteor.isClient) {
 			  function (err, result) {
                               on_complete(result);
 			  });
-            }
+            },
         };
     })();
 

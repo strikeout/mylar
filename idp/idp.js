@@ -19,7 +19,22 @@ if (Meteor.isClient) {
         }
     };
 
+    // calls cb with an application specific key
+    get_app_key = function(origin) {
+	Meteor.call("get_app_key", origin, on_complete);
+    }
 
+    // calls cb with a certificate
+    certify_pk = function(pk, origin, cb) {
+	Meteor.call("certify_pk", pk, on_complete);
+    }
+
+}
+
+idpkeys = generate_keys();
+
+sign_text = function(user, origin, pk) {
+    return user + "+++" + origin + "+++" + pk; //TODO: fix this so no formatting attacks possible 
 }
 
 if (Meteor.isServer) {
@@ -59,6 +74,18 @@ if (Meteor.isServer) {
 
       },
 
+      
+      // calls cb with an application specific key
+      get_app_key : function(origin) {
+	  return "temppasswd"; //TEMPORARY!
+      },
+      
+      // calls cb with a certificate
+      certify_pk : function(pk, origin, cb) {
+	  var c = sign_text(Meteor.user(), pk, origin);
+	  return base_crypto.sign(sign_text, idpkeys.sign);
+      },
+      
 
       // look up a user's keys (private and public)
       // args: username, password

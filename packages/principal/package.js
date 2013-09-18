@@ -7,7 +7,7 @@ Package.on_use(function (api, where) {
 
     where = where || ['client', 'server'];
 
-    api.use(['underscore', 'json', 'ejson', 'minimongo', 'templating'], where);
+    api.use(['underscore', 'json', 'ejson', 'minimongo', 'templating', 'timing'], where);
     api.add_files(['graphmodel.js'], where);
     api.add_files(['sjcl.js', 'crypto.js', 'certs.js', 'principal.js', 'crypto_server.js', 'search.js'], where);
 
