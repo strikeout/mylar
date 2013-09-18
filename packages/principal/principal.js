@@ -26,7 +26,7 @@
      token: the actual cryptographic token
 */
 
-var debug = true;
+var debug = false;
 var crypto = base_crypto;
 
 /******* Data structures ****/
@@ -36,21 +36,56 @@ PrincAttr = function (type, name) {
     this.name = name;
 };
 
-/*********Principal cache ****/
+/*****************  Principal cache ***********/
+/*- caches only princs with loaded secret keys
+  - princs are cached by id or by type+name; in
+   the latter case, they are cached with the username that
+   certified them to prevent attacks
+*/
 
-var cache = {};
+princ_cache = {};
 
-var cache_add = function(princ){
-    cache[princ.id] = princ;
-    cache[princ.name+"++"+princ.type] = princ;
+var princ_str = function(name, type, auth_user) {
+    return name + "++" +  type + "++" + auth_user;
+}
+var fvalid = function(name) {
+    console.log(name.indexOf("++"));
+    return name.indexOf("++") == -1;
 }
 
-var cache_get = function(id) {
-    return cache_get[id];
+// adds princ to cache
+// auth optional {uname: ...or princ: ..}
+var cache_add = function(princ, auth){
+    if (princ._has_secret_keys()) {
+	princ_cache[princ.id] = princ;
+	if (auth) {
+	    var uname = auth.uname;
+	    if (auth.princ && auth.princ.type == "user") {
+		uname = auth.princ.name;
+	    }
+	    if (uname) {
+		// prevent formatting attacks:
+		if (!fvalid(princ.name) || !fvalid(princ.type) || !fvalid(uname)) {
+		    return;
+		}
+		var princ_def = princ_str(princ.name, princ.type, uname);
+		princ_cache[princ_def] = princ;
+	    }
+	}
+    }
 }
 
-var cache_get = function(name, type) {
-    return cache_get[name + "++" + type];
+var cache_get_id = function(id) {
+    return princ_cache[id];
+}
+
+var cache_get_certif = function(attrs, auth) {
+    if (attrs.length != 1 || !auth) {
+	return undefined;
+    }
+    //return undefined;
+    var princ_def = princ_str(attrs[0].name, attrs[0].type, auth);
+    return princ_cache[princ_def];
 }
 
 /****** Pretty printing for debug *****************/
@@ -292,6 +327,7 @@ if (Meteor.isClient) {
 
 	_generate_keys(function(keys) {
 	    var p = new Principal(type, name, keys);
+	    cache_add(p, {'princ': creator});
 	    Principal._store(p, creator);
 	    if (creator) {
 		Principal.add_access(creator, p, function(){cb(p);});	
@@ -329,6 +365,7 @@ if (Meteor.isClient) {
 
     
     // Gives princ1 access to princ2
+    // runs on_complete on no input
     Principal.add_access = function (princ1, princ2, on_complete) {
 
 	startTime("PRINC_ACCESS");
@@ -452,6 +489,7 @@ if (Meteor.isClient) {
 	    auth2.keys = {};
 	    var self2 = new Principal(self.type, self.name, self.keys);
 	    self2.keys = {};
+	    if (debug) console.log("keychain from " + pretty(auth) + " to " + pretty(self2));
             Meteor.call("keychain", auth2,
 			self2, function (err, chain) {
 			    if (debug) console.log("keychain returns: " + JSON.stringify(chain));
@@ -480,13 +518,14 @@ if (Meteor.isClient) {
     // to on_complete callback; this principal will have secret keys loaded
     Principal._lookupByID = function(id, on_complete) {
 	startTime("lookup");
-/*
-	p = cache_get(id);
+
+	var p = cache_get_id(id);
 	if (p) {
 	    endTime("lookup");
 	    on_complete(p);
+	    return;
 	}
-*/
+
 	if (debug) console.log("lookupByID princ id " + id);
 
 	Meteor.call("princInfo", id, function(err, princ_info) {
@@ -496,6 +535,7 @@ if (Meteor.isClient) {
 	    var p = new Principal(princ_info["type"], princ_info["name"], _get_keys(id));
 	    
 	    p._load_secret_keys(function(p){
+		cache_add(p);
 		endTime("lookup");
 		on_complete(p);
 	    });
@@ -556,6 +596,14 @@ if (Meteor.isClient) {
     Principal.lookup = function (attrs, authority, on_complete) {
 
 	startTime("lookup");
+
+	var p = cache_get_certif(attrs, authority);
+	if (p) {
+	    endTime("lookup");
+	    on_complete(p);
+	    return;
+	}
+	
 	if (debug)
 	    console.log("Principal.lookup: " + authority + " attrs[0]: " + attrs[0].type + "=" + attrs[0].name);
 	
@@ -605,6 +653,7 @@ if (Meteor.isClient) {
 		    if (verified) {
 			if (debug) console.log("chain verifies");
 			princ = new Principal(attrs[0].type, attrs[0].name, princ_keys);
+			cache_add(princ, {'uname': authority});
 			endTime("lookup");
 			on_complete && on_complete(princ);
 		    } else {

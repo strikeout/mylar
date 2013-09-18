@@ -446,6 +446,7 @@ Meteor.Collection.prototype.dec_msg = function(container, callback) {
     startTime("DECMSG");
     
     if (!self._enc_fields || !Meteor.isClient || !container) {
+	endTime("DECMSG");
 	callback();
 	return;
     }
@@ -454,7 +455,6 @@ Meteor.Collection.prototype.dec_msg = function(container, callback) {
     self._decrypt_cb.push(callback_q);
     callback2 = function () {
 	endTime("DECMSG");
-	console.log("callback2 called");
 	if (callback) {
 	    callback();
 	}
