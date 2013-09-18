@@ -49,7 +49,6 @@ var _ = require('underscore');
 var project = require(path.join(__dirname, 'project.js'));
 //needed for cryptframe signing
 var sjcl = require(path.join(__dirname, 'sjcl.js'));
-var mime = require('mime');
 
 // files to ignore when bundling. node has no globs, so use regexps
 var ignore_files = [
@@ -85,6 +84,7 @@ var sign = function (contents,filename,toplevel,uri_filename) {
 
     var sec = deserialize_private(serialized_private,"ecdsa");
 
+    var mime = require('mime');
     //infer content type to sign header
     contentType = mime.lookup(filename);
     //TODO: not sure if correct for img
