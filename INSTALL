@@ -1,2 +1,8 @@
 cd meteor-enc/idp/.meteor/local/build/server/
 npm install mime
+
+install pbc in /usr/local from http://crypto.stanford.edu/pbc/
+  pbc needs various libraries itself (lex, bison, etc.)
+install libreadline-dev
+
+ignore crypto_ext
