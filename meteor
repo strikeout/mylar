@@ -41,13 +41,9 @@ SCRIPT_DIR=$(pwd -P)
 # build crypto_server
 # we are in meteor-enc now
 echo "Building crypto_mk.. "
-pushd crypto_mk
-make
-popd
+( cd crypto_mk && make )
 echo "Building crypto_server.. "
-pushd crypto_server
-make
-popd
+( cd crypto_server && make )
 
 echo "Building crypto_ext"
 
