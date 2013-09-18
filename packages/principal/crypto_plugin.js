@@ -7,9 +7,9 @@
 
 
 
-enc_fire =  function() {
+enc_fire = undefined; /* function() {
     return document.getElementById("_cryptoFIRE");
-}
+}*/
 
 enc_module = undefined;
 enc_return = undefined;
@@ -17,7 +17,7 @@ enc_return = undefined;
 USE_CRYPTO_SERVER = true;
 //replaces NaCl or crypto_fire with crypto_server; for testing
 
-
+/*
 Handlebars.registerHelper(
     "cryptoPlugin",
     function (options) {
@@ -33,7 +33,7 @@ Template._cryptoPlugin.events({
             enc_return(evt.data);
     }
 });
-
+*/
 
 Crypto = function() {};
 

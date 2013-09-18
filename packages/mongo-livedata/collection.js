@@ -443,7 +443,10 @@ Meteor.Collection.prototype.enc_row = function(container, callback) {
 Meteor.Collection.prototype.dec_msg = function(container, callback) {
     var self = this;
 
+    startTime("DECMSG");
+    
     if (!self._enc_fields || !Meteor.isClient || !container) {
+	endTime("DECMSG");
 	callback();
 	return;
     }
@@ -451,7 +454,7 @@ Meteor.Collection.prototype.dec_msg = function(container, callback) {
     var callback_q = [];
     self._decrypt_cb.push(callback_q);
     callback2 = function () {
-	console.log("callback2 called");
+	endTime("DECMSG");
 	if (callback) {
 	    callback();
 	}

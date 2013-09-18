@@ -53,7 +53,6 @@ if (Meteor.isServer) {
 	return PrincType.find({});
     })
     Meteor.publish("myprinc", function(princid){
-	console.log("server runs publish and output is " + JSON.stringify(Principals.findOne({_id: princid})));
 	return Principals.find({_id: princid});
     });
 
@@ -94,7 +93,6 @@ if (Meteor.isServer) {
 
 if (Meteor.isClient) {
     Deps.autorun(function(){
-	console.log("deps for subscriptions");
 	Meteor.subscribe("princtype");
     });
 

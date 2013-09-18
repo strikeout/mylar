@@ -36,6 +36,58 @@ PrincAttr = function (type, name) {
     this.name = name;
 };
 
+/*****************  Principal cache ***********/
+/*- caches only princs with loaded secret keys
+  - princs are cached by id or by type+name; in
+   the latter case, they are cached with the username that
+   certified them to prevent attacks
+*/
+
+princ_cache = {};
+
+var princ_str = function(name, type, auth_user) {
+    return name + "++" +  type + "++" + auth_user;
+}
+var fvalid = function(name) {
+    console.log(name.indexOf("++"));
+    return name.indexOf("++") == -1;
+}
+
+// adds princ to cache
+// auth optional {uname: ...or princ: ..}
+var cache_add = function(princ, auth){
+    if (princ._has_secret_keys()) {
+	princ_cache[princ.id] = princ;
+	if (auth) {
+	    var uname = auth.uname;
+	    if (auth.princ && auth.princ.type == "user") {
+		uname = auth.princ.name;
+	    }
+	    if (uname) {
+		// prevent formatting attacks:
+		if (!fvalid(princ.name) || !fvalid(princ.type) || !fvalid(uname)) {
+		    return;
+		}
+		var princ_def = princ_str(princ.name, princ.type, uname);
+		princ_cache[princ_def] = princ;
+	    }
+	}
+    }
+}
+
+var cache_get_id = function(id) {
+    return princ_cache[id];
+}
+
+var cache_get_certif = function(attrs, auth) {
+    if (attrs.length != 1 || !auth) {
+	return undefined;
+    }
+    //return undefined;
+    var princ_def = princ_str(attrs[0].name, attrs[0].type, auth);
+    return princ_cache[princ_def];
+}
+
 /****** Pretty printing for debug *****************/
 
 // for debugging purposes, it returns a string representing the princ graph
@@ -275,6 +327,7 @@ if (Meteor.isClient) {
 
 	_generate_keys(function(keys) {
 	    var p = new Principal(type, name, keys);
+	    cache_add(p, {'princ': creator});
 	    Principal._store(p, creator);
 	    if (creator) {
 		Principal.add_access(creator, p, function(){cb(p);});	
@@ -312,14 +365,19 @@ if (Meteor.isClient) {
 
     
     // Gives princ1 access to princ2
+    // runs on_complete on no input
     Principal.add_access = function (princ1, princ2, on_complete) {
 
+	startTime("PRINC_ACCESS");
 	if (debug) console.log("add_access princ1 " + princ1.name + " to princ2 " + princ2.name);
 	// need to load secret keys for princ2 and then add access to princ1
 	// we do these in reverse order due to callbacks
 	
 	princ2._load_secret_keys(function(){
-	    Principal._add_access(princ1, princ2, on_complete);
+	    Principal._add_access(princ1, princ2, function() {
+		endTime("PRINC_ACCESS");
+		on_complete();
+	    });
 	});
     };
     
@@ -431,6 +489,7 @@ if (Meteor.isClient) {
 	    auth2.keys = {};
 	    var self2 = new Principal(self.type, self.name, self.keys);
 	    self2.keys = {};
+	    if (debug) console.log("keychain from " + pretty(auth) + " to " + pretty(self2));
             Meteor.call("keychain", auth2,
 			self2, function (err, chain) {
 			    if (debug) console.log("keychain returns: " + JSON.stringify(chain));
@@ -458,6 +517,15 @@ if (Meteor.isClient) {
     // finds a principal based on his ID and gives this principal
     // to on_complete callback; this principal will have secret keys loaded
     Principal._lookupByID = function(id, on_complete) {
+	startTime("lookup");
+
+	var p = cache_get_id(id);
+	if (p) {
+	    endTime("lookup");
+	    on_complete(p);
+	    return;
+	}
+
 	if (debug) console.log("lookupByID princ id " + id);
 
 	Meteor.call("princInfo", id, function(err, princ_info) {
@@ -466,7 +534,11 @@ if (Meteor.isClient) {
 	    }
 	    var p = new Principal(princ_info["type"], princ_info["name"], _get_keys(id));
 	    
-	    p._load_secret_keys(on_complete);
+	    p._load_secret_keys(function(p){
+		cache_add(p);
+		endTime("lookup");
+		on_complete(p);
+	    });
 	});
     } 
 
@@ -501,16 +573,17 @@ if (Meteor.isClient) {
 
     // returns a principal for the user with uname and feeds it as input to callback cb
     Principal.lookupUser = function(uname, cb) {
-
+	startTime("lookup");
 	if (!uname) {
 	    throw new Error("cannot lookup user principal with uname " + uname);
 	}
 	
         idp.lookup(uname, function (keys) {
 	    if (!keys) {
-		if (debug) console.log("no keys found for " + uname);
+		throw new Error("no keys found for " + uname);
 		return;
 	    }
+	    endTime("lookup");
 	    cb(new Principal("user", uname, deserialize_keys(keys)));
         });
     }
@@ -522,6 +595,15 @@ if (Meteor.isClient) {
     */
     Principal.lookup = function (attrs, authority, on_complete) {
 
+	startTime("lookup");
+
+	var p = cache_get_certif(attrs, authority);
+	if (p) {
+	    endTime("lookup");
+	    on_complete(p);
+	    return;
+	}
+	
 	if (debug)
 	    console.log("Principal.lookup: " + authority + " attrs[0]: " + attrs[0].type + "=" + attrs[0].name);
 	
@@ -564,20 +646,20 @@ if (Meteor.isClient) {
 		// The last cert should be signed by authority
 		if (_.last(certs).signer !== auth_id) {
 		    console.log("last cert is not signed by authority");
+		    endTime("lookup");
 		    on_complete(undefined);
 		} else {
 		    var verified = crypto.chain_verify(chain);
 		    if (verified) {
 			if (debug) console.log("chain verifies");
 			princ = new Principal(attrs[0].type, attrs[0].name, princ_keys);
-			if (on_complete) {
-			    on_complete(princ);
-			}
+			cache_add(princ, {'uname': authority});
+			endTime("lookup");
+			on_complete && on_complete(princ);
 		    } else {
 			console.log("chain does not verify");
-			if (on_complete) {
-			    on_complete(undefined);
-			}
+			endTime("lookup");
+			on_complete && on_complete(undefined);
 		    }
 		}
 	    });
