@@ -1,0 +1,7 @@
+<template name="idp_client">
+  {{#if debug}}
+    <iframe src="{{origin}}" id="idp_iframe" width="300" height="200">
+  {{else}}
+    <iframe src="{{origin}}" id="idp_iframe" style="display:none;">
+  {{/if}}
+</template>
