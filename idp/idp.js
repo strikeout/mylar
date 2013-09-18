@@ -19,6 +19,8 @@ if (Meteor.isClient) {
         }
     };
 
+    
+
     // calls cb with an application specific key
     get_app_key = function(origin) {
 	Meteor.call("get_app_key", origin, on_complete);
@@ -31,7 +33,7 @@ if (Meteor.isClient) {
 
 }
 
-idpkeys = generate_keys();
+idpkeys = base_crypto.generate_keys();
 
 sign_text = function(user, origin, pk) {
     return user + "+++" + origin + "+++" + pk; //TODO: fix this so no formatting attacks possible 
