@@ -43,7 +43,7 @@ if (Meteor.isClient) {
  
 
 // calls cb with an application specific key
-get_app_key = function(origin, cb) {
+get_app_key = function(arg, origin, cb) {
     Meteor.call("get_app_key", origin, cb);
 }
 
