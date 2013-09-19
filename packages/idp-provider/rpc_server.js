@@ -3,7 +3,7 @@ Meteor.startup(function () {
 
   var rpc_ops = {
     get_app_key:  get_app_key,
-    certify_pk:   certify_pk,
+      create_cert:  create_cert,
       get_uname: get_uname
   };
 

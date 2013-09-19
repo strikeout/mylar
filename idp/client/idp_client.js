@@ -91,7 +91,7 @@ get_app_key = function(arg, origin, cb) {
 
 // calls cb with a certificate
 create_cert = function(msg, origin, cb) {
-    Meteor.call("certify_pk", pk, origin, function(err, cert) {
+    Meteor.call("create_cert", msg, origin, function(err, cert) {
 	if (err) {
 	    throw new Error("cannot get cert from server");
 	}

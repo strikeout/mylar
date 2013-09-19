@@ -5,7 +5,7 @@ get_app_key = function (arg, origin, cb) {
   cb(derived);
 };
 
-certify_pk = function (arg, origin, cb) {
+create_cert = function (arg, origin, cb) {
   console.log('certify_pk not supported');
   cb(null);
 };

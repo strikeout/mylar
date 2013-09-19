@@ -5,6 +5,7 @@ function app_password(app_key) {
 }
 
 function createUser(uname, app_key, cb) {
+    
     Meteor.createUser()
 }
 
@@ -38,7 +39,7 @@ Meteor.loginWithIDP = function (callback) {
 
 /*
   
-	    idp_certify_pk(null, function (cert) {
+	    idp_create_cert(null, function (cert) {
 		Accounts.callLoginMethod({
 		    methodArguments: [{idp: {cert: cert}}],
 		    userCallback: callback,
