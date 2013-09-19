@@ -44,24 +44,35 @@ if (Meteor.isClient) {
 
 // calls cb with an application specific key
 get_app_key = function(arg, origin, cb) {
-    Meteor.call("get_app_key", origin, cb);
+    Meteor.call('getappkey', origin, function(err, res) {
+	if (err) {
+	    throw new Error("cannot get app key from server");
+	}
+	cb && cb(res);
+    });
 }
 
 // calls cb with a certificate
 certify_pk = function(pk, origin, cb) {
-    Meteor.call("certifypk", pk, origin, cb);
+    Meteor.call("certifypk", pk, origin, function(err, cert) {
+	if (err) {
+	    throw new Error("cannot get cert from server");
+	}
+	cb && cb(cert);
+    });
 }
-
-
-priv = '{"sym_key":[1614353479,-1322269226,346639468,-1922281664,1543397848,36700503,-1283077055,-1438142375],"sign":"000000530752fdf7419ebc7906d88f682c9a6c027356a95c0c2132","decrypt":"000000de71fe414a477d84ea182a64dc5d24038bab8484f29d0a8e","encrypt":"ee8e81253e2c985137074e514982966787445d47a5013c83b357e3a94a49006ff12db2768bca2f2c9237dc64a977e744","verify":"e16e692df5f28e8f4555c1f25e847d5820d9518a6082ebc76017ff8ad009a818d7395b0c847b9a17b636ce03dce0ac61"}';
-
-idpkeys = deserialize_keys(priv);
     
 sign_text = function(user, origin, pk) {
     return user + "+++" + origin + "+++" + pk; //TODO: fix this so no formatting attacks possible 
 }
 
 if (Meteor.isServer) {
+
+
+    var priv = '{"sym_key":[-2078830561,1682189118,1575134806,156233709,-391209604,1727757807,-1046869112,873814060],"sign":"0000006275556c333caa9d7cd3a26fd26eb48403773bd36ceb1be0","decrypt":"0000004f0d7ae3323dea172ee8c53f3b83845ee81be1f183e4fc51","encrypt":"021cbeb072a8a136a35efd7d59eac32d4415929bc1ca9d5a0e1e640789079a91dcc534c65119ed3fbddb12c918c5a582","verify":"b7bf9d94519d221ec2dd5cb033da55149852858c776d66bf8568a85a45b099c009c926575494bddf3fe2783c15de337b"}';
+
+    var idpkeys = deserialize_keys(priv);
+    
   Meteor.startup(function () {
       Meteor.publish("userdata", function () {
           return Meteor.users.find({_id: this.userId});
@@ -100,14 +111,22 @@ if (Meteor.isServer) {
 
       
       // calls cb with an application specific key
-      get_app_key : function(origin) {
+      getappkey : function(origin) {
+	  console.log("get app key, origin " + origin);
 	  return "temppasswd"; //TEMPORARY!
       },
       
       // calls cb with a certificate
       certifypk : function(pk, origin, cb) {
 	  var c = sign_text("temp", pk, origin); // USER Meteor.user()
-	  return base_crypto.sign(sign_text, idpkeys.sign);
+	  console.log(idpkeys.sign);
+	  var cert = "";
+	  try { 
+	    cert = base_crypto.sign(sign_text, idpkeys.sign);
+	  } catch (err) {
+	      console.log("err is " + err);
+	  }
+	  return cert;
       },
       
 

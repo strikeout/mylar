@@ -1,6 +1,6 @@
 
 /*
-  Crypto interface useful for access grap: sjcl + serialization functions
+  Crypto interface useful for access graph: sjcl + serialization functions
 */
 
 
