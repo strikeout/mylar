@@ -9,3 +9,4 @@ accounts-ui
 accounts-password
 principal
 http
+idp-provider
