@@ -7,12 +7,10 @@ Accounts.onCreateUser(function(options, user) {
     var ok = idp_check_certificate(uname, cert, idpkey);
 
     if (!ok) {
-	user.validate = false;
+	user._validate = false;
     } else {
-	user.validate = true;
+	user._validate = true;
     }
-    
-    user.masterKey = JSON.stringify(sjcl.random.randomWords(6));
 
     return user;
 });
@@ -20,7 +18,7 @@ Accounts.onCreateUser(function(options, user) {
 
 //gets called after onCreateUser
 Accounts.validateNewUser(function(user){
-    return user.validate;
+    return user._validate;
 });
 
 
