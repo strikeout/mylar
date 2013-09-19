@@ -13,12 +13,8 @@ Meteor.users.allow({// don't allow users to write
 
 
 Accounts.onCreateUser(function(options, user) {    
-  user.Room = {"inRoom":false, "inRoomID":"", "inRoomTitle":""};
-  user.Online = true;
-  // We still want the default hook's 'profile' behavior.
-  if (options.profile)
-    user.profile = options.profile;
-  return user;
+    user.masterKey = JSON.stringify(sjcl.random.randomWords(6));
+    return user;
 });
 
 
