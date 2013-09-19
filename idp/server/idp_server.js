@@ -8,12 +8,14 @@ Meteor.startup(function () {
     });
 });
 
-Meteor.users.allow({
-    update: function (userId, doc) {
-        return true; //TODO: allow script, but make safe later...
-        //return userId === doc._id;
-    }
+Meteor.users.allow({// don't allow users to write
 });
+
+Accounts.onCreateUser(options, user) {
+    // create user master key
+    user.masterKey = JSON.stringify(
+	sjcl.random.randomWords(6));
+}
 
 Meteor.methods({
     // look up a user's public key
@@ -41,8 +43,8 @@ Meteor.methods({
     
     // calls cb with an application specific key
     get_app_key : function(origin) {
-	console.log("get app key, origin " + origin);
-	return "temppasswd"; //TEMPORARY!
+	return base_crypto.secret_derive(Meteor.user().masterKey,
+					 origin);
     },
     
     // calls cb with a certificate

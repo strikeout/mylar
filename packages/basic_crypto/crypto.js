@@ -55,6 +55,13 @@ base_crypto = (function () {
         decrypt: function (sk, ct) {
             return sjcl.decrypt(sk, ct);
         },
+
+	// derives a secret from a secret and a message
+	secret_derive: function(secret, msg) {
+	    var composed = JSON.stringify(secret, msg);
+	    var new_secret = sjcl.hash.sha256.hash(composed);
+	    return JSON.stringify(new_secret);
+	},
 		
 	// authenticated encryption
 	sym_encrypt: function(sk, data) {
@@ -77,7 +84,7 @@ base_crypto = (function () {
             return sk.sign(hash);
         },
 	
-        verify: function (msg, sig, pk, on_complete) {
+        verify: function (msg, sig, pk) {
             var hash = sjcl.hash.sha256.hash(msg);
             try {
                 pk.verify(hash, sig);

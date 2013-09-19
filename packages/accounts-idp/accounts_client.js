@@ -1,7 +1,7 @@
 
 // creates app password from app key
 function app_password(app_key) {
-    return app_key; //TODO hash("login", app_key)
+    return base_crypto.secret_derive(app_key, "login"); 
 }
 
 function createUser(uname, app_key, cb) {
@@ -17,11 +17,11 @@ function createUser(uname, app_key, cb) {
 		cb && cb();
 	    }
 
-	    Meteor.createUser({username: uname,
-			       password: app_password(app_key),
-			       cert : cert,
-			       wrap_privkey: wrap_privkeys},
-			      after_create_cb);
+	    Accounts.createUser({username: uname,
+				 password: app_password(app_key),
+				 cert : cert,
+				 wrap_privkey: wrap_privkeys},
+				after_create_cb);
 	});
     });
 }
@@ -54,9 +54,8 @@ Meteor.loginWithIDP = function (callback) {
 };
 
 
-/*
-  
-	    idp_create_cert(null, function (cert) {
+/* 
+  	    idp_create_cert(null, function (cert) {
 		Accounts.callLoginMethod({
 		    methodArguments: [{idp: {cert: cert}}],
 		    userCallback: callback,

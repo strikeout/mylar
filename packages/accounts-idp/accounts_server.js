@@ -1,3 +1,27 @@
+
+Accounts.onCreateUser(function(options, user) {
+    // check certificate
+    var cert = options.cert;
+    var uname = options.username;
+
+    var ok = idp_check_certificate(uname, cert, idpkey);
+
+    if (!ok) {
+	user._validate = false;
+    } else {
+	user._validate = true;
+    }
+
+    return user;
+});
+
+
+//gets called after onCreateUser
+Accounts.validateNewUser(function(user){
+    return user._validate;
+});
+
+
 Accounts.registerLoginHandler(function (options) {
   if (!options.idp)
     return undefined;
