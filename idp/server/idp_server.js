@@ -40,13 +40,13 @@ Meteor.methods({
     
     
     // calls cb with an application specific key
-    getappkey : function(origin) {
+    get_app_key : function(origin) {
 	console.log("get app key, origin " + origin);
 	return "temppasswd"; //TEMPORARY!
     },
     
     // calls cb with a certificate
-    certifypk : function(pk, origin) {
+    certify_pk : function(pk, origin) {
 	var c = JSON.stringify({user: Meteor.user().username,
 				pk: pk, origin: origin}); 
 	var cert = "";
@@ -58,6 +58,9 @@ Meteor.methods({
 	return cert;
     },
     
+    get_uname: function() {
+	return Meteor.user().username;
+    },
     
     // look up a user's keys (private and public)
     // args: username, password

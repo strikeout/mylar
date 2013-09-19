@@ -4,6 +4,7 @@ Meteor.startup(function () {
   var rpc_ops = {
     get_app_key:  get_app_key,
     certify_pk:   certify_pk,
+      get_uname: get_uname
   };
 
   window.addEventListener('message', function (ev) {
