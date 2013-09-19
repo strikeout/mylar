@@ -641,7 +641,8 @@ exports.run = function (context, options) {
     minify: options.minify,
     testPackages: options.testPackages,
     releaseStamp: context.releaseVersion,
-    packageSearchOptions: context.packageSearchOptions
+    packageSearchOptions: context.packageSearchOptions,
+    rootUrl: process.env.ROOT_URL || ('http://localhost:' + outer_port)
   };
 
   var start_watching = function () {

@@ -248,6 +248,8 @@ var run = function () {
   };
 
   __meteor_runtime_config__ = {};
+  //__meteor_runtime_config__.DDP_DEFAULT_CONNECTION_URL = 'http://localhost:7000/';
+  
   if (info.release) {
     __meteor_runtime_config__.meteorRelease = info.release;
   }
