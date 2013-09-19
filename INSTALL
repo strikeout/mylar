@@ -21,4 +21,17 @@ to run your project
     name created at idp must be equal to  Meteor.user.username() in your project
   run your project:
     path_to_meteor_enc/meteor -p 4000
-    
+
+to authenticate users with the meteor-enc idp:
+  meteor add accounts-base accounts-idp idp-user
+  add {{> idp_client}} to your html <body>
+  in client-side code:
+    idp_init('http://localhost:3000', true);  ## true is debug flag
+  in server-side code:
+    Accounts.loginServiceConfiguration.insert({
+      service: 'idp',
+      pubkey: 'xxx-pubkey-of-idp',
+    });
+  to log in a user with idp:
+    Meteor.loginWithIDP(function (err) { ... });
+
