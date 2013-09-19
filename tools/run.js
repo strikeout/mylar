@@ -233,6 +233,11 @@ var start_server = function (options) {
   env.PORT = options.innerPort;
   env.MONGO_URL = options.mongoURL;
   env.ROOT_URL = env.ROOT_URL || ('http://localhost:' + options.outerPort);
+  if(options.encPort) {
+    env.ENC_PORT = options.encPort;
+    env.DDP_DEFAULT_CONNECTION_URL = env.ROOT_URL;
+    console.log("enc will listen on port " + options.encPort);
+  }
   if (options.settingsFile) {
     // Re-read the settings file each time we call start_server.
     var settings = exports.getSettings(options.settingsFile);
@@ -590,6 +595,7 @@ exports.getSettings = function (filename) {
 // options include: port, minify, once, settingsFile, testPackages
 exports.run = function (context, options) {
   var outer_port = options.port || 3000;
+  var enc_port = options.enc_port; //meteor_enc only, for separate app.html server
   var inner_port = outer_port + 1;
   var mongo_port = outer_port + 2;
   var bundle_path = path.join(context.appDir, '.meteor', 'local', 'build');
@@ -762,6 +768,7 @@ exports.run = function (context, options) {
     server_handle = start_server({
       bundlePath: bundle_path,
       outerPort: outer_port,
+      encPort: enc_port,
       innerPort: inner_port,
       mongoURL: mongo_url,
       onExit: function (code) {

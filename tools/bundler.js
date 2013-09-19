@@ -611,7 +611,7 @@ _.extend(Bundle.prototype, {
     );
   },
 
-  _generate_app_html: function () {
+  _generate_app_html: function (rootUrl) {
     var self = this;
 
     var appHtmlPath = path.join(__dirname, "app.html.in");
@@ -620,6 +620,7 @@ _.extend(Bundle.prototype, {
     var f = require('handlebars').compile(template.toString());
     return f({
       scripts: self._clientUrlsFor('js'),
+      config_url: rootUrl + '/config.json',
       head_extra: self.head.join('\n'),
       body_extra: self.body.join('\n'),
       stylesheets: self._clientUrlsFor('css')
@@ -817,7 +818,7 @@ _.extend(Bundle.prototype, {
       }
     }
 
-    var app_html = self._generate_app_html();
+    var app_html = self._generate_app_html(rootUrl);
     var signature = sign(app_html,'app.html',true,'');
     fs.writeFileSync(path.join(build_path, 'app.html'), app_html);
     self.manifest.push({
