@@ -117,9 +117,8 @@ if (Meteor.isServer) {
       },
       
       // calls cb with a certificate
-      certifypk : function(pk, origin, cb) {
+      certifypk : function(pk, origin) {
 	  var c = sign_text("temp", pk, origin); // USER Meteor.user()
-	  console.log(idpkeys.sign);
 	  var cert = "";
 	  try { 
 	    cert = base_crypto.sign(sign_text, idpkeys.sign);
