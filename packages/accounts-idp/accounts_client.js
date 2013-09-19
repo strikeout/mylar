@@ -1,7 +1,7 @@
 
 // creates app password from app key
 function app_password(app_key) {
-    return base_crypto.hash("login", app_key); 
+    return base_crypto.secret_derive(app_key, "login"); 
 }
 
 function createUser(uname, app_key, cb) {

@@ -56,9 +56,11 @@ base_crypto = (function () {
             return sjcl.decrypt(sk, ct);
         },
 
-	// returns hash of message as array of ints
-	hash: function(msg) {
-	    return sjcl.hash.sha256.hash(msg);
+	// derives a secret from a secret and a message
+	secret_derive: function(secret, msg) {
+	    var composed = JSON.stringify(secret, msg);
+	    var new_secret = sjcl.hash.sha256.hash(composed);
+	    return JSON.stringify(new_secret);
 	},
 		
 	// authenticated encryption

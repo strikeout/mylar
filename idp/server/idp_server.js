@@ -8,12 +8,19 @@ Meteor.startup(function () {
     });
 });
 
-Meteor.users.allow({
-    update: function (userId, doc) {
-        return true; //TODO: allow script, but make safe later...
-        //return userId === doc._id;
-    }
+Meteor.users.allow({// don't allow users to write
 });
+
+
+Accounts.onCreateUser(function(options, user) {    
+  user.Room = {"inRoom":false, "inRoomID":"", "inRoomTitle":""};
+  user.Online = true;
+  // We still want the default hook's 'profile' behavior.
+  if (options.profile)
+    user.profile = options.profile;
+  return user;
+});
+
 
 Meteor.methods({
     // look up a user's public key
@@ -41,8 +48,8 @@ Meteor.methods({
     
     // calls cb with an application specific key
     get_app_key : function(origin) {
-	console.log("get app key, origin " + origin);
-	return "temppasswd"; //TEMPORARY!
+	return base_crypto.secret_derive(Meteor.user().masterKey,
+					 origin);
     },
     
     // calls cb with a certificate
