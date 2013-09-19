@@ -46,9 +46,9 @@ Meteor.methods({
     },
     
     // calls cb with a certificate
-    certify_pk : function(pk, origin) {
+    create_cert : function(msg, origin) {
 	var c = JSON.stringify({user: Meteor.user().username,
-				pk: pk, origin: origin}); 
+				msg: msg, origin: origin}); 
 	var cert = "";
 	try { 
 	    cert = base_crypto.sign(sign_text, idpkeys.sign);
