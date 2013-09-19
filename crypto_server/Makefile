@@ -18,8 +18,10 @@ LDFLAGS	 := -lz \
 SRC := CryptoServer.cc server.cc
 
 
-all: $(SRC)
-	$(CXX) $(CXXFLAGS) -o crypto_server $(SRC) $(LDFLAGS)
+all: crypto_server
+
+crypto_server: $(SRC)
+	$(CXX) $(CXXFLAGS) -o $@ $(SRC) $(LDFLAGS)
 
 clean:
-	rm -rf *.o server
+	rm -rf *.o crypto_server

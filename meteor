@@ -38,15 +38,6 @@ if [ -L "$(basename "$0")" ] ; then
 fi
 SCRIPT_DIR=$(pwd -P)
 
-# build crypto_server
-# we are in meteor-enc now
-echo "Building crypto_mk.. "
-( cd crypto_mk && make )
-echo "Building crypto_server.. "
-( cd crypto_server && make )
-
-echo "Building crypto_ext"
-
 # fetch crypto_ext
 #if [ ! -f crypto_ext/bin/lib32/libc.so.a0e12298 ]; then
 #	wget "http://web.mit.edu/dvorak42/Public/cebin.tar"
@@ -54,13 +45,10 @@ echo "Building crypto_ext"
 #	rm "cebin.tar"
 #fi
 
-# build crypto_ext
-pushd crypto_ext
-make
-./fixPackage.sh ../packages/principal/package.js > _package.js
-mv _package.js ../packages/principal/package.js
-popd
-
+for D in crypto_mk crypto_server crypto_ext; do
+  echo "Building $D"
+  ( cd $D && make )
+done
 
 cd "$ORIG_DIR"
 
