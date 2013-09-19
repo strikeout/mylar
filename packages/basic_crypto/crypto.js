@@ -84,7 +84,7 @@ base_crypto = (function () {
             return sk.sign(hash);
         },
 	
-        verify: function (msg, sig, pk, on_complete) {
+        verify: function (msg, sig, pk) {
             var hash = sjcl.hash.sha256.hash(msg);
             try {
                 pk.verify(hash, sig);
