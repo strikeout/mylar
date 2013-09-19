@@ -7,8 +7,9 @@ Meteor.userId = function () {
   return Meteor.default_connection.userId();
 };
 
-loadedPrincipal = function() {
-    return typeof Principal !=  "undefined";
+useEnc = function() {
+    return (typeof IS_IDP == "undefined" || !IS_IDP) &&
+	(typeof Principal !=  "undefined");
 }
 
 var loggingIn = false;
@@ -176,7 +177,7 @@ Meteor.logout = function (callback) {
 	    Accounts._makeClientLoggedOut();
 	    callback && callback();
 	}
-	if (loadedPrincipal()) {
+	if (useEnc()) {
 	    localStorage['user_princ_keys'] = undefined;
 	}
     });

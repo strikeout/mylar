@@ -47,7 +47,7 @@ Meteor.loginWithPassword = function (selector, password, callback) {
 	
 	var response = srp.respondToChallenge(result);
 	
-	if (loadedPrincipal()) {
+	if (loadedPrincipal() && !IS_IDP) {
 	    idp.get_keys(uname, password, function(keys) {
 		if (!keys) {
 		    throw new Error("idp error, cannot login this user");
