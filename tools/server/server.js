@@ -165,6 +165,7 @@ var run = function () {
 
   // check environment
   var port = process.env.PORT ? parseInt(process.env.PORT) : 80;
+  var enc_port = parseInt(process.env.ENC_PORT);
 
   // check for a valid MongoDB URL right away
   if (!process.env.MONGO_URL)
@@ -248,7 +249,6 @@ var run = function () {
   };
 
   __meteor_runtime_config__ = {};
-  //__meteor_runtime_config__.DDP_DEFAULT_CONNECTION_URL = 'http://localhost:7000/';
   
   if (info.release) {
     __meteor_runtime_config__.meteorRelease = info.release;
@@ -329,7 +329,8 @@ var run = function () {
     //file must stay static for ecdsa signature to remain valid
     //app_html = runtime_config(app_html);
 
-    app.use(function (req, res, next) {
+
+    var serve_app_html = function (req, res, next) {
       if (! appUrl(req.url))
         return next();
 
@@ -345,13 +346,17 @@ var run = function () {
       var requestSpecificHtml = app_html; 
       res.write(requestSpecificHtml);
       res.end();
-    });
+    }
+
+
+    app.use(serve_app_html);
 
     app.use(function (req, res, next) {
         if (req.url != "/config.json")
             return next();
 
         var conf = JSON.stringify(__meteor_runtime_config__);
+        res.setHeader('access-control-allow-origin', '*');
         res.writeHead(200, {'Content-Type':'application/json; charset=utf-8'});
         res.write(conf)
         res.end();
@@ -370,6 +375,17 @@ var run = function () {
       if (argv.keepalive)
         console.log("LISTENING"); // must match run.js
     });
+
+    if(enc_port){
+      app2 = connect.createServer()
+
+      app2.use(serve_app_html);
+
+      app2.listen(enc_port, function() {
+        if (argv.keepalive)
+          console.log("LISTENING"); // must match run.js
+      });
+    }
 
   }).run();
 

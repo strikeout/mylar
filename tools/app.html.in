@@ -9,7 +9,7 @@ __meteor_runtime_config__ = "undefined";
 function load_config() {
     xmlhttp = new XMLHttpRequest();
     //request has to be synchronous for config to affect other scripts
-    xmlhttp.open("GET","config.json",false);
+    xmlhttp.open("GET","{{config_url}}",false);
     xmlhttp.send(null);
     if (xmlhttp.readyState==4 && xmlhttp.status==200)
     {

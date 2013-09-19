@@ -197,6 +197,8 @@ Fiber(function () {
             // intended for automated testing (eg, cli-test.sh), not end-user
             // use.
             .boolean('once')
+            .alias('enc_port','e')
+            .describe('enc_port','meteor enc: port where server presents cert with dev-pub-key. This port will serve nothing except for the signed app.html file')
             .usage(
               "Usage: meteor run [options]\n" +
                 "\n" +
@@ -222,6 +224,7 @@ Fiber(function () {
       maybePrintUserOverrideMessage();
       runner.run(context, {
         port: new_argv.port,
+        enc_port: new_argv.enc_port,
         minify: new_argv.production,
         once: new_argv.once,
         settingsFile: new_argv.settings
