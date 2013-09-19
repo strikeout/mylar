@@ -1,0 +1,17 @@
+<head>
+  <title>Password-based IDP</title>
+</head>
+
+<body>
+  {{> main}}
+</body>
+
+<template name="main">
+  {{#if logged_in}}
+    <input type="button" class="logout" value="Logout">
+  {{else}}
+    Password:
+    <input id="password" type="password">
+    <input type="button" class="login" value="Login">
+  {{/if}}
+</template>
