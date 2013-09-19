@@ -81,7 +81,7 @@ Template.home.events({
 
 // calls cb with an application specific key
 get_app_key = function(arg, origin, cb) {
-    Meteor.call('getappkey', origin, function(err, res) {
+    Meteor.call('get_app_key', origin, function(err, res) {
 	if (err) {
 	    throw new Error("cannot get app key from server");
 	}
@@ -90,8 +90,8 @@ get_app_key = function(arg, origin, cb) {
 }
 
 // calls cb with a certificate
-certify_pk = function(pk, origin, cb) {
-    Meteor.call("certifypk", pk, origin, function(err, cert) {
+create_cert = function(msg, origin, cb) {
+    Meteor.call("create_cert", msg, origin, function(err, cert) {
 	if (err) {
 	    throw new Error("cannot get cert from server");
 	}
@@ -99,3 +99,6 @@ certify_pk = function(pk, origin, cb) {
     });
 }
 
+get_uname = function(cb) {
+    cb(Meteor.user().username);
+}

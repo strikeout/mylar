@@ -53,9 +53,13 @@ idp_get_app_key = function (cb) {
   call('get_app_key', null, cb);
 };
 
-idp_certify_pk = function (pubkey, cb) {
-  call('certify_pk', pubkey, cb);
+idp_create_cert = function (msg, cb) {
+  call('create_cert', msg, cb);
 };
+
+idp_get_uname = function(cb) {
+    call('get_uname', cb);
+}
 
 idp_init = function (origin, debug) {
   Session.set('idp_user_origin', origin);

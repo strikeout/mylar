@@ -7,6 +7,6 @@ preserve-inputs
 accounts-base
 accounts-ui
 accounts-password
-principal
+basic_crypto
 http
 idp-provider
