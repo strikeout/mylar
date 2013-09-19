@@ -8,7 +8,7 @@ footerSize=$(($fileSize - $endLine + 1))
 
 head -n $headerSize $1 | cat
 
-for i in `find bin -maxdepth 2 -type f | sed "s/bin\///g" | grep -v "\(main\|src\)"`; do
+for i in `test -d bin && find bin -maxdepth 2 -type f | sed "s/bin\///g" | grep -v "\(main\|src\)"`; do
 	echo "      api.add_files(path.join('crypto_ext', '$i'), 'client');"
 done
 

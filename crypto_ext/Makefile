@@ -1,3 +1,7 @@
+ifeq ($(NACL_SDK_ROOT),)
+$(error Missing NACL_SDK_ROOT, skipping NaCl build)
+endif
+
 VALID_TOOLCHAINS=glibc
 NACL_CFLAGS=-Wno-long-long -Werror -g
 NACL_CXXFLAGS=-Wno-long-long -Werror -g -std=c++0x
