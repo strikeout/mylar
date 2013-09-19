@@ -14,3 +14,7 @@ Template.main.events({
     });
   },
 });
+
+Meteor.startup(function () {
+  idp_init('http://localhost:3000', true);
+});
