@@ -644,7 +644,7 @@ _.extend(Bundle.prototype, {
   },
 
   // nodeModulesMode should be "skip", "symlink", or "copy"
-  write_to_directory: function (output_path, project_dir, nodeModulesMode) {
+  write_to_directory: function (output_path, project_dir, nodeModulesMode, rootUrl) {
     var self = this;
     var app_json = {};
     var dependencies_json = {core: [], app: [], packages: {}};
@@ -697,14 +697,15 @@ _.extend(Bundle.prototype, {
       var normalized = filepath.split(path.sep).join('/');
       if (normalized.charAt(0) === '/')
         normalized = normalized.substr(1);
-        signature = sign(contents,normalized,false,path.basename(normalized))
+      
+      signature = sign(contents,normalized,false,path.basename(normalized))
       self.manifest.push({
         // path is normalized to use forward slashes
         path: (cacheable ? 'static_cacheable' : 'static') + '/' + normalized,
         where: 'client',
         type: type,
         cacheable: cacheable,
-        url: url || '/' + normalized,
+        url: (rootUrl || '') + (url || '/' + normalized),
         // contents is a Buffer and so correctly gives us the size in bytes
         size: contents.length,
         hash: hash || sha1(contents),
@@ -958,7 +959,9 @@ exports.bundle = function (app_dir, output_path, options) {
       bundle.minify();
 
     // Write to disk
-    bundle.write_to_directory(output_path, app_dir, options.nodeModulesMode);
+    // added options.rootUrl for meteor_enc to do absolute requests
+    console.log('options root ' + options.rootUrl);
+    bundle.write_to_directory(output_path, app_dir, options.nodeModulesMode, options.rootUrl);
 
     if (bundle.errors.length)
       return bundle.errors;

@@ -8,6 +8,7 @@ var js = "<!DOCTYPE html><html><head><meta http-equiv='Content-Type' content='te
 // Configure our HTTP server to respond with Hello World to all requests.
 var server = http.createServer(function (request, response) {
   console.log('req ' + request.url);
+  console.log(process.execPath);
   //response.writeHead(200, {"Content-Type": "text/html"});
   response.end(js);
 });
