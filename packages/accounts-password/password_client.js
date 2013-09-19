@@ -47,7 +47,7 @@ Meteor.loginWithPassword = function (selector, password, callback) {
 	
 	var response = srp.respondToChallenge(result);
 	
-	if (loadedPrincipal() && !IS_IDP) {
+	if (useEnc()) {
 	    idp.get_keys(uname, password, function(keys) {
 		if (!keys) {
 		    throw new Error("idp error, cannot login this user");
@@ -93,7 +93,7 @@ Accounts.createUser = function (options, callback) {
     delete options.password;
     options.srp = verifier;
 
-    if (loadedPrincipal()) {
+    if (useEnc()) {
 	Principal.create("user", uname, null, function(uprinc){
 	    var ser_keys = serialize_keys(uprinc.keys);
 	    

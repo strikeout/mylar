@@ -1,10 +1,11 @@
-const IS_IDP = true;
+IS_IDP = true;
 
     
 if (Meteor.isClient) {
     Deps.autorun(function () {
         Meteor.subscribe("userdata");
     });
+
 /*
 
     //EVENTS HANDLERS BUTTON
@@ -91,29 +92,17 @@ Template.loginArea.events({
 });
 
 
+Template.home.user = function() {
+  return Meteor.user();
+};
+
 Template.home.events({
     'click #logoutBtn': function(evt) {
 	Meteor.logout();
     },
 });
-   	    
-    Template.hello.user_email = function () {
-        var user = Meteor.users.findOne();
-        if (user) {
-	    // TODO: more inconsistency in idp: why would we need this for??
-	    if (!_.has(user, 'keys')) {
-		var user_princ = new Principal("user", user.emails[0].address);
-                Meteor.users.update(user._id, {$set: {
-                    keys: serialize_keys(user_princ.keys),
-                    username:user.emails[0].address
-                }});
-            } 
-            return user.emails[0].address;
-        }
-    };
-
+   	     
 }
- 
 
 // calls cb with an application specific key
 get_app_key = function(arg, origin, cb) {
