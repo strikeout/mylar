@@ -15,24 +15,6 @@ Meteor.users.allow({
     }
 });
 
-function svalid(sep, s) {
-    if (s.indexOf(sep) == -1) {
-	return true;
-    } else
-	return false;
-}
-
-function cert_text(user, origin, pk) {
-    var sep = "+++";
-    if (svalid(sep, user) && svalid(sep, origin) && svalid(sep, pk)) {
-	return use + sep + origin + sep + pk;
-    } else {
-	console.log("invalid credentials to sign");
-	return "";
-    }
-}
-
-
 Meteor.methods({
     // look up a user's public key
     //args: username
@@ -65,7 +47,8 @@ Meteor.methods({
     
     // calls cb with a certificate
     certifypk : function(pk, origin) {
-	var c = sign_text(Meteor.user().username, pk, origin); 
+	var c = JSON.stringify({user: Meteor.user().username,
+				pk: pk, origin: origin}); 
 	var cert = "";
 	try { 
 	    cert = base_crypto.sign(sign_text, idpkeys.sign);

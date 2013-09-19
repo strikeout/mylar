@@ -15,7 +15,7 @@ Package.describe({
 Npm.depends({mongodb: "1.2.13"});
 
 Package.on_use(function (api) {
-    api.use(['random', 'ejson', 'json', 'underscore', 'async', 'minimongo', 'logging', 'livedata'],
+    api.use(['random', 'ejson', 'json', 'underscore', 'async', 'minimongo', 'logging', 'livedata', 'timing'],
           ['client', 'server']);
 
   api.add_files('mongo_driver.js', 'server');
