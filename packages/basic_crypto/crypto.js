@@ -55,6 +55,11 @@ base_crypto = (function () {
         decrypt: function (sk, ct) {
             return sjcl.decrypt(sk, ct);
         },
+
+	// returns hash of message as array of ints
+	hash: function(msg) {
+	    return sjcl.hash.sha256.hash(msg);
+	},
 		
 	// authenticated encryption
 	sym_encrypt: function(sk, data) {
