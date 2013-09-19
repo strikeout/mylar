@@ -294,7 +294,7 @@ if (Meteor.isClient) {
     }
     
     // generates keys: standard crypto + multi-key
-    _generate_keys = function(cb) {
+    Principal.generate_keys = function(cb) {
 	keys = crypto.generate_keys();
 	Crypto.keygen(function(key) {
 	    keys['mk_key'] = key;
@@ -325,7 +325,7 @@ if (Meteor.isClient) {
 	    PrincType.insert({type:type, searchable: false});
 	}
 
-	_generate_keys(function(keys) {
+	Principal.generate_keys(function(keys) {
 	    var p = new Principal(type, name, keys);
 	    cache_add(p, {'princ': creator});
 	    Principal._store(p, creator);

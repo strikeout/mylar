@@ -5,13 +5,30 @@ function app_password(app_key) {
 }
 
 function createUser(uname, app_key, cb) {
-    
-    Meteor.createUser()
+    idp_create_cert("register", function(cert){
+	// cert is a certificate that this person is uname
+
+	Principal.generate_keys(function(keys){
+	    var ser_keys = serialize_keys(keys);
+	    var wrap_privkeys = base_crypto.sym_encrypt(app_key, ser_keys);
+	    
+	    var after_create_cb = function() {
+		localStorage['user_princ_keys'] = ser_keys;
+		cb && cb();
+	    }
+
+	    Meteor.createUser({username: uname,
+			       password: app_password(app_key),
+			       cert : cert,
+			       wrap_privkey: wrap_privkeys},
+			      after_create_cb);
+	});
+    });
 }
 
 function finishLoginUser(uname, app_key, cb) {
     var keys = base_crypto.sym_decrypt(app_key,
-				       Meteor.user().wrapped_privkey);
+				       Meteor.user().wrap_privkey);
     localStorage['user_princ_keys'] = keys;
 
     cb && cb();
