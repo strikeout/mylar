@@ -98,8 +98,4 @@ certify_pk = function(pk, origin, cb) {
 	cb && cb(cert);
     });
 }
-    
-sign_text = function(user, origin, pk) {
-    return user + "+++" + origin + "+++" + pk; //TODO: fix this so no formatting attacks possible 
-}
 
