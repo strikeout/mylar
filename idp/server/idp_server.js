@@ -15,14 +15,14 @@ Meteor.users.allow({
     }
 });
 
-var svalid(sep, s) {
+function svalid(sep, s) {
     if (s.indexOf(sep) == -1) {
 	return true;
     } else
 	return false;
 }
 
-var cert_text = function(user, origin, pk) {
+function cert_text(user, origin, pk) {
     var sep = "+++";
     if (svalid(sep, user) && svalid(sep, origin) && svalid(sep, pk)) {
 	return use + sep + origin + sep + pk;
@@ -65,7 +65,7 @@ Meteor.methods({
     
     // calls cb with a certificate
     certifypk : function(pk, origin) {
-	var c = sign_text("temp", pk, origin); // USER Meteor.user()
+	var c = sign_text(Meteor.user().username, pk, origin); 
 	var cert = "";
 	try { 
 	    cert = base_crypto.sign(sign_text, idpkeys.sign);
