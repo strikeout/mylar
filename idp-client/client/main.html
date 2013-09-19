@@ -8,6 +8,17 @@
 </body>
 
 <template name="main">
-  IDP reply: {{reply}}
-  <input type="button" value="click" />
+  <div>
+    IDP origin:
+    <input id="origin" placeholder="http://localhost:3000">
+    <input type="button" class="setup" value="setup">
+  </div>
+
+  <div>
+    IDP reply: {{reply}}
+  </div>
+
+  <div>
+    <input type="button" class="getkey" value="get key" />
+  </div>
 </template>

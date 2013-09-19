@@ -3,7 +3,12 @@ Template.main.reply = function () {
 };
 
 Template.main.events({
-  'click input': function () {
+  'click .setup': function (ev, template) {
+    var origin = template.find('#origin').value;
+    idp_init(origin, true);
+  },
+
+  'click .getkey': function () {
     idp_get_app_key(function (key) {
       Session.set('reply', key);
     });
