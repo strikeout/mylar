@@ -4,6 +4,8 @@ function app_password(app_key) {
     return base_crypto.secret_derive(app_key, "login"); 
 }
 
+var onCreatePrincipal = undefined;
+
 function createUser(uname, app_key, cb) {
     if (idp_debug()) 
 	console.log("create user " + uname + " app_key " + app_key);
@@ -15,26 +17,34 @@ function createUser(uname, app_key, cb) {
 	var wrap_privkeys = base_crypto.sym_encrypt(app_key,
 						    ser_keys);
 
-	// now create a certificate on name and
-	// one on public keys
-	idp_create_cert("register", function(name_cert){
-	    idp_create_cert(pub_keys, function(key_cert) {
+        var do_the_rest = function () {
+	    // now create a certificate on name and
+	    // one on public keys
+	    idp_create_cert("register", function(name_cert){
+	        idp_create_cert(pub_keys, function(key_cert) {
 
-		var after_create_cb = function(err) {
-                    if (!err) 
-			localStorage['user_princ_keys'] = ser_keys;
-		    cb && cb(err);
-		}
+		    var after_create_cb = function(err) {
+                        if (!err) 
+			    localStorage['user_princ_keys'] = ser_keys;
+		        cb && cb(err);
+		    }
 
-		Accounts.createUser({username: uname,
-				     password: app_password(app_key),
-				     name_cert : name_cert,
-				     key_cert : key_cert,
-				     pk : pub_keys,
-				     wrap_privkey: wrap_privkeys},
-				    after_create_cb);
+		    Accounts.createUser({username: uname,
+				         password: app_password(app_key),
+				         name_cert : name_cert,
+				         key_cert : key_cert,
+				         pk : pub_keys,
+				         wrap_privkey: wrap_privkeys},
+				        after_create_cb);
+	        });
 	    });
-	});
+        };
+
+        if (onCreatePrincipal) {
+            onCreatePrincipal(uprinc, do_the_rest);
+        } else {
+            do_the_rest();
+        }
     });
 }
 
@@ -95,3 +105,6 @@ Meteor.loginWithIDP = function (callback) {
     });
 };
 
+Meteor.onCreatePrincipal = function (cb) {
+    onCreatePrincipal = cb;
+};
