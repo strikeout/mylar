@@ -12,9 +12,10 @@ function createUser(uname, app_key, cb) {
 	    var ser_keys = serialize_keys(keys);
 	    var wrap_privkeys = base_crypto.sym_encrypt(app_key, ser_keys);
 	    
-	    var after_create_cb = function() {
-		localStorage['user_princ_keys'] = ser_keys;
-		cb && cb();
+	    var after_create_cb = function(err) {
+                if (!err) 
+		    localStorage['user_princ_keys'] = ser_keys;
+		cb && cb(err);
 	    }
 
 	    Accounts.createUser({username: uname,
@@ -53,12 +54,3 @@ Meteor.loginWithIDP = function (callback) {
     });
 };
 
-
-/* 
-  	    idp_create_cert(null, function (cert) {
-		Accounts.callLoginMethod({
-		    methodArguments: [{idp: {cert: cert}}],
-		    userCallback: callback,
-		});
-	    }
-*/

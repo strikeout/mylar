@@ -61,7 +61,3 @@ idp_get_uname = function(cb) {
     call('get_uname', cb);
 }
 
-idp_init = function (origin, debug) {
-  Session.set('idp_user_origin', origin);
-  Session.set('idp_user_debug', debug);
-};

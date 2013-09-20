@@ -1,10 +1,6 @@
 IS_IDP = true;//TODOs
 
-    
-Deps.autorun(function () {
-    Meteor.subscribe("userdata");
-});
-
+  
 //FUNCTIONS
 function CreateUser(){
   var user = $("#username").val().trim();

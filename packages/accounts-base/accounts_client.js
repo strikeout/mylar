@@ -8,8 +8,9 @@ Meteor.userId = function () {
 };
 
 useEnc = function() {
+    return false; /*TODOs
     return (typeof IS_IDP == "undefined" || !IS_IDP) &&
-	(typeof Principal !=  "undefined");
+	(typeof Principal !=  "undefined");*/
 }
 
 var loggingIn = false;

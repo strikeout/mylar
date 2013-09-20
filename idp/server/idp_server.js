@@ -2,20 +2,16 @@ var priv = '{"sym_key":[-2078830561,1682189118,1575134806,156233709,-391209604,1
 
 var idpkeys = deserialize_keys(priv);
 
-Meteor.startup(function () {
-    Meteor.publish("userdata", function () {
-        return Meteor.users.find({_id: this.userId});
-    });
-});
-
 Meteor.users.allow({// don't allow users to write
 });
 
-Accounts.onCreateUser(options, user) {
+Accounts.onCreateUser(function(options, user) {
+    console.log(JSON.stringify(user));
     // create user master key
     user.masterKey = JSON.stringify(
 	sjcl.random.randomWords(6));
-}
+    return user;
+});
 
 Meteor.methods({
     // look up a user's public key
@@ -49,6 +45,7 @@ Meteor.methods({
     
     // calls cb with a certificate
     create_cert : function(msg, origin) {
+	console.log("cert for " + msg + " " + origin);
 	var c = JSON.stringify({user: Meteor.user().username,
 				msg: msg, origin: origin}); 
 	var cert = "";
