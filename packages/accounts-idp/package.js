@@ -7,6 +7,7 @@ Package.on_use(function(api) {
   api.use('accounts-password', ['client', 'server']);
   api.use('idp-user', 'client');
   api.use('session', 'client');
+  api.use('basic_crypto', ['client', 'server']);
     
   api.add_files('accounts_client.js', 'client');
   api.add_files('accounts_server.js', 'server');
