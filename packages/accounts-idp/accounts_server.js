@@ -1,10 +1,10 @@
 
-Accounts.onCreateUser(function(options, user) {
+Accounts.certifyFunc(function(options, user) {
     // check certificate
     var cert = options.cert;
     var uname = options.username;
 
-    var ok = idp_check_certificate(uname, cert, idpkey);
+    var ok = idp_check("register", uname, cert, idpkey);
 
     if (!ok) {
 	user._validate = false;

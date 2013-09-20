@@ -54,12 +54,3 @@ Meteor.loginWithIDP = function (callback) {
     });
 };
 
-
-/* 
-  	    idp_create_cert(null, function (cert) {
-		Accounts.callLoginMethod({
-		    methodArguments: [{idp: {cert: cert}}],
-		    userCallback: callback,
-		});
-	    }
-*/

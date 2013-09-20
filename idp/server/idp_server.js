@@ -49,6 +49,7 @@ Meteor.methods({
     
     // calls cb with a certificate
     create_cert : function(msg, origin) {
+	console.log("cert for " + msg + " " + origin);
 	var c = JSON.stringify({user: Meteor.user().username,
 				msg: msg, origin: origin}); 
 	var cert = "";
