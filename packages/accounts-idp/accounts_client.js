@@ -29,6 +29,7 @@ function createUser(uname, app_key, cb) {
 				     password: app_password(app_key),
 				     name_cert : name_cert,
 				     key_cert : key_cert,
+				     pk : pub_keys,
 				     wrap_privkey: wrap_privkeys},
 				    after_create_cb);
 	    });

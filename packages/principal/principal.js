@@ -208,6 +208,11 @@ if (Meteor.isServer) {
 	    return Principals.findOne({_id: id});
 	},
 
+	userPK : function(uname) {
+	    return Meteor.users.findOne({username: uname},
+					{fields: {_pk: 1, _pubkey_cert: 1}});
+	}
+
 	/*
 	  Given a list of PrincAttr-s,
 	  looks up a principal whose attrs are PrincAttr1,
@@ -577,15 +582,25 @@ if (Meteor.isClient) {
 	if (!uname) {
 	    throw new Error("cannot lookup user principal with uname " + uname);
 	}
-	
-        idp.lookup(uname, function (keys) {
-	    if (!keys) {
-		throw new Error("no keys found for " + uname);
-		return;
+
+	Meteor.call("userPK", uname, function(uinfo) {
+	    if (!uinfo || !uinfo.keys || !uinfo.cert) {
+		throw new Error("user " + uname + " public keys are not available");
 	    }
+	    var keys = uinfo._pk;
+	    var cert = uinfo._pubkey_cert;
+
+	    //verify certificate
+	    var res = idp_check(keys, uname, cert);
+
+	    if (!res) {
+		throw new Error("server provided invalid pub key certificate!");
+	    }
+
+	    var princ = new Principal("user", uname, deserialize_keys(keys));
 	    endTime("lookup");
-	    cb(new Principal("user", uname, deserialize_keys(keys)));
-        });
+	    cb && cb(princ);
+	});
     }
     
     /*
