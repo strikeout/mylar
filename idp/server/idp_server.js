@@ -4,7 +4,8 @@ var idpkeys = deserialize_keys(priv);
 
 Meteor.startup(function () {
     Meteor.publish("userdata", function () {
-        return Meteor.users.find({_id: this.userId});
+        return Meteor.users.find({_id: this.userId},
+				 {_id:1, masterKey:0, username:1});
     });
 });
 
