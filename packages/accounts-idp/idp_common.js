@@ -1,11 +1,11 @@
 idp_pk = undefined;
 idp_url = undefined;
 
-idp_init = function(url, pk) {
+idp_init = function(url, pk, debug) {
     idp_pk =  deserialize_keys(pk);
     idp_url = url;
     if (Meteor.isClient) {
-        Session.set('idp_user_debug', true);
+        Session.set('idp_user_debug', debug);
 	Session.set('idp_user_origin', url);
     }
 }
