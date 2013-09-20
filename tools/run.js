@@ -641,6 +641,9 @@ exports.run = function (context, options) {
   if (options.once) {
     Status.shouldRestart = false;
   }
+  if(enc_port){
+    var rootUrl = process.env.ROOT_URL || ('http://localhost:' + outer_port)
+  }
 
   var bundleOpts = {
     nodeModulesMode: 'symlink',
@@ -648,7 +651,7 @@ exports.run = function (context, options) {
     testPackages: options.testPackages,
     releaseStamp: context.releaseVersion,
     packageSearchOptions: context.packageSearchOptions,
-    rootUrl: process.env.ROOT_URL || ('http://localhost:' + outer_port)
+    rootUrl:rootUrl 
   };
 
   var start_watching = function () {

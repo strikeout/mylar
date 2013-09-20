@@ -620,7 +620,7 @@ _.extend(Bundle.prototype, {
     var f = require('handlebars').compile(template.toString());
     return f({
       scripts: self._clientUrlsFor('js'),
-      config_url: rootUrl + '/config.json',
+      config_url: (rootUrl ? rootUrl : '') + '/config.json',
       head_extra: self.head.join('\n'),
       body_extra: self.body.join('\n'),
       stylesheets: self._clientUrlsFor('css')
