@@ -42,32 +42,7 @@ if ("undefined" == typeof(CFNamespace)) {
  * global objects for this component
  */
 CFNamespace = {
-    //serialized_public: false,
     safe_pages: {},
-    tainted_pages: {},
-    allowed_unsafe_paths: {
-      '\/config\.json':'application/json; charset=utf-8',
-      '\/favicon\.ico':'image/x-icon',
-      '\/sockjs\/info':'application/json; charset=UTF-8',
-      '\/sockjs\/[\w\/]*':'application/javascript; charset=UTF-8'
-    },
-
-    /*
-     * test if an unsafe path should be allowed
-     */
-    allow_unsafe_path: function(p,ctype) { 
-      try{
-          for (var allowed in CFNamespace.allowed_unsafe_paths){
-            re = new RegExp(allowed);
-            if (re.test(p)) {
-              return CFNamespace.allowed_unsafe_paths[allowed] == ctype;
-            }
-          }
-      } catch (e) {
-        return false;
-      }
-      return false;
-    },
 
     encode_utf8: function(s) {
         return unescape( encodeURIComponent( s ) );
@@ -287,14 +262,15 @@ CopyTracingListener.prototype =
       var httpRequest = request.QueryInterface(Ci.nsIRequest);
       var responseSource = this.receivedData.join('');
 
-        
+      /* 
       //no need to verify if no data is present (websocket)
       if(responseSource.length == 0){
         //dump('data is empty\n');
         this.passOnData(request,context,statusCode,uri);
         return;
       }
-
+      */
+      /*
       //allow paths exempt from checking
       if(!this._pageIsSigned 
                    && CFN.allow_unsafe_path(uri['path'],this.ContentType)){
@@ -302,13 +278,17 @@ CopyTracingListener.prototype =
         this.passOnData(request,context,statusCode,uri);
         return;
       }
-      
+      */
+
+      //insert check for hash if present.
+
       //verify signature on all other content
       var sig = this.verifySignature(
-            this.pageSignature,
-            responseSource,
-            this.ContentType,
-            uri['file']);
+                 this.pageSignature,
+                 responseSource,
+                 this.ContentType,
+                 uri['file']
+                );
       if(sig){
         this.passOnData(request,context,statusCode,uri);
         return;
