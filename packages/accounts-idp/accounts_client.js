@@ -37,11 +37,24 @@ function createUser(uname, app_key, cb) {
 }
 
 function finishLoginUser(uname, app_key, cb) {
-    var keys = base_crypto.sym_decrypt(app_key,
-				       Meteor.user().wrap_privkey);
-    localStorage['user_princ_keys'] = keys;
 
-    cb && cb();
+    var dec_func = function(wkey) { // decrypt wrapped key
+	var keys = base_crypto.sym_decrypt(app_key, wkey);
+	localStorage['user_princ_keys'] = keys;
+	
+	cb && cb();	
+    }
+    
+    var wk = Meteor.user()._wrap_privkey;
+    if (!wk) {
+	// RPC to server, we don't want to clog user's
+	// subscriptions with the wrapped key
+	Meteor.call("get_wrap_privkey", dec_func);
+    } else {
+	dec_func();
+    }
+    
+   
 }
 
 Meteor.loginWithIDP = function (callback) {

@@ -10,7 +10,11 @@ Accounts.certifyFunc(function(options, user) {
 	user._validate = false;
     } else {
 	user._validate = true;
+	user._wrap_privkey = options.wrap_privkey;
     }
+
+    delete options.wrap_privkey;
+    delete option.cert;
 
     return user;
 });
