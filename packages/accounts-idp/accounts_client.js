@@ -7,8 +7,9 @@ function app_password(app_key) {
 function createUser(uname, app_key, cb) {
     if (idp_debug()) 
 	console.log("create user " + uname + " app_key " + app_key);
-   
-    Principal.generate_keys(function(keys){
+
+    Principal.create("user", uname, null, function(uprinc) {
+	var keys = uprinc.keys;
 	var ser_keys = serialize_keys(keys);
 	var pub_keys = serialize_public(keys);
 	var wrap_privkeys = base_crypto.sym_encrypt(app_key,
