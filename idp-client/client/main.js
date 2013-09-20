@@ -5,7 +5,8 @@ Template.main.reply = function () {
 Template.main.events({
   'click .setup': function (ev, template) {
     var origin = template.find('#origin').value;
-    idp_init(origin, true);
+    var idp_pk = null;
+    idp_init(origin, idp_pk);
   },
 
   'click .getkey': function () {
@@ -16,5 +17,5 @@ Template.main.events({
 });
 
 Meteor.startup(function () {
-  idp_init('http://localhost:3000', true);
+  idp_init('http://localhost:3000', null);
 });

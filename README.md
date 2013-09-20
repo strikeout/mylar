@@ -27,7 +27,7 @@ As a developer of an app
 1. specify which IDP you trust, e.g., our IDP:
 
 var idp_pub = '{"encrypt":"021cbeb072a8a136a35efd7d59eac32d4415929bc1ca9d5a0e1e640789079a91dcc534c65119ed3fbddb12c918c5a582","verify":"b7bf9d94519d221ec2dd5cb033da55149852858c776d66bf8568a85a45b099c009c926575494bddf3fe2783c15de337b"}';
-idp_init("http://localhost:3000", idp_pub, "http://localhost:3004");
+idp_init("http://localhost:3000", idp_pub);
 
 (should be available both client and server-side)
 
