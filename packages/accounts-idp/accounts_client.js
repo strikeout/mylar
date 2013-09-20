@@ -37,8 +37,20 @@ function finishLoginUser(uname, app_key, cb) {
 
 Meteor.loginWithIDP = function (callback) {
 
+    if (idp_debug()) {
+	console.log("loginwithIDP ");
+    }
     idp_get_uname(function(uname) {
+	
+	if (idp_debug()) {
+	    console.log("uname " + uname);
+	}
+
 	idp_get_app_key(function(app_key) {
+
+	    if (idp_debug()) {
+		console.log("app key" + app_key);
+	    }
 
 	    Meteor.loginWithPassword({username:uname}, app_password(app_key),
 		function(error) {
