@@ -50,7 +50,7 @@ Meteor.methods({
 				msg: msg, origin: origin}); 
 	var cert = "";
 	try { 
-	    cert = base_crypto.sign(sign_text, idpkeys.sign);
+	    cert = base_crypto.sign(c, idpkeys.sign);
 	} catch (err) {
 	    console.log("err is " + err);
 	}

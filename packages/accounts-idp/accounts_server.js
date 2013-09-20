@@ -4,7 +4,7 @@ Accounts.certifyFunc(function(options, user) {
     var cert = options.cert;
     var uname = options.username;
 
-    var ok = idp_check("register", uname, cert, idpkey);
+    var ok = idp_check("register", uname, cert, idp_pk);
 
     if (!ok) {
 	user._validate = false;
@@ -21,7 +21,10 @@ Accounts.validateNewUser(function(user){
     return user._validate;
 });
 
+//TODOs: make the two above only one function given that
+// we anyways change accounts-password?
 
+/* NOT USED
 Accounts.registerLoginHandler(function (options) {
   if (!options.idp)
     return undefined;
@@ -44,3 +47,4 @@ Accounts.registerLoginHandler(function (options) {
 
   return Accounts.updateOrCreateUserFromExternalService('idp', {id: userid});
 });
+*/

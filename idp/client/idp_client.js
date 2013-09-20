@@ -86,10 +86,12 @@ get_app_key = function(arg, origin, cb) {
 
 // calls cb with a certificate
 create_cert = function(msg, origin, cb) {
+    console.log("idp_client " + msg + origin);
     Meteor.call("create_cert", msg, origin, function(err, cert) {
 	if (err) {
 	    throw new Error("cannot get cert from server");
 	}
+	console.log("server replied with cert " + cert);
 	cb && cb(cert);
     });
 }

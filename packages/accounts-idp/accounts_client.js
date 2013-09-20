@@ -5,6 +5,9 @@ function app_password(app_key) {
 }
 
 function createUser(uname, app_key, cb) {
+    if (idp_debug()) {
+	console.log("create user " + uname + " app_key " + app_key);
+    }
     idp_create_cert("register", function(cert){
 	// cert is a certificate that this person is uname
 
