@@ -15,8 +15,10 @@ Package.describe({
 Npm.depends({mongodb: "1.2.13"});
 
 Package.on_use(function (api) {
-    api.use(['random', 'ejson', 'json', 'underscore', 'async', 'minimongo', 'logging', 'livedata', 'timing'],
+  api.use(['random', 'ejson', 'json', 'underscore', 'async', 'minimongo',
+           'logging', 'livedata', 'timing'],
           ['client', 'server']);
+  // XXX add an unordered dependency on principal
 
   api.add_files('mongo_driver.js', 'server');
   api.add_files('local_collection_driver.js', ['client', 'server']);
