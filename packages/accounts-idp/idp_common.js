@@ -6,7 +6,9 @@ idp_init = function(url, pk, origin) {
     idp_pk =  pk;
     idp_url = url;
     app_origin = origin;
-
+    if (Meteor.isClient) {
+        Session.set('idp_user_debug', true);
+    }
 }
 
 // checks that `cert' is a valid certificate

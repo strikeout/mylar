@@ -12,9 +12,11 @@ Meteor.users.allow({// don't allow users to write
 });
 
 Accounts.onCreateUser(function(options, user) {
+    console.log(JSON.stringify(user));
     // create user master key
     user.masterKey = JSON.stringify(
 	sjcl.random.randomWords(6));
+    return user;
 });
 
 Meteor.methods({
