@@ -162,7 +162,6 @@ Accounts.insertUserDoc = function (options, user) {
   var fullUser;
     if (certHook) {
 	fullUser = certHook(options, user);
-	console.log("after cert hook " + JSON.stringify(fullUser));
     }
   if (onCreateUserHook) {
     fullUser = onCreateUserHook(options, user);

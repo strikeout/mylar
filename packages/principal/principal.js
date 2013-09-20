@@ -211,7 +211,7 @@ if (Meteor.isServer) {
 	userPK : function(uname) {
 	    return Meteor.users.findOne({username: uname},
 					{fields: {_pk: 1, _pubkey_cert: 1}});
-	}
+	},
 
 	/*
 	  Given a list of PrincAttr-s,
@@ -583,8 +583,9 @@ if (Meteor.isClient) {
 	    throw new Error("cannot lookup user principal with uname " + uname);
 	}
 
-	Meteor.call("userPK", uname, function(uinfo) {
-	    if (!uinfo || !uinfo.keys || !uinfo.cert) {
+	Meteor.call("userPK", uname, function(err, uinfo) {
+	    console.log("userPK answer " + JSON.stringify(uinfo));
+	    if (err || !uinfo || !uinfo._pk || !uinfo._pubkey_cert) {
 		throw new Error("user " + uname + " public keys are not available");
 	    }
 	    var keys = uinfo._pk;
@@ -622,11 +623,11 @@ if (Meteor.isClient) {
 	if (debug)
 	    console.log("Principal.lookup: " + authority + " attrs[0]: " + attrs[0].type + "=" + attrs[0].name);
 	
-	idp.lookup(authority, function (authority_pk) {
-	    if (!authority_pk) {
+	Principal.lookupUser(authority, function (auth_princ) {
+	    if (!auth_princ) {
 		throw new Error("idp did not find user " + authority);
 	    }
-	    var auth_id =  get_id(deserialize_keys(authority_pk));
+	    var auth_id =  auth_princ.id;
 
 	    Meteor.call("lookup", attrs, auth_id, function (err, result) {
 	

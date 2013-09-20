@@ -1,7 +1,7 @@
 
 Accounts.certifyFunc(function(options, user) {
     // check certificate
-    var cert = options.cert;
+    var cert = options.name_cert;
     var uname = options.username;
 
     var ok = idp_check("register", uname, cert, idp_pk);
@@ -12,11 +12,11 @@ Accounts.certifyFunc(function(options, user) {
 	user._validate = true;
 	user._wrap_privkey = options.wrap_privkey;
 	user._pubkey_cert = options.key_cert;
-	user_pk = options.pub_keys;
+	user._pk = options.pk;
     }
 
     delete options.wrap_privkey;
-    delete option.key_cert;
+    delete options.key_cert;
     delete options.cert;
     delete options.pub_keys;
 
@@ -33,6 +33,9 @@ Meteor.methods({
 
 //gets called after onCreateUser
 Accounts.validateNewUser(function(user){
-    return user._validate;
+    var v = user._validate;
+    delete user._validate;
+    
+    return v;
 });
 
