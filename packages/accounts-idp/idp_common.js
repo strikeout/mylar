@@ -3,7 +3,8 @@ idp_url = undefined;
 app_origin = undefined; // maintained for server side
 
 idp_init = function(url, pk, origin) {
-    idp_pk =  pk;
+    console.log("pk is " + pk);
+    idp_pk =  deserialize_keys(pk);
     idp_url = url;
     app_origin = origin;
     if (Meteor.isClient) {
@@ -19,6 +20,6 @@ idp_check = function(msg, user, cert) {
     var c = JSON.stringify({user: user,
 			    msg: msg, origin: app_origin});
 
-    return base_crypto.verify(c, cert, idp_pk);
+    return base_crypto.verify(c, cert, idp_pk.verify);
 }
 

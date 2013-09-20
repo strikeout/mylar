@@ -5,22 +5,28 @@ function app_password(app_key) {
 }
 
 function createUser(uname, app_key, cb) {
-    if (idp_debug()) {
+    if (idp_debug()) 
 	console.log("create user " + uname + " app_key " + app_key);
-    }
+
     idp_create_cert("register", function(cert){
 	// cert is a certificate that this person is uname
 
+	if (idp_debug())
+	    console.log("registered");
+
 	Principal.generate_keys(function(keys){
 	    var ser_keys = serialize_keys(keys);
-	    var wrap_privkeys = base_crypto.sym_encrypt(app_key, ser_keys);
-	    
+	    var wrap_privkeys = base_crypto.sym_encrypt(app_key,
+							ser_keys);
+
 	    var after_create_cb = function(err) {
                 if (!err) 
 		    localStorage['user_princ_keys'] = ser_keys;
+		console.log("after create cb err is " +err);
 		cb && cb(err);
 	    }
 
+	    console.log("accounts create user");
 	    Accounts.createUser({username: uname,
 				 password: app_password(app_key),
 				 cert : cert,

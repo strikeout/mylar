@@ -47,7 +47,8 @@ Meteor.methods({
     create_cert : function(msg, origin) {
 	console.log("cert for " + msg + " " + origin);
 	var c = JSON.stringify({user: Meteor.user().username,
-				msg: msg, origin: origin}); 
+				msg: msg, origin: origin});
+	console.log("creating certificate for " + c);
 	var cert = "";
 	try { 
 	    cert = base_crypto.sign(c, idpkeys.sign);
