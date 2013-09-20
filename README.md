@@ -48,7 +48,8 @@ packages/accounts-idp:
 : provides Meteor.loginWithIDP
 
 packages/idp-user:
-: runs at the client-side app, talks to the the window for the idp client in the user's browser
+: runs at the client-side app, talks to the the window for the idp client
+  in the user's browser
 
 packages/idp-provider:
 : runs at the idp client, responds to idp-user
@@ -57,6 +58,8 @@ packages/idp-provider:
 
 TODO (post-deadline):
 ======================
--- it would be nice to have the app open a login window to idp upon sign in, instead of asking the user to have a window open with the idp
+- it would be nice to have the app open a login window to idp upon sign
+  in, instead of asking the user to have a window open with the idp
 
--- better error messages; for example, now if you try to add a user that does not exist the error is not friendly; 
+- better error messages; for example, now if you try to add a user that
+  does not exist the error is not friendly;
