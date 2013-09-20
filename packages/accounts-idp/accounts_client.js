@@ -49,7 +49,12 @@ function finishLoginUser(uname, app_key, cb) {
     if (!wk) {
 	// RPC to server, we don't want to clog user's
 	// subscriptions with the wrapped key
-	Meteor.call("get_wrap_privkey", dec_func);
+	Meteor.call("GetWrapPrivkey", function(err, wkey){
+	    if (err) {
+		throw new Error("issue with wrapped key from server");
+	    }
+	    dec_func(wkey);
+	});
     } else {
 	dec_func();
     }

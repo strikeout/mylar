@@ -19,6 +19,11 @@ Accounts.certifyFunc(function(options, user) {
     return user;
 });
 
+Meteor.methods({
+    GetWrapPrivKey: function(){
+	return Meteor.user()._wrap_privkey;
+    }
+});
 
 //gets called after onCreateUser
 Accounts.validateNewUser(function(user){
