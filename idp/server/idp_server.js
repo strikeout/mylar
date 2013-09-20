@@ -2,13 +2,6 @@ var priv = '{"sym_key":[-2078830561,1682189118,1575134806,156233709,-391209604,1
 
 var idpkeys = deserialize_keys(priv);
 
-Meteor.startup(function () {
-    Meteor.publish("userdata", function () {
-        return Meteor.users.find({_id: this.userId},
-				 {_id:1, masterKey:0, username:1});
-    });
-});
-
 Meteor.users.allow({// don't allow users to write
 });
 
