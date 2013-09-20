@@ -3,7 +3,6 @@ idp_url = undefined;
 app_origin = undefined; // maintained for server side
 
 idp_init = function(url, pk, origin) {
-    console.log("pk is " + pk);
     idp_pk =  deserialize_keys(pk);
     idp_url = url;
     app_origin = origin;
