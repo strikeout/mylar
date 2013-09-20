@@ -56,7 +56,7 @@ function finishLoginUser(uname, app_key, cb) {
 	    dec_func(wkey);
 	});
     } else {
-	dec_func();
+	dec_func(wk);
     }
     
    

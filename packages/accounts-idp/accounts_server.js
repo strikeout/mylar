@@ -21,7 +21,8 @@ Accounts.certifyFunc(function(options, user) {
 
 Meteor.methods({
     GetWrapPrivKey: function(){
-	console.log("returning wrap key " + Meteor.user()._wrap_privkey);
+	console.log("returning wrap key " +
+		    Meteor.user()._wrap_privkey);
 	return Meteor.user()._wrap_privkey;
     }
 });
