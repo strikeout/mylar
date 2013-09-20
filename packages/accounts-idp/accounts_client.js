@@ -58,8 +58,7 @@ function finishLoginUser(uname, app_key, cb) {
     } else {
 	dec_func(wk);
     }
-    
-   
+     
 }
 
 Meteor.loginWithIDP = function (callback) {
@@ -68,11 +67,15 @@ Meteor.loginWithIDP = function (callback) {
 	console.log("loginwithIDP ");
     }
     idp_get_uname(function(uname) {
-	
+
 	if (idp_debug()) {
 	    console.log("uname " + uname);
 	}
 
+	if (!uname) {
+	    callback("You are not logged in the idp");
+	    return;
+	}
 	idp_get_app_key(function(app_key) {
 
 	    if (idp_debug()) {

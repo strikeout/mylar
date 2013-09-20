@@ -97,5 +97,10 @@ create_cert = function(msg, origin, cb) {
 }
 
 get_uname = function(arg, origin, cb) {
-    cb(Meteor.user().username);
+    if (!Meteor.user()) {
+	//no one logged in the idp
+	cb(null);
+    } else {
+	cb(Meteor.user().username);
+    }
 }
