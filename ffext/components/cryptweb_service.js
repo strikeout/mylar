@@ -43,6 +43,8 @@ if ("undefined" == typeof(CFNamespace)) {
  */
 CFNamespace = {
     safe_pages: {},
+    serialized_public:{},
+    pub: {},
 
     encode_utf8: function(s) {
         return unescape( encodeURIComponent( s ) );
@@ -67,18 +69,38 @@ CFNamespace = {
      * XXX: not efficient when loading signed content from
      * several different origins
      */
-    set_public_key: function(serialized_key) {
-        if(serialized_key == this.serialized_public)
+    set_public_key: function(uri,serialized_key) {
+        if(serialized_key == this.serialized_public[uri['host']])
             return; //no need to recompute
         try{
-            this.serialized_public = serialized_key;
+            this.serialized_public[uri['host']] = serialized_key;
             c = sjcl.ecc.curves['c192'];
-            pt = c.fromBits(sjcl.codec.hex.toBits(this.serialized_public));
-            this.pub = new sjcl.ecc["ecdsa"].publicKey(c,pt);
+            pt = c.fromBits(sjcl.codec.hex.toBits(this.serialized_public[uri['host']]));
+            this.pub[uri['host']] = new sjcl.ecc["ecdsa"].publicKey(c,pt);
         } catch (e) {
             dump("CF Error: " + e + "\n");
         }
     },
+
+    get_public_key: function(uri) {
+        //just crash if not found?
+        if(this.pub.hasOwnProperty(uri['host']))
+            return this.pub[uri['host']];
+        return false;
+    },
+
+    checkForHash: function (originalUri){
+        var uri = parseUri(originalUri);
+        if(uri.query.length != 40)
+            return false;
+        
+        //parse as hexadecimal to check format
+        if(isNaN(parseInt(uri.query,16)))
+            return false;
+
+        return uri.query;
+    },
+
 };
 CFN = CFNamespace;
 
@@ -141,16 +163,23 @@ cryptweb_service.prototype =
         
         } else if (aTopic == "http-on-examine-response") {
             aSubject.QueryInterface(Ci.nsIHttpChannel);
+            var hash = CFN.checkForHash(aSubject.originalURI.spec);
+            var uri = parseUri(aSubject.originalURI.spec)
             var si = aSubject.securityInfo;
 
             //extract developer sig from cert. 
             //currently stored in 'locality' field of Subject Name
+            var attached = false;
             if(si){
                 var k = this.get509XSignature(si) 
                 if (k) {
-                    CFN.set_public_key(k);
+                    CFN.set_public_key(uri,k);
                     this.attachChannelListener(aSubject);
+                    attached = true;
                 }
+            }
+            if(hash && !attached){
+                this.attachChannelListener(aSubject,'hash_only');
             }
             //no other tests needed, we rely on FF to have verified the cert.
         }
@@ -173,10 +202,10 @@ cryptweb_service.prototype =
         }
     },
 
-    attachChannelListener: function(oHttp) {
+    attachChannelListener: function(oHttp,type) {
         try{
             //intercept http response content in inITraceableChannel
-            var newListener = new CopyTracingListener();
+            var newListener = new CopyTracingListener(type);
             oHttp.QueryInterface(Ci.nsITraceableChannel);
             newListener.originalListener = oHttp.setNewListener(newListener);
         } catch (e) {
@@ -204,8 +233,9 @@ cryptweb_service.prototype =
 /*
  * Copy tracing listener. Here's where the meat of this extension is.
  */
-function CopyTracingListener() {
+function CopyTracingListener(type) {
     this.originalListener = null;
+    this.type = type;
 }
 
 CopyTracingListener.prototype =
@@ -262,32 +292,31 @@ CopyTracingListener.prototype =
       var httpRequest = request.QueryInterface(Ci.nsIRequest);
       var responseSource = this.receivedData.join('');
 
-      /* 
-      //no need to verify if no data is present (websocket)
-      if(responseSource.length == 0){
-        //dump('data is empty\n');
+
+      var hashed = Sha1.hash(responseSource,false);
+      //check for hash if present:
+      var prehash = CFN.checkForHash(uri);
+      if(prehash && prehash !== hashed){
+          dump('content failed hash check\n');
+          dump('expected: ' + prehash + ' actual: ' + hashed);
+          this.emitFakeResponse(request,context,statusCode,uri);
+          return;
+      }
+
+
+      //if outside secure origin, skip signature check
+      if(this.type === 'hash_only'){
         this.passOnData(request,context,statusCode,uri);
         return;
       }
-      */
-      /*
-      //allow paths exempt from checking
-      if(!this._pageIsSigned 
-                   && CFN.allow_unsafe_path(uri['path'],this.ContentType)){
-        //dump('check exempt path\n');
-        this.passOnData(request,context,statusCode,uri);
-        return;
-      }
-      */
 
-      //insert check for hash if present.
-
-      //verify signature on all other content
+      //verify signature or hash on all content
       var sig = this.verifySignature(
                  this.pageSignature,
-                 responseSource,
+                 hashed,
                  this.ContentType,
-                 uri['file']
+                 uri['file'],
+                 uri //XXX clean this up some time
                 );
       if(sig){
         this.passOnData(request,context,statusCode,uri);
@@ -310,13 +339,13 @@ CopyTracingListener.prototype =
       throw Components.results.NS_NOINTERFACE;
   },
 
-  verifySignature: function(sig,responseSource,contentType,uri_filename){
+  verifySignature: function(sig,hashed,contentType,uri_filename,uri){
     try{
       sn = sjcl.codec.hex.toBits(sig) 
-      var hashed = Sha1.hash(responseSource,false);
       var hstring = contentType + ':' + hashed + ':' + uri_filename;
       var hash2 = Sha1.hash(hstring,true);
-      CFN.pub.verify(hash2,sn);//throws error if not safe
+      var pub = CFN.get_public_key(uri);
+      pub.verify(hash2,sn);//throws error if not safe
       //dump('signature valid for ' + uri_filename + "\n");
       return true;
     } catch (anError) {
@@ -362,6 +391,10 @@ CopyTracingListener.prototype =
     // Call old listener with our data and set "response" headers
     var stream = Cc["@mozilla.org/io/string-input-stream;1"]
                    .createInstance(Ci.nsIStringInputStream);
+
+    stream.setData("CF extension blocked this content from loading",-1); 
+
+    //XXX: throws Exception sometimes. Find out why.
     this.originalListener.onDataAvailable(
         request, 
         context, 

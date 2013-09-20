@@ -25,15 +25,6 @@ changes for v3:
 * all content must be accompanied by a signature, may be wildcard
 * dropped top-level page distinction
 
-TODO:
-* refactor code to make reasoning about decision tree easier
-
-
-possible improvements:
-* speed up hash & signature check for development mode (checking 50 signatures is slow)
-* write simple logging module
-* never load secure pages from cache.
-
 
 Algorithm pseudocode:
 
@@ -53,3 +44,15 @@ else:
     assume CA does good job, this wesbite doesn't need checking
 
 LOAD PAGE
+
+
+changes for v3:
+
+* removed paths that were exempt from checking
+* only application entry point is now served with key from secure origin,
+    other files are included (with hash in query string) from a separate origin
+* must serve all content over https, otherwise firefox will complain (blocks mixed content)
+
+hint for setup: 
+run: ROOT_URL=https://yourdomain.com:4343 meteor run -p 3000 -e 5000
+configure nginx to forward https 443 to main app server(port 5000), https 4343 to normal meteor server (port 3000)
