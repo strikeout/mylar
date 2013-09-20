@@ -560,13 +560,6 @@ if (Meteor.isClient) {
 	return new Principal('user', user.username, pkeys);
     }
     
-    Deps.autorun(function(){
-	if (Meteor.user()) {
-    	    Meteor.subscribe("myprinc", Principal.user().id);
-	}
-    });
-
-    
     // p1.allowSearch(p2) : p1 can now search on data encrypted for p2
     // since p2 can see p2's data, if p1 searches for a word that matches a word in p2's document
     // p2 knows which word p1 searched for because p2 knows p2's document
@@ -783,6 +776,11 @@ if (Meteor.isClient) {
     
     Deps.autorun(processAccessInbox);
     
+    Deps.autorun(function(){
+	if (Meteor.user()) {
+    	    Meteor.subscribe("myprinc", Principal.user().id);
+	}
+    });
 }
 
 /* Algorithm for switching access from public key to private key.
