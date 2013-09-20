@@ -11,9 +11,11 @@ Accounts.certifyFunc(function(options, user) {
     } else {
 	user._validate = true;
 	user._wrap_privkey = options.wrap_privkey;
+	user._pubkey_cert = options.key_cert;
     }
 
     delete options.wrap_privkey;
+    delete option.key_cert;
     delete options.cert;
 
     return user;
