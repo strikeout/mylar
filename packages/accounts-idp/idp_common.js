@@ -1,13 +1,14 @@
 idp_pk = undefined;
 idp_url = undefined;
+app_origin = undefined; // maintained for server side
 
 idp_init = function(url, pk, origin) {
     idp_pk =  pk;
     idp_url = url;
+    app_origin = origin;
     if (Meteor.isClient) {
         Session.set('idp_user_debug', true);
-	var origin = window.location.protocol + "//" + window.location.host;
-	Session.set('idp_user_origin', origin);
+	Session.set('idp_user_origin', url);
     }
 }
 

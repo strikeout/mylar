@@ -59,7 +59,6 @@ idp_create_cert = function (msg, cb) {
 };
 
 idp_get_uname = function(cb) {
-    console.log("get uname");
-    call('get_uname', cb);
+    call('get_uname','', cb);
 }
 

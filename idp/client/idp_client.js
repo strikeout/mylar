@@ -13,8 +13,7 @@ function CreateUser(){
 			    }
 			});
   }else{
-      $("#errorUsernameMsg").text('Username Must Contain At least 5 Characters');
-      //alert('Must Contain At least 5 Characters');
+      $("#errorUsernameMsg").text('Provide nonempty username and password.');
   }
 }
 
@@ -95,6 +94,6 @@ create_cert = function(msg, origin, cb) {
     });
 }
 
-get_uname = function(cb) {
+get_uname = function(arg, origin, cb) {
     cb(Meteor.user().username);
 }
