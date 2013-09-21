@@ -277,6 +277,22 @@ if (Meteor.isServer) {
 }
 
 
+// generates keys: standard crypto + multi-key
+generate_princ_keys = function(cb) {
+    keys = crypto.generate_keys();
+    var done_cb = function (key) {
+        keys['mk_key'] = key;
+        cb(keys);
+    }
+    if (Meteor.isClient()) {
+        Crypto.keygen(done_cb);
+    } else {
+        var key = crypto_server.keygen();
+        done_cb(key);
+    }
+};
+
+
 /***** Client ***************/
 
 if (Meteor.isClient) {
@@ -298,15 +314,6 @@ if (Meteor.isClient) {
 
     }
     
-    // generates keys: standard crypto + multi-key
-    Principal.generate_keys = function(cb) {
-	keys = crypto.generate_keys();
-	Crypto.keygen(function(key) {
-	    keys['mk_key'] = key;
-	    cb(keys);
-	});
-    }
-
     // creates a principal of type and name
     // as certified by principal authority
     // and stores it in the principal graph
@@ -330,7 +337,7 @@ if (Meteor.isClient) {
 	    PrincType.insert({type:type, searchable: false});
 	}
 
-	Principal.generate_keys(function(keys) {
+	generate_princ_keys(function(keys) {
 	    var p = new Principal(type, name, keys);
 	    cache_add(p, {'princ': creator});
 	    Principal._store(p, creator);
