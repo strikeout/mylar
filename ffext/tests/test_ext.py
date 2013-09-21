@@ -11,6 +11,7 @@ ENC = ('https://idp','idp')
 
 def test_main(p):
     driver = webdriver.Firefox(p)
+    driver.get('http://localhost')
     t1 = test_enc_page(driver)
     t2 = test_other_page(driver)
     t3 = test_other_page_https(driver)
