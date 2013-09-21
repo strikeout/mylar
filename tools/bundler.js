@@ -549,7 +549,7 @@ _.extend(Bundle.prototype, {
   },
 
   // Minify the bundle
-  minify: function () {
+  minify: function (rootUrl) {
     var self = this;
 
     var addFile = function (type, finalCode) {
@@ -563,7 +563,7 @@ _.extend(Bundle.prototype, {
         where: 'client',
         type: type,
         cacheable: true,
-        url: name + '?' + hash,
+        url: (rootUrl || '') + name + '?' + hash,
         size: contents.length,
         hash: hash,
         signature: signature
@@ -957,7 +957,7 @@ exports.bundle = function (app_dir, output_path, options) {
 
     // Minify, if requested
     if (options.minify)
-      bundle.minify();
+      bundle.minify(options.rootUrl);
 
     // Write to disk
     // added options.rootUrl for meteor_enc to do absolute requests
