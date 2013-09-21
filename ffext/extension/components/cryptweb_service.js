@@ -159,14 +159,14 @@ cryptweb_service.prototype =
 
         } else if (aTopic == "http-on-modify-request") {
             var s = new Date()
-            dump("start modify " + s.getTime() + "\n");
+            //dump("start modify " + s.getTime() + "\n");
             aSubject.QueryInterface(Ci.nsIHttpChannel);
             this.onModifyRequest(aSubject);
             var d = new Date()
-            dump("end modify " + (d.getTime()-s) + "\n");
+            //dump("end modify " + (d.getTime()-s) + "\n");
         } else if (aTopic == "http-on-examine-response") {
             var s = new Date()
-            dump("start http-on-examine " + s.getTime() + "\n");
+            //dump("start http-on-examine " + s.getTime() + "\n");
             aSubject.QueryInterface(Ci.nsIHttpChannel);
             var hash = CFN.checkForHash(aSubject.originalURI.spec);
             var uri = parseUri(aSubject.originalURI.spec)
@@ -187,7 +187,7 @@ cryptweb_service.prototype =
                 this.attachChannelListener(aSubject,'hash_only');
             }
             var d = new Date()
-            dump("end http-on-examine " + (d.getTime()-s) + "\n");
+            //dump("end http-on-examine " + (d.getTime()-s) + "\n");
             //no other tests needed, we rely on FF to have verified the cert.
         }
     },
