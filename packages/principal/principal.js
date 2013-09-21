@@ -284,7 +284,7 @@ generate_princ_keys = function(cb) {
         keys['mk_key'] = key;
         cb(keys);
     }
-    if (Meteor.isClient()) {
+    if (Meteor.isClient) {
         Crypto.keygen(done_cb);
     } else {
         var key = crypto_server.keygen();
