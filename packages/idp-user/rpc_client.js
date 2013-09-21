@@ -4,9 +4,10 @@ function idp_origin () {
 };
 Template.idp_client.origin = idp_origin;
 
-function idp_debug () {
+idp_debug = function() {
   return Session.get('idp_user_debug');
 };
+
 Template.idp_client.debug = idp_debug;
 
 // RPC infrastructure
@@ -58,6 +59,6 @@ idp_create_cert = function (msg, cb) {
 };
 
 idp_get_uname = function(cb) {
-    call('get_uname', cb);
+    call('get_uname','', cb);
 }
 

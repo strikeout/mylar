@@ -4,41 +4,92 @@ function app_password(app_key) {
     return base_crypto.secret_derive(app_key, "login"); 
 }
 
+var onCreatePrincipal = undefined;
+
 function createUser(uname, app_key, cb) {
-    idp_create_cert("register", function(cert){
-	// cert is a certificate that this person is uname
+    if (idp_debug()) 
+	console.log("create user " + uname + " app_key " + app_key);
 
-	Principal.generate_keys(function(keys){
-	    var ser_keys = serialize_keys(keys);
-	    var wrap_privkeys = base_crypto.sym_encrypt(app_key, ser_keys);
-	    
-	    var after_create_cb = function(err) {
-                if (!err) 
-		    localStorage['user_princ_keys'] = ser_keys;
-		cb && cb(err);
-	    }
+    Principal.create("user", uname, null, function(uprinc) {
+	var keys = uprinc.keys;
+	var ser_keys = serialize_keys(keys);
+	var pub_keys = serialize_public(keys);
+	var wrap_privkeys = base_crypto.sym_encrypt(app_key,
+						    ser_keys);
 
-	    Accounts.createUser({username: uname,
-				 password: app_password(app_key),
-				 cert : cert,
-				 wrap_privkey: wrap_privkeys},
-				after_create_cb);
-	});
+        var do_the_rest = function () {
+	    // now create a certificate on name and
+	    // one on public keys
+	    idp_create_cert("register", function(name_cert){
+	        idp_create_cert(pub_keys, function(key_cert) {
+
+		    var after_create_cb = function(err) {
+                        if (!err) 
+			    localStorage['user_princ_keys'] = ser_keys;
+		        cb && cb(err);
+		    }
+
+		    Accounts.createUser({username: uname,
+				         password: app_password(app_key),
+				         name_cert : name_cert,
+				         key_cert : key_cert,
+				         pk : pub_keys,
+				         wrap_privkey: wrap_privkeys},
+				        after_create_cb);
+	        });
+	    });
+        };
+
+        if (onCreatePrincipal) {
+            onCreatePrincipal(uprinc, do_the_rest);
+        } else {
+            do_the_rest();
+        }
     });
 }
 
 function finishLoginUser(uname, app_key, cb) {
-    var keys = base_crypto.sym_decrypt(app_key,
-				       Meteor.user().wrap_privkey);
-    localStorage['user_princ_keys'] = keys;
 
-    cb && cb();
+    var dec_func = function(wkey) { // decrypt wrapped key
+	var keys = base_crypto.sym_decrypt(app_key, wkey);
+	localStorage['user_princ_keys'] = keys;
+	
+	cb && cb();	
+    }
+    
+    var wk = Meteor.user()._wrap_privkey;
+    if (!wk) {
+	// RPC to server, we don't want to clog user's
+	// subscriptions with the wrapped key
+	Meteor.call("GetWrapPrivkey", function(err, wkey){
+	    if (err) {
+		throw new Error("issue with wrapped key from server");
+	    }
+	    dec_func(wkey);
+	});
+    } else {
+	dec_func(wk);
+    }
+     
 }
 
 Meteor.loginWithIDP = function (callback) {
 
     idp_get_uname(function(uname) {
+
+	if (idp_debug()) {
+	    console.log("uname " + uname);
+	}
+
+	if (!uname) {
+	    callback("You are not logged in the idp");
+	    return;
+	}
 	idp_get_app_key(function(app_key) {
+
+	    if (idp_debug()) {
+		console.log("app key" + app_key);
+	    }
 
 	    Meteor.loginWithPassword({username:uname}, app_password(app_key),
 		function(error) {
@@ -54,3 +105,6 @@ Meteor.loginWithIDP = function (callback) {
     });
 };
 
+Meteor.onCreatePrincipal = function (cb) {
+    onCreatePrincipal = cb;
+};

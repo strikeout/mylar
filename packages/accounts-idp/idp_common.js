@@ -1,13 +1,12 @@
 idp_pk = undefined;
 idp_url = undefined;
-app_origin = undefined;
 
-idp_init = function(url, pk, origin) {
-    idp_pk =  pk;
+idp_init = function(url, pk, debug) {
+    idp_pk =  deserialize_keys(pk);
     idp_url = url;
-    app_origin = origin;
     if (Meteor.isClient) {
-        Session.set('idp_user_debug', true);
+        Session.set('idp_user_debug', debug);
+	Session.set('idp_user_origin', url);
     }
 }
 
@@ -15,9 +14,10 @@ idp_init = function(url, pk, origin) {
 // by the idp for user with msg at origin
 // e.g., msg can be pks or "register"
 idp_check = function(msg, user, cert) {
-    var c = JSON.stringify({user: user,
-			    msg: msg, origin: app_origin});
+    // Remove the trailing slash in "http://host.name:port/"
+    var origin = Meteor.absoluteUrl().slice(0, -1);
+    var c = JSON.stringify({user: user, msg: msg, origin: origin});
 
-    return base_crypto.verify(c, cert, idp_pk);
+    return base_crypto.verify(c, cert, idp_pk.verify);
 }
 

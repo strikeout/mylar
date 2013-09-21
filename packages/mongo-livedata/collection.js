@@ -8,7 +8,12 @@
 
 var debug = false;
 
-var ENC_DEBUG = true; // if true, an unencrypted copy of the fields will be kept for debugging mode
+// if true, an unencrypted copy of the fields will be kept for debugging mode
+var ENC_DEBUG = false;
+
+set_enc_debug = function (flag) {
+    ENC_DEBUG = flag;
+};
 
 
 enc_field_name = function(f) {
@@ -235,7 +240,13 @@ var intersect = function(a, b) {
     r = [];
 
     _.each(a, function(f) {
-        if (_.has(b, f)) {
+        // XXX: We should split enc_fields() into two functions,
+        // and check for exactly one of f and f+"_enc", depending on
+        // whether we are trying to encrypt or decrypt a message.
+        // A further complication is signed fields -- some of those
+        // might be encrypted (so only the _enc version is present),
+        // and some of those might be plaintext.
+        if (_.has(b, f) || _.has(b, f + "_enc")) {
             r.push(f);
         }
     });
@@ -244,7 +255,7 @@ var intersect = function(a, b) {
 };
 
 
-enc_fields = function(enc_fields, signed_fields, container) {
+function enc_fields(enc_fields, signed_fields, container) {
     return intersect(_.union(_.keys(enc_fields), _.keys(signed_fields)), container);
 }
 

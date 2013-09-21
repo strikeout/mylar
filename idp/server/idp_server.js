@@ -6,7 +6,6 @@ Meteor.users.allow({// don't allow users to write
 });
 
 Accounts.onCreateUser(function(options, user) {
-    console.log(JSON.stringify(user));
     // create user master key
     user.masterKey = JSON.stringify(
 	sjcl.random.randomWords(6));
@@ -45,12 +44,11 @@ Meteor.methods({
     
     // calls cb with a certificate
     create_cert : function(msg, origin) {
-	console.log("cert for " + msg + " " + origin);
 	var c = JSON.stringify({user: Meteor.user().username,
-				msg: msg, origin: origin}); 
+				msg: msg, origin: origin});
 	var cert = "";
 	try { 
-	    cert = base_crypto.sign(sign_text, idpkeys.sign);
+	    cert = base_crypto.sign(c, idpkeys.sign);
 	} catch (err) {
 	    console.log("err is " + err);
 	}
