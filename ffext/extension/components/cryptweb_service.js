@@ -158,10 +158,15 @@ cryptweb_service.prototype =
             observerService.addObserver(this, "http-on-examine-response", false);
 
         } else if (aTopic == "http-on-modify-request") {
+            var s = new Date()
+            dump("start modify " + s.getTime() + "\n");
             aSubject.QueryInterface(Ci.nsIHttpChannel);
             this.onModifyRequest(aSubject);
-        
+            var d = new Date()
+            dump("end modify " + (d.getTime()-s) + "\n");
         } else if (aTopic == "http-on-examine-response") {
+            var s = new Date()
+            dump("start http-on-examine " + s.getTime() + "\n");
             aSubject.QueryInterface(Ci.nsIHttpChannel);
             var hash = CFN.checkForHash(aSubject.originalURI.spec);
             var uri = parseUri(aSubject.originalURI.spec)
@@ -181,6 +186,8 @@ cryptweb_service.prototype =
             if(hash && !attached){
                 this.attachChannelListener(aSubject,'hash_only');
             }
+            var d = new Date()
+            dump("end http-on-examine " + (d.getTime()-s) + "\n");
             //no other tests needed, we rely on FF to have verified the cert.
         }
     },
@@ -242,14 +249,22 @@ CopyTracingListener.prototype =
 {
 
   _pageIsSigned: false, //local variable, just for speedup
-
+  _hasher: undefined,
+ 
   onStartRequest: function(request, context) {
+
+    var d = new Date()
+    //dump("on Start request " + d.getTime() + "\n");
       var httpChannel = request.QueryInterface(Ci.nsIHttpChannel);
       //dump("URI:" + request.URI.spec + "\n");
+      this.startTime = new Date();
       this.receivedData = [];   // array for incoming data.
       this.offsetcount = [];  //array for passing on chunks of data
       this._pageIsSigned = false; //header contains CF signature
       this.pageSignature = null;
+      this._hasher = Cc["@mozilla.org/security/hash;1"]
+                   .createInstance(Components.interfaces.nsICryptoHash),
+      this._hasher.init(this._hasher.SHA1);
       try {
           var chan = request.QueryInterface(Ci.nsIHttpChannel);
           this.ContentType = chan.getResponseHeader("Content-Type");
@@ -266,17 +281,22 @@ CopyTracingListener.prototype =
    */
   onDataAvailable: function(request, context, inputStream, offset, count)
   {
+    var start = new Date()
+    //dump("data available " + start.getTime() + "\n");
     try {
       var binaryInputStream = CCIN("@mozilla.org/binaryinputstream;1", 
                              "nsIBinaryInputStream");
       binaryInputStream.setInputStream(inputStream);
-      var data = binaryInputStream.readBytes(count);
+      var data = binaryInputStream.readByteArray(count);
+      this._hasher.update(data, data.length);
       this.receivedData.push(data);
       this.offsetcount.push([offset,count]);
 
     } catch (e) {
         dump("CF Error: " + e + "\n");
     }
+    var end = new Date()
+    //dump("on data done " + (end-start) + "\n");
   },
 
   /*
@@ -285,15 +305,32 @@ CopyTracingListener.prototype =
    */
   onStopRequest: function(request, context, statusCode)
   {
+    var start = new Date()
+    //dump("on Stop request " + start.getTime() + "\n");
     var uri = parseUri(request.originalURI.spec);
     //dump("uri is: " + uri['source'] + "\n");
 
     try{
       var httpRequest = request.QueryInterface(Ci.nsIRequest);
-      var responseSource = this.receivedData.join('');
+      //var responseSource = this.receivedData.join('');
+
+    //var d = new Date()
+    //dump("after join" + (d.getTime()-start) + "\n");
+    //dump("len after join" + responseSource.length + "\n");
+
+var hash = this._hasher.finish(false);
+// return the two-digit hexadecimal code for a byte
+function toHexString(charCode)
+{
+  return ("0" + charCode.toString(16)).slice(-2);
+}
+
+// convert the binary hash data to a hex string.
+var s = [toHexString(hash.charCodeAt(i)) for (i in hash)].join("");
 
 
-      var hashed = Sha1.hash(responseSource,false);
+
+      var hashed = s; //Sha1.hash(responseSource,false);
       //check for hash if present:
       var prehash = CFN.checkForHash(uri);
       if(prehash && prehash !== hashed){
@@ -306,7 +343,12 @@ CopyTracingListener.prototype =
 
       //if outside secure origin, skip signature check
       if(this.type === 'hash_only'){
+    var d = new Date()
+    //dump("stop request done hash before pass" + (d.getTime()-start) + "\n");
         this.passOnData(request,context,statusCode,uri);
+    var d = new Date()
+    //dump("stop request done hash after pass" + (d.getTime()-start) + "\n");
+    //dump("stop request done hash total time" + (d.getTime()-this.startTime) + "\n");
         return;
       }
 
@@ -320,11 +362,17 @@ CopyTracingListener.prototype =
                 );
       if(sig){
         this.passOnData(request,context,statusCode,uri);
+    var d = new Date()
+    //dump("stop request done sig" + (d.getTime()-start) + "\n");
+    //dump("stop request done sig total time" + (d.getTime()-this.startTime) + "\n");
         return;
       }
 
       //if in doubt, throw it out.
       this.emitFakeResponse(request,context,statusCode,uri);
+    var d = new Date()
+    //dump("stop request done fake" + (d.getTime()-start) + "\n");
+    //dump("stop request done fake total time" + (d.getTime()-this.startTime) + "\n");
 
     } catch (anError) {
       dump("CF ERROR: " + anError + "\n");
@@ -371,7 +419,7 @@ CopyTracingListener.prototype =
       var binaryOutputStream = CCIN("@mozilla.org/binaryoutputstream;1",  
                                        "nsIBinaryOutputStream");
       binaryOutputStream.setOutputStream(storageStream.getOutputStream(0));
-      binaryOutputStream.writeBytes(this.receivedData[i], count);
+      binaryOutputStream.writeByteArray(this.receivedData[i], count);
       try {
         this.originalListener.onDataAvailable(request, 
                         context,
