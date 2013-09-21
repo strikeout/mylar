@@ -8,7 +8,12 @@
 
 var debug = false;
 
-var ENC_DEBUG = true; // if true, an unencrypted copy of the fields will be kept for debugging mode
+// if true, an unencrypted copy of the fields will be kept for debugging mode
+var ENC_DEBUG = false;
+
+set_enc_debug = function (flag) {
+    ENC_DEBUG = flag;
+};
 
 
 enc_field_name = function(f) {
