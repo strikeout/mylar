@@ -46,11 +46,7 @@ PrincAttr = function (type, name) {
 princ_cache = {};
 
 var princ_str = function(name, type, auth_user) {
-    return name + "++" +  type + "++" + auth_user;
-}
-var fvalid = function(name) {
-    console.log(name.indexOf("++"));
-    return name.indexOf("++") == -1;
+    return JSON.stringify({name: name, type: type, auth_user: auth_user});
 }
 
 // adds princ to cache
@@ -64,10 +60,6 @@ var cache_add = function(princ, auth){
 		uname = auth.princ.name;
 	    }
 	    if (uname) {
-		// prevent formatting attacks:
-		if (!fvalid(princ.name) || !fvalid(princ.type) || !fvalid(uname)) {
-		    return;
-		}
 		var princ_def = princ_str(princ.name, princ.type, uname);
 		princ_cache[princ_def] = princ;
 	    }
@@ -584,7 +576,7 @@ if (Meteor.isClient) {
 	}
 
 	Meteor.call("userPK", uname, function(err, uinfo) {
-	    console.log("userPK answer " + JSON.stringify(uinfo));
+	    if (debug) console.log("userPK answer " + JSON.stringify(uinfo));
 	    if (err || !uinfo || !uinfo._pk || !uinfo._pubkey_cert) {
 		throw new Error("user " + uname + " public keys are not available");
 	    }

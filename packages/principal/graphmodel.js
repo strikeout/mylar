@@ -58,7 +58,6 @@ if (Meteor.isServer) {
 
     Meteor.methods({
 	updateWrappedKeys: function(pid, pid_for, wpk, wsym, delta, add_to_inbox) {
-	    console.log("inserting wrapped key");
 	    var entry = WrappedKeys.findOne({principal: pid, wrapped_for: pid_for});
 	    var entry_id = "";
 	    if (!entry) {
@@ -67,7 +66,6 @@ if (Meteor.isServer) {
 						       wrapped_keys: wpk,
 						       wrapped_sym_keys: wsym,
 						       delta: delta});
-		console.log("entryid " + entry_id);
 	    } else {
 		if (entry.wrapped_sym_keys && entry.delta && !wsym && !delta) {
 		    throw new Exception("sym keys and delta already exist");
@@ -76,7 +74,6 @@ if (Meteor.isServer) {
 				       {$set: {principal:pid, wrapped_for:pid_for, wrapped_keys: wpk,
 					       wrapped_sym_keys: wsym, delta:delta}});
 		}
-		console.log("entry._id" + entry._id);
 		entry_id =  entry._id;
 	    }
 	    if (add_to_inbox) {
@@ -85,7 +82,6 @@ if (Meteor.isServer) {
 	},
 	
 	wrappedKeyByID: function(id) {
-	    console.log("called by ID, returning " + JSON.stringify(WrappedKeys.findOne({_id: id})));
 	    return WrappedKeys.findOne({_id: id});
 	}
     });
