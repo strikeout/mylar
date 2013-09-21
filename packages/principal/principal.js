@@ -388,7 +388,7 @@ if (Meteor.isClient) {
 	princ2._load_secret_keys(function(){
 	    Principal._add_access(princ1, princ2, function() {
 		endTime("PRINC_ACCESS");
-		on_complete();
+		on_complete && on_complete();
 	    });
 	});
     };
