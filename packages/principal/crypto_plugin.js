@@ -87,7 +87,7 @@ Crypto.encrypt = function(k, word, cb) {
     }
   
     if(enc_fire().valid)
-        cb(enc_fire().Encrypt(k1, word));
+        cb(enc_fire().Encrypt(k, word));
     else
         enc_module.postMessage("encrypt(" +  k + "," + word + ")");
 };
