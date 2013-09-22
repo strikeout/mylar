@@ -15,3 +15,7 @@ endTime = function(msg) {
 markTime = function(msg, type) {
     logAdd(msg + " " + type + " " + window.performance.now() + "\n");
 }
+
+markGlobTime = function(msg, type) {
+    logAdd(msg + " " + type + " " + new Date().getTime() + "\n");
+}

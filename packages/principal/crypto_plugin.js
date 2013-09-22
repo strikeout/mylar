@@ -7,14 +7,14 @@
 
 
 
-enc_fire = undefined; /* function() {
+enc_fire = function() {
     return document.getElementById("_cryptoFIRE");
-}*/
+}
 
 enc_module = undefined;
 enc_return = undefined;
 
-USE_CRYPTO_SERVER = true;
+USE_CRYPTO_SERVER = false;
 //replaces NaCl or crypto_fire with crypto_server; for testing
 
 /*
@@ -87,7 +87,7 @@ Crypto.encrypt = function(k, word, cb) {
     }
   
     if(enc_fire().valid)
-        cb(enc_fire().Encrypt(k1, word));
+        cb(enc_fire().Encrypt(k, word));
     else
         enc_module.postMessage("encrypt(" +  k + "," + word + ")");
 };
