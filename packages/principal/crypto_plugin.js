@@ -138,9 +138,10 @@ Crypto.text_encrypt = function(k, ptext, cb) {
 
     var r = sjcl.codec.hex.fromBits(sjcl.random.randomWords(2));
     encitems[0] = r;
+    
     _.each(items, function(item, index) {
 	Crypto.index_enc(k, item, function(encitem) {
-	    encitems[index+1] = Crypto.mkhash(r , encitem);
+	    encitems[index+1] = basic_crypto.mkhash(r , encitem);
 	    callback();
 	});
     });    
