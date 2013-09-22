@@ -3,7 +3,7 @@ Package.describe({
 });
 
 Package.on_use(function (api, where) {
-    const SUPPORT_MULTIKEY = true;
+    const USE_NACL = false;
 
     where = where || ['client', 'server'];
 
@@ -15,7 +15,7 @@ Package.on_use(function (api, where) {
     api.add_files('crypto_plugin.html', 'client');
     api.add_files(['crypto_plugin.js', 'idp_helper.js'], 'client');
 
-    if(SUPPORT_MULTIKEY){
+    if(USE_NACL){
       // What a hack!  Extract source_root via the exception string.
       var source_root;
       var magic_string = '@@nonexistent_file@@';
