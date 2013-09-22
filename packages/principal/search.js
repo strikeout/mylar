@@ -120,7 +120,6 @@ Meteor.Collection.prototype.publish_search_filter = function(pubname, filter, pr
 		var handle = self_col.find(filter).observe({
 		    added: function(doc) {
 			// first check if it matches
-			console.log("found for filter" + JSON.stringify(filter));
 			var wk = WrappedKeys.findOne({principal: doc[enc_princ], wrapped_for: princ});
 			if (!wk) {
 			    throw new Error("no wrapped key");
@@ -132,13 +131,11 @@ Meteor.Collection.prototype.publish_search_filter = function(pubname, filter, pr
 			var enctext = doc[field];
 			_.some(enctext, function(encword){
 			    if (crypto_server.match(adjusted, encword)) {
-				console.log("found match " + doc.message);
 				self.added(self_col._name, doc._id, getProj(proj, doc, token));
 				
 				return true;
 			    }
 			});
-			console.log("done in this text");
 		    }
 		});
 		handles.push(handle);

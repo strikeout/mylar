@@ -7,14 +7,14 @@
 
 
 
-enc_fire = undefined; /* function() {
+enc_fire = function() {
     return document.getElementById("_cryptoFIRE");
-}*/
+}
 
 enc_module = undefined;
 enc_return = undefined;
 
-USE_CRYPTO_SERVER = true;
+USE_CRYPTO_SERVER = false;
 //replaces NaCl or crypto_fire with crypto_server; for testing
 
 /*
