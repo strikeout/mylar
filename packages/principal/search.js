@@ -117,9 +117,8 @@ Meteor.Collection.prototype.publish_search_filter = function(pubname, filter, pr
 	if (token != null) {
 	    
 	    var filters = filter(args);
-	    console.log("server filters are " + JSON.stringify(filters));
-	    
 	    var handles = [];
+
 	    _.each(filters, function(filter){
 		var handle = self_col.find(filter).observe({
 		    added: function(doc) {
@@ -127,7 +126,6 @@ Meteor.Collection.prototype.publish_search_filter = function(pubname, filter, pr
 			var adjusted = adj_toks[princid];
 
 			if (!adjusted) {
-			    console.log("MISS");
 			    // first check if it matches
 			    var wk = WrappedKeys.findOne({principal: princid,
 							  wrapped_for: princ});
@@ -140,13 +138,11 @@ Meteor.Collection.prototype.publish_search_filter = function(pubname, filter, pr
 			
 			    adjusted = crypto_server.adjust(token, wk.delta);
 			    adj_toks[princid] = adjusted; 
-			} else {
-			    console.log("HIT");
-			}
+			} 
 			
 			var enctext = doc[field];
 			var rand = enctext[0];
-			adjusted = basic_crypto.mkhash(rand, adjusted);
+			adjusted = base_crypto.mkhash(rand, adjusted);
 			
 			_.some(enctext, function(encword, index){
 			    if (index) {

@@ -141,7 +141,7 @@ Crypto.text_encrypt = function(k, ptext, cb) {
     
     _.each(items, function(item, index) {
 	Crypto.index_enc(k, item, function(encitem) {
-	    encitems[index+1] = basic_crypto.mkhash(r , encitem);
+	    encitems[index+1] = base_crypto.mkhash(r , encitem);
 	    callback();
 	});
     });    
