@@ -38,7 +38,7 @@ Meteor.methods({
     
     // calls cb with an application specific key
     get_app_key : function(origin) {
-	return base_crypto.secret_derive(Meteor.user().masterKey,
+        return base_crypto.secret_derive(Meteor.user().masterKey,
 					 origin);
     },
     
