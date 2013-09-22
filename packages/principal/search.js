@@ -148,11 +148,13 @@ Meteor.Collection.prototype.publish_search_filter = function(pubname, filter, pr
 			var rand = enctext[0];
 			adjusted = basic_crypto.mkhash(rand, adjusted);
 			
-			_.some(enctext, function(encword){
-			    if (adjusted == encword) {
-				self.added(self_col._name, doc._id,
-					   getProj(proj, doc, token));
-				return true;
+			_.some(enctext, function(encword, index){
+			    if (index) {
+				if (adjusted == encword) {
+				    self.added(self_col._name, doc._id,
+					       getProj(proj, doc, token));
+				    return true;
+				}
 			    }
 			});
 		    }

@@ -36,6 +36,7 @@ public:
         registerMethod("Delta",      make_method(this, &CryptoExtAPI::Delta));
         registerMethod("Token",      make_method(this, &CryptoExtAPI::Token));
         registerMethod("Encrypt",      make_method(this, &CryptoExtAPI::Encrypt));
+	registerMethod("IndexEnc",     make_method(this, &CryptoExtAPI::IndexEnc));
         registerMethod("Adjust",      make_method(this, &CryptoExtAPI::Adjust));
         registerMethod("Match",      make_method(this, &CryptoExtAPI::Match));
         
@@ -63,6 +64,7 @@ public:
 	FB::variant Delta(const FB::variant& k1, const FB::variant& k2);
     FB::variant Token(const FB::variant& k1, const FB::variant& word);
 	FB::variant Encrypt(const FB::variant& k1, const FB::variant& word);
+	FB::variant IndexEnc(const FB::variant& k1, const FB::variant& word);
 	FB::variant Adjust(const FB::variant& tok, const FB::variant& delta);
 	FB::variant Match(const FB::variant& tok, const FB::variant& cipher);
     
