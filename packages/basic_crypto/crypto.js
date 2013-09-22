@@ -83,7 +83,6 @@ base_crypto = (function () {
             var hash = sjcl.hash.sha256.hash(msg);
             return sk.sign(hash);
         },
-	
         verify: function (msg, sig, pk) {
             var hash = sjcl.hash.sha256.hash(msg);
             try {
@@ -93,6 +92,14 @@ base_crypto = (function () {
                 return false;
             }
         },
+
+	mkhash : function(r, c) {
+	    var h = sjcl.hash.sha256.hash(r+c);
+	    var c = sjcl.codec.hex.fromBits(h);
+	    var l = c.length;
+	    return c.substr(l-10, 10); 
+	},
+	
 	
 	/* Starting with a secret key sk,
 	   unwraps keys in chain, until it obtains
