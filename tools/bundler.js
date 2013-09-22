@@ -556,7 +556,7 @@ _.extend(Bundle.prototype, {
       var contents = new Buffer(finalCode);
       var hash = sha1(contents);
       var name = '/' + hash + '.' + type;
-      var signature = sign(contents,name,false,name);
+      //var signature = sign(contents,name,false,name);
       self.files.client_cacheable[name] = contents;
       self.manifest.push({
         path: 'static_cacheable' + name,
@@ -566,9 +566,9 @@ _.extend(Bundle.prototype, {
         url: (rootUrl || '') + name + '?' + hash,
         size: contents.length,
         hash: hash,
-        signature: signature
+        //signature: signature
       });
-      self.signatures[hash] = signature; 
+      //self.signatures[hash] = signature; 
     };
 
     /// Javascript
@@ -699,7 +699,7 @@ _.extend(Bundle.prototype, {
       if (normalized.charAt(0) === '/')
         normalized = normalized.substr(1);
       
-      signature = sign(contents,normalized,false,path.basename(normalized))
+      //signature = sign(contents,normalized,false,path.basename(normalized))
       self.manifest.push({
         // path is normalized to use forward slashes
         path: (cacheable ? 'static_cacheable' : 'static') + '/' + normalized,
@@ -710,9 +710,9 @@ _.extend(Bundle.prototype, {
         // contents is a Buffer and so correctly gives us the size in bytes
         size: contents.length,
         hash: hash || sha1(contents),
-        signature: signature
+        //signature: signature
       });
-      self.signatures[(hash || sha1(contents))] = signature; 
+      //self.signatures[(hash || sha1(contents))] = signature; 
     };
 
     var cf_public_files = {};//index of all public files with hash
