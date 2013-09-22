@@ -109,7 +109,11 @@ Meteor.Collection.prototype.publish_search_filter = function(pubname, filter, pr
       function(args, token, enc_princ, princ, field){
 	
 	var self = this;
-	
+
+	// a cache of adjusted tokens so we don't adjust
+	// to same principal many times
+	var adj_toks = {}
+	  
 	if (token != null) {
 	    
 	    var filters = filter(args);
@@ -119,19 +123,32 @@ Meteor.Collection.prototype.publish_search_filter = function(pubname, filter, pr
 	    _.each(filters, function(filter){
 		var handle = self_col.find(filter).observe({
 		    added: function(doc) {
-			// first check if it matches
-			var wk = WrappedKeys.findOne({principal: doc[enc_princ], wrapped_for: princ});
-			if (!wk) {
-			    throw new Error("no wrapped key");
+			var princid = doc[enc_princ];
+			var adjusted = adj_toks[princid];
+
+			if (!adjusted) {
+			    console.log("MISS");
+			    // first check if it matches
+			    var wk = WrappedKeys.findOne({principal: princid,
+							  wrapped_for: princ});
+			    if (!wk) {
+				throw new Error("no wrapped key");
+			    }
+			    if (!wk.delta) {
+				throw new Error("missing delta");
+			    }
+			
+			    adjusted = crypto_server.adjust(token, wk.delta);
+			    adj_toks[princid] = adjusted; 
+			} else {
+			    console.log("HIT");
 			}
-			if (!wk.delta) {
-			    throw new Error("missing delta");
-			}
-			var adjusted = crypto_server.adjust(token, wk.delta);
+			
 			var enctext = doc[field];
 			_.some(enctext, function(encword){
 			    if (crypto_server.match(adjusted, encword)) {
-				self.added(self_col._name, doc._id, getProj(proj, doc, token));
+				self.added(self_col._name, doc._id,
+					   getProj(proj, doc, token));
 				
 				return true;
 			    }

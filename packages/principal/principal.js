@@ -26,7 +26,7 @@
      token: the actual cryptographic token
 */
 
-var debug = true;
+var debug = false;
 var crypto = base_crypto;
 
 /******* Data structures ****/
@@ -46,7 +46,8 @@ PrincAttr = function (type, name) {
 princ_cache = {};
 
 var princ_str = function(name, type, auth_user) {
-    return JSON.stringify({name: name, type: type, auth_user: auth_user});
+    var princ_def = JSON.stringify({name: name, type: type, auth_user: auth_user});
+    return princ_def;
 }
 
 // adds princ to cache
@@ -478,7 +479,7 @@ if (Meteor.isClient) {
     }
     // loads secret keys for the principal self.id
     // by finding a chain to the current user and decrypts the secret keys
-    Principal.prototype._load_secret_keys = function (on_complete) {
+    Principal.prototype._load_secret_keys = function (on_complete, tentative) {
 	var self = this;
 	if (self._has_secret_keys()) {
 	    if (debug) console.log("secret keys available" + pretty(self));
@@ -504,9 +505,12 @@ if (Meteor.isClient) {
 				}
 			    }
 			    else {
-				// Did not find a chain
-				throw new Error("keychain not found");
-				
+				if (tentative) {
+				    on_complete && on_complete(undefined);
+				} else {
+				    // Did not find a chain
+				    throw new Error("keychain not found");
+				}
 			    }
 			});
 	}
@@ -528,6 +532,7 @@ if (Meteor.isClient) {
 	    endTime("lookup");
 	    on_complete(p);
 	    return;
+	} else {
 	}
 
 	if (debug) console.log("lookupByID princ id " + id);
@@ -570,7 +575,12 @@ if (Meteor.isClient) {
 
     // returns a principal for the user with uname and feeds it as input to callback cb
     Principal.lookupUser = function(uname, cb) {
-	startTime("lookup");
+	startTime("lookupUser");
+	var cb2 = function(princ) {
+	    endTime("lookupUser");
+	    cb && cb(princ);
+	}
+
 	if (!uname) {
 	    throw new Error("cannot lookup user principal with uname " + uname);
 	}
@@ -591,8 +601,7 @@ if (Meteor.isClient) {
 	    }
 
 	    var princ = new Principal("user", uname, deserialize_keys(keys));
-	    endTime("lookup");
-	    cb && cb(princ);
+	    cb2 && cb2(princ);
 	});
     }
     
@@ -610,6 +619,7 @@ if (Meteor.isClient) {
 	    endTime("lookup");
 	    on_complete(p);
 	    return;
+	} else {
 	}
 	
 	if (debug)
@@ -653,7 +663,6 @@ if (Meteor.isClient) {
 
 		// The last cert should be signed by authority
 		if (_.last(certs).signer !== auth_id) {
-		    console.log("last cert is not signed by authority");
 		    endTime("lookup");
 		    on_complete(undefined);
 		} else {
@@ -661,11 +670,13 @@ if (Meteor.isClient) {
 		    if (verified) {
 			if (debug) console.log("chain verifies");
 			princ = new Principal(attrs[0].type, attrs[0].name, princ_keys);
-			cache_add(princ, {'uname': authority});
-			endTime("lookup");
-			on_complete && on_complete(princ);
+			princ._load_secret_keys(function(){
+			    cache_add(princ, {'uname': authority});
+			    endTime("lookup");
+			    on_complete && on_complete(princ);   
+			}, true);
+			
 		    } else {
-			console.log("chain does not verify");
 			endTime("lookup");
 			on_complete && on_complete(undefined);
 		    }

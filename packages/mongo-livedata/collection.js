@@ -8,7 +8,8 @@
 
 var debug = false;
 
-// if true, an unencrypted copy of the fields will be kept for debugging mode
+// if true, an unencrypted copy of the fields
+// will be kept for debugging mode
 var ENC_DEBUG = false;
 
 set_enc_debug = function (flag) {
@@ -280,7 +281,7 @@ lookup_princ_func = function(f, container) {
 	    cb(undefined, undefined);
 	    return;
 	}
-	
+
 	Principal._lookupByID(princ_id, function(princ){
 		cb(undefined, princ);
 	});
@@ -382,6 +383,7 @@ var is_searchable = function(enc_fields, field) {
 // container is a map of key to values 
 Meteor.Collection.prototype.enc_row = function(container, callback) {
     var self = this;
+    
     if (!self._enc_fields) {
 	callback();
 	return;
@@ -400,8 +402,12 @@ Meteor.Collection.prototype.enc_row = function(container, callback) {
         return;
     }
 
+    // we start timing here because we want time of encryption
+    // so we want to average over docs with enc fields
+    startTime("ENC");
     var cb = _.after(r.length, function() {
-        callback();
+	endTime("ENC");
+	callback();
     });
 
    _.each(r, function(f) {
@@ -453,11 +459,8 @@ Meteor.Collection.prototype.enc_row = function(container, callback) {
 // container is an object with key (field name), value (enc field value)
 Meteor.Collection.prototype.dec_msg = function(container, callback) {
     var self = this;
-
-    startTime("DECMSG");
     
     if (!self._enc_fields || !Meteor.isClient || !container) {
-	endTime("DECMSG");
 	callback();
 	return;
     }
@@ -465,7 +468,6 @@ Meteor.Collection.prototype.dec_msg = function(container, callback) {
     var callback_q = [];
     self._decrypt_cb.push(callback_q);
     callback2 = function () {
-	endTime("DECMSG");
 	if (callback) {
 	    callback();
 	}
@@ -477,7 +479,12 @@ Meteor.Collection.prototype.dec_msg = function(container, callback) {
 
     var r = enc_fields(self._enc_fields, self._signed_fields, container);
     if (r.length > 0) {
-        self.dec_fields(container, r, callback2);
+	startTime("DECMSG");
+	callback3 = function() {
+	    endTime("DECMSG");
+	    callback2 && callback2();
+	}
+        self.dec_fields(container, r, callback3);
     } else {
         callback2();
     }
