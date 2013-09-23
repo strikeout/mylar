@@ -1,10 +1,10 @@
 OBJDIRS     += main
-CRYPTMKSRC   :=  base64.cc prng.cc ec.cc multikey.cc b64_wrapper.cc 
+CRYPTMKSRC   :=  base64.cc prng.cc ec.cc multikey.cc multikey_sum.cc b64_wrapper.cc
 CRYPTMKOBJ   := $(patsubst %.cc,$(OBJDIR)/main/%.o,$(CRYPTMKSRC))
 
 all:    $(OBJDIR)/libcryptmk.so
 $(OBJDIR)/libcryptmk.so: $(CRYPTMKOBJ) $(OBJDIR)/libmkutil.so
-	$(CXX) -shared -o $@ $(CRYPTMKOBJ) $(LDFLAGS) -lgmpxx -lgmp -lpbc -lmkutil
+	$(CXX) -shared -o $@ $(CRYPTMKOBJ) $(LDFLAGS) -lgmpxx -lgmp -lpbc -lntl -lmkutil
 	
 install: install_cryptmk
 

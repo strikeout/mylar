@@ -36,10 +36,14 @@ public:
         registerMethod("Delta",      make_method(this, &CryptoExtAPI::Delta));
         registerMethod("Token",      make_method(this, &CryptoExtAPI::Token));
         registerMethod("Encrypt",      make_method(this, &CryptoExtAPI::Encrypt));
-	registerMethod("IndexEnc",     make_method(this, &CryptoExtAPI::IndexEnc));
+        registerMethod("IndexEnc",     make_method(this, &CryptoExtAPI::IndexEnc));
         registerMethod("Adjust",      make_method(this, &CryptoExtAPI::Adjust));
         registerMethod("Match",      make_method(this, &CryptoExtAPI::Match));
         
+        registerMethod("PKeygen",      make_method(this, &CryptoExtAPI::PKeygen));
+        registerMethod("PEncrypt",      make_method(this, &CryptoExtAPI::PEncrypt));
+        registerMethod("PAdd",      make_method(this, &CryptoExtAPI::PAdd));
+        registerMethod("PDecrypt",      make_method(this, &CryptoExtAPI::PDecrypt));
         // Read-only property
         registerProperty("version",
                          make_property(this,
@@ -68,6 +72,11 @@ public:
 	FB::variant Adjust(const FB::variant& tok, const FB::variant& delta);
 	FB::variant Match(const FB::variant& tok, const FB::variant& cipher);
     
+	FB::variant PKeygen();
+	FB::variant PEncrypt(const FB::variant& k, const FB::variant& word);
+	FB::variant PAdd(const FB::variant& k, const FB::variant& c1, const FB::variant& c2);
+	FB::variant PDecrypt(const FB::variant& k, const FB::variant& cipher);
+
 private:
     CryptoExtWeakPtr m_plugin;
     FB::BrowserHostPtr m_host;

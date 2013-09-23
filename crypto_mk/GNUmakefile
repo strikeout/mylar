@@ -8,7 +8,7 @@ CXXFLAGS := -g -O0 -fno-strict-aliasing -fno-rtti -fwrapv -fPIC \
 	    -Wextra -Wmissing-noreturn -Wwrite-strings -Wno-unused-parameter \
 	    -Wmissing-declarations -Woverloaded-virtual  \
 	    -Wunreachable-code -D_GNU_SOURCE -std=c++0x -I$(TOP) -I$(PBC)/include/pbc/
-LDFLAGS	 := -lz -lcrypto -lgmp \
+LDFLAGS	 := -lz -lcrypto -lgmp -lntl\
 	    -L$(TOP)/$(OBJDIR) -L$(PBC)/lib/ -Wl,-rpath=$(PBC)/lib/  -Wl,-rpath=$(TOP)/$(OBJDIR) -Wl,-rpath=$(TOP)
 
 
