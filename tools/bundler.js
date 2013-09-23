@@ -819,15 +819,17 @@ _.extend(Bundle.prototype, {
     }
 
     var app_html = self._generate_app_html(rootUrl);
-    var signature = sign(app_html,'app.html',true,'');
+    if(rootUrl)
+        var signature = sign(app_html,'app.html',true,'');
     fs.writeFileSync(path.join(build_path, 'app.html'), app_html);
     self.manifest.push({
       path: 'app.html',
       where: 'internal',
       hash: sha1(app_html),
-      signature: signature
+      signature: rootUrl ? signature : undefined
     });
-    self.signatures['app.html'] = signature; 
+    if(rootUrl)
+        self.signatures['app.html'] = signature; 
 
     dependencies_json.core.push(path.join('tools', 'app.html.in'));
 
