@@ -1,7 +1,10 @@
 timeLog = "";
 
+RECORD_EVAL_LOG = true; // turn off during tput experiments
+
 logAdd = function(msg) {
-    timeLog = timeLog + msg;
+    if (RECORD_EVAL_LOG)
+	timeLog = timeLog + msg;
 }
 
 startTime = function(msg) {

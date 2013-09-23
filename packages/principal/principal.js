@@ -595,7 +595,6 @@ if (Meteor.isClient) {
 
 	    //verify certificate
 	    var res = idp_check(keys, uname, cert);
-
 	    if (!res) {
 		throw new Error("server provided invalid pub key certificate!");
 	    }
@@ -603,7 +602,7 @@ if (Meteor.isClient) {
 	    var princ = new Principal("user", uname, deserialize_keys(keys));
 	    cb2 && cb2(princ);
 	});
-    }
+    } 
     
     /*
      Takes as input a list of PrincAttrs, and the username of a user -- authority

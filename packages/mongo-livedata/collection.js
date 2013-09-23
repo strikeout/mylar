@@ -128,6 +128,7 @@ Meteor.Collection = function (name, options) {
       update: function (msg) {
         var mongoId = Meteor.idParse(msg.id);
         var doc = self._collection.findOne(mongoId);
+	  markTime("UPDATE")
 
         //  console.log("msg: " + JSON.stringify(msg) );
 	//  console.log("doc: " + JSON.stringify(doc));
@@ -464,29 +465,26 @@ Meteor.Collection.prototype.dec_msg = function(container, callback) {
 	callback();
 	return;
     }
-   
-    var callback_q = [];
-    self._decrypt_cb.push(callback_q);
-    callback2 = function () {
-	if (callback) {
-	    callback();
-	}
-	self._decrypt_cb = _.without(self._decrypt_cb, callback_q);
-	_.each(callback_q, function (f) {
-            f();
-	});
-    };
 
     var r = enc_fields(self._enc_fields, self._signed_fields, container);
     if (r.length > 0) {
 	startTime("DECMSG");
-	callback3 = function() {
+	var callback_q = [];
+	self._decrypt_cb.push(callback_q);
+	callback2 = function () {
 	    endTime("DECMSG");
-	    callback2 && callback2();
-	}
-        self.dec_fields(container, r, callback3);
+	    if (callback) {
+		callback();
+	    }
+	    self._decrypt_cb = _.without(self._decrypt_cb, callback_q);
+	    _.each(callback_q, function (f) {
+		f();
+	    });
+	};
+
+        self.dec_fields(container, r, callback2);
     } else {
-        callback2();
+        callback && callback();
     }
 
 }
