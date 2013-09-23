@@ -60,3 +60,23 @@ FB::variant CryptoExtAPI::Match(const FB::variant& tok, const FB::variant& ciphe
 {
 	return bmk.match(tok.cast<std::string>(), cipher.cast<std::string>());
 }
+
+FB::variant CryptoExtAPI::PKeygen()
+{
+	return bmk.pkeygen();
+}
+
+FB::variant CryptoExtAPI::PEncrypt(const FB::variant& k, const FB::variant& word)
+{
+	return bmk.pencrypt(k.cast<std::string>(), word.cast<std::string>());
+}
+
+FB::variant CryptoExtAPI::PAdd(const FB::variant& k, const FB::variant& c1, const FB::variant& c2)
+{
+	return bmk.padd(k.cast<std::string>(), c1.cast<std::string>(), c2.cast<std::string>());
+}
+
+FB::variant CryptoExtAPI::PDecrypt(const FB::variant& k, const FB::variant& cipher)
+{
+	return bmk.pdecrypt(k.cast<std::string>(), cipher.cast<std::string>());
+}

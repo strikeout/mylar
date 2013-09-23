@@ -1,5 +1,5 @@
 Meteor.startup(function () {
-  var debug = true;
+  var debug = false;
 
   var rpc_ops = {
       get_app_key:  get_app_key,

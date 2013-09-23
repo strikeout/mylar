@@ -30,6 +30,7 @@ set (CRYPTO_LIBRARY "/home/user7/labspace/meteor-enc/crypto_mk")
 
 find_library(gmp gmp)
 find_library(pbc pbc)
+find_library(ntl ntl)
 
 include_directories(${CRYPTO_LIBRARY})
 
@@ -38,5 +39,6 @@ target_link_libraries(${PROJECT_NAME}
     ${PLUGIN_INTERNAL_DEPS}
 	pbc
 	gmp
+	ntl
 	"${CRYPTO_LIBRARY}/obj/libcryptmk.so"
     )

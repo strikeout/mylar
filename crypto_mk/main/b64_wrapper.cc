@@ -1,5 +1,6 @@
 #include <main/b64_wrapper.hh>
 #include <main/multikey.hh>
+#include <main/multikey_sum.hh>
 #include <main/ec.hh>
 #include <main/base64.h>
 
@@ -15,6 +16,11 @@ marshall(const ec_point & p) {
 static string
 marshall(const ec_scalar & s) {
     return base64_encode(s.to_bytes());
+}
+
+static string
+marshall(const mksum & mkp, const vector<NTL::ZZ> & s) {
+    return base64_encode(mkp.to_bytes(s));
 }
 
 static string
@@ -42,6 +48,10 @@ unmarshall_binary(const string & serial) {
     return base64_decode(serial);
 }
 
+static vector<NTL::ZZ>
+unmarshall_pkey(mksum & mkp, const string & serial) {
+	return mkp.from_bytes(base64_decode(serial));
+}
 
 const string params = "ECRQ++V82WnAmHOdN7RQdKTps7NHe86rGhfV0Kx/cRbop6Ued59qM2YInO+y8DuOGO6qqidgujNCrC48SG3oX7Pq77nA6GTlfngovn7WLTRqyhktpggROfGE/YNMysNZsPs8BxEkL5B+EjXHPuIx9KVJY6SORW8E";
 
@@ -87,3 +97,22 @@ b64mk::match(const std::string & searchtok, const std::string & ciph) {
 		    unmarshall_binary(ciph));
 }
 
+std::string
+b64mk::pkeygen() const {
+	return marshall(mkp, mkp.keygen());
+}
+
+std::string
+b64mk::pencrypt(const std::string &k, const std::string &word) {
+	return marshall(mkp.encrypt(unmarshall_pkey(mkp, k), word));
+}
+
+std::string
+b64mk::padd(const std::string &k, const std::string &c1, const std::string &c2) {
+	return marshall(mkp.add(unmarshall_pkey(mkp, k), unmarshall_binary(c1), unmarshall_binary(c2)));
+}
+
+std::string
+b64mk::pdecrypt(const std::string &k, const std::string &cipher) {
+	return mkp.decrypt(unmarshall_pkey(mkp, k), unmarshall_binary(cipher));
+}

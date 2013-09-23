@@ -819,15 +819,17 @@ _.extend(Bundle.prototype, {
     }
 
     var app_html = self._generate_app_html(rootUrl);
-    var signature = sign(app_html,'app.html',true,'');
+    if(rootUrl)
+        var signature = sign(app_html,'app.html',true,'');
     fs.writeFileSync(path.join(build_path, 'app.html'), app_html);
     self.manifest.push({
       path: 'app.html',
       where: 'internal',
       hash: sha1(app_html),
-      signature: signature
+      signature: rootUrl ? signature : undefined
     });
-    self.signatures['app.html'] = signature; 
+    if(rootUrl)
+        self.signatures['app.html'] = signature; 
 
     dependencies_json.core.push(path.join('tools', 'app.html.in'));
 
@@ -961,7 +963,6 @@ exports.bundle = function (app_dir, output_path, options) {
 
     // Write to disk
     // added options.rootUrl for meteor_enc to do absolute requests
-    console.log('options root ' + options.rootUrl);
     bundle.write_to_directory(output_path, app_dir, options.nodeModulesMode, options.rootUrl);
 
     if (bundle.errors.length)
