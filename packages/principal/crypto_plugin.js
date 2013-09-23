@@ -17,6 +17,7 @@ enc_return = undefined;
 USE_CRYPTO_SERVER = false;
 //replaces NaCl or crypto_fire with crypto_server; for testing
 
+USE_INDEX = false;
 /*
 Handlebars.registerHelper(
     "cryptoPlugin",
@@ -99,14 +100,18 @@ Crypto.index_enc = function(k, word, cb) {
 	crypto_server.index_enc(k, word, cb);
 	return;
     }
-
-    enc_module.postMessage("index_enc(" +  k + "," + word + ")");
+    if (enc_fire().valid) {
+	cb(enc_fire().IndexEnc(k, word));
+    } else
+	enc_module.postMessage("index_enc(" +  k + "," + word + ")");
 };
 
 var tokenize_for_search = function(text) {
     return text.match(/\w+|"[^"]+"/g); 
 }
 
+
+/*
 Crypto.text_encrypt = function(k, ptext, cb) {
     var items = tokenize_for_search(ptext);
     var encitems = [];
@@ -122,6 +127,26 @@ Crypto.text_encrypt = function(k, ptext, cb) {
 	});
     });
 }
+*/
+Crypto.text_encrypt = function(k, ptext, cb) {
+    var items = tokenize_for_search(ptext);
+    var encitems = [];
+
+    callback = _.after(items.length, function() {
+	cb(encitems);
+    })
+
+    var r = sjcl.codec.hex.fromBits(sjcl.random.randomWords(2));
+    encitems[0] = r;
+    
+    _.each(items, function(item, index) {
+	Crypto.index_enc(k, item, function(encitem) {
+	    encitems[index+1] = base_crypto.mkhash(r , encitem);
+	    callback();
+	});
+    });    
+}
+
 
 var _check_index = function(k, word, ciph, cb) {
     Crypto.index_enc(k, word, function(iciph) {

@@ -46,6 +46,11 @@ FB::variant CryptoExtAPI::Encrypt(const FB::variant& k1, const FB::variant& word
 	return bmk.encrypt(k1.cast<std::string>(), word.cast<std::string>());
 }
 
+FB::variant CryptoExtAPI::IndexEnc(const FB::variant& k1, const FB::variant& word)
+{
+	return bmk.index_enc(k1.cast<std::string>(), word.cast<std::string>());
+}
+
 FB::variant CryptoExtAPI::Adjust(const FB::variant& tok, const FB::variant& delta)
 {
 	return bmk.adjust(tok.cast<std::string>(), delta.cast<std::string>());
