@@ -963,7 +963,6 @@ exports.bundle = function (app_dir, output_path, options) {
 
     // Write to disk
     // added options.rootUrl for meteor_enc to do absolute requests
-    console.log('options root ' + options.rootUrl);
     bundle.write_to_directory(output_path, app_dir, options.nodeModulesMode, options.rootUrl);
 
     if (bundle.errors.length)
