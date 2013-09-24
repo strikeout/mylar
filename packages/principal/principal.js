@@ -278,7 +278,7 @@ generate_princ_keys = function(cb) {
         cb(keys);
     }
     if (Meteor.isClient) {
-        Crypto.keygen(done_cb);
+        MylarCrypto.keygen(done_cb);
     } else {
         var key = crypto_server.keygen();
         done_cb(key);
@@ -400,7 +400,7 @@ if (Meteor.isClient) {
 	    wrap = princ1.sym_encrypt(pt);
 
 	    // can compute delta as well so no need for access inbox
-	    Crypto.delta(princ1.keys.mk_key, princ2.keys.mk_key, function(delta) {
+	    MylarCrypto.delta(princ1.keys.mk_key, princ2.keys.mk_key, function(delta) {
 		Meteor.call("updateWrappedKeys", princ2.id, princ1.id, null, wrap, delta, false, cb);
 	    });
 	    return;
@@ -570,7 +570,7 @@ if (Meteor.isClient) {
     // in cases where the search word is to be hidden, allowSearch should only be given
     // to trusted principals
     Principal.allowSearch = function(allowed_princ) {
-	delta = Crypto.delta();
+	delta = MylarCrypto.delta();
     }
 
     // returns a principal for the user with uname and feeds it as input to callback cb
@@ -769,7 +769,7 @@ if (Meteor.isClient) {
 		     var subject_keys = deserialize_keys(subject_keys_ser);
 		     var sym_wrapped = base_crypto.sym_encrypt(uprinc.keys.sym_key, subject_keys_ser);
 		     // compute delta as well
-		     var delta = Crypto.delta(uprinc.keys.mk_key, subject_keys.mk_key, function(delta) {
+		     var delta = MylarCrypto.delta(uprinc.keys.mk_key, subject_keys.mk_key, function(delta) {
 			 WrappedKeys.update({_id: wid},
 					    {$set : {wrapped_keys: undefined,
 						     delta : delta, 

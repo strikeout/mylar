@@ -36,13 +36,13 @@ Template._cryptoPlugin.events({
 });
 */
 
-Crypto = function() {};
+MylarCrypto = function() {};
 
-Crypto.test = function(cb) {
+MylarCrypto.test = function(cb) {
     enc_return = cb;
     enc_module.postMessage("testJ()");
 };
-Crypto.keygen = function(cb) {
+MylarCrypto.keygen = function(cb) {
     enc_return = cb;
     if (USE_CRYPTO_SERVER) {
 	crypto_server.keygen(cb);
@@ -56,7 +56,7 @@ Crypto.keygen = function(cb) {
         enc_module.postMessage("keygen()");
 };
 
-Crypto.delta = function(k1, k2, cb) {
+MylarCrypto.delta = function(k1, k2, cb) {
     enc_return = cb;
     if (USE_CRYPTO_SERVER) {
 	crypto_server.delta(k1, k2, cb);
@@ -70,7 +70,7 @@ Crypto.delta = function(k1, k2, cb) {
         enc_module.postMessage("delta(" + k1 + "," + k2 + ")");
 };
 
-Crypto.token = function(k, word, cb) {
+MylarCrypto.token = function(k, word, cb) {
     enc_return = cb;
     if (USE_CRYPTO_SERVER) {
 	crypto_server.token(k, word, cb);
@@ -84,7 +84,7 @@ Crypto.token = function(k, word, cb) {
         enc_module.postMessage("token(" + k + "," + word + ")");
 };
 
-Crypto.encrypt = function(k, word, cb) {
+MylarCrypto.encrypt = function(k, word, cb) {
     enc_return = cb;
     if (USE_CRYPTO_SERVER) {
 	crypto_server.encrypt(k, word, cb);
@@ -99,7 +99,7 @@ Crypto.encrypt = function(k, word, cb) {
 };
 
 
-Crypto.index_enc = function(k, word, cb) {
+MylarCrypto.index_enc = function(k, word, cb) {
     enc_return = cb;
     if (USE_CRYPTO_SERVER) {
 	crypto_server.index_enc(k, word, cb);
@@ -118,7 +118,7 @@ var tokenize_for_search = function(text) {
 
 
 /*
-Crypto.text_encrypt = function(k, ptext, cb) {
+MylarCrypto.text_encrypt = function(k, ptext, cb) {
     var items = tokenize_for_search(ptext);
     var encitems = [];
 
@@ -127,14 +127,14 @@ Crypto.text_encrypt = function(k, ptext, cb) {
     })
     
     _.each(items, function(item, index) {
-	Crypto.encrypt(k, item, function(encitem) {
+	MylarCrypto.encrypt(k, item, function(encitem) {
 	    encitems[index] = encitem;
 	    callback();
 	});
     });
 }
 */
-Crypto.text_encrypt = function(k, ptext, cb) {
+MylarCrypto.text_encrypt = function(k, ptext, cb) {
     var items = tokenize_for_search(ptext);
     var encitems = [];
 
@@ -146,7 +146,7 @@ Crypto.text_encrypt = function(k, ptext, cb) {
     encitems[0] = r;
     
     _.each(items, function(item, index) {
-	Crypto.index_enc(k, item, function(encitem) {
+	MylarCrypto.index_enc(k, item, function(encitem) {
 	    encitems[index+1] = base_crypto.mkhash(r , encitem);
 	    callback();
 	});
@@ -155,14 +155,14 @@ Crypto.text_encrypt = function(k, ptext, cb) {
 
 
 var _check_index = function(k, word, ciph, cb) {
-    Crypto.index_enc(k, word, function(iciph) {
-	Crypto.match(iciph, ciph, cb);
+    MylarCrypto.index_enc(k, word, function(iciph) {
+	MylarCrypto.match(iciph, ciph, cb);
     });
 }
 
 // check if enctext is a correct encryption of text
 // calls cb with true or false
-Crypto.is_consistent = function(k, ptext, enctext, cb) {
+MylarCrypto.is_consistent = function(k, ptext, enctext, cb) {
     ptext = tokenize_for_search(ptext);
     if (ptext.length != enctext.length) {
 	cb(false);
@@ -185,7 +185,7 @@ Crypto.is_consistent = function(k, ptext, enctext, cb) {
 }
 
 
-Crypto.adjust = function(tok, delta, cb) {
+MylarCrypto.adjust = function(tok, delta, cb) {
     enc_return = cb;
     if (USE_CRYPTO_SERVER) {
 	crypto_server.adjust(tok, delta, cb);
@@ -199,7 +199,7 @@ Crypto.adjust = function(tok, delta, cb) {
         enc_module.postMessage("adjust(" + tok + "," + delta + ")");
 };
 
-Crypto.match = function(tok, cipher, cb) {
+MylarCrypto.match = function(tok, cipher, cb) {
     enc_return = cb;
     if (USE_CRYPTO_SERVER) {
 	crypto_server.match(tok, cipher, cb);

@@ -353,7 +353,7 @@ Meteor.Collection.prototype.dec_fields = function(container, fields, callback) {
 			      container[f] = res;
 			  }
 			  if (is_searchable(this._enc_fields, f)) {
-			      Crypto.is_consistent(dec_princ.keys.mk_key, container[f], container[f+"enc"],
+			      MylarCrypto.is_consistent(dec_princ.keys.mk_key, container[f], container[f+"enc"],
 					function(res) {
 					    if (!res)
 						throw new Error(
@@ -435,7 +435,7 @@ Meteor.Collection.prototype.enc_row = function(container, callback) {
 			 }
 			 
 			 if (is_searchable(self._enc_fields, f)) {
-			     container[search_field_name(f)] = Crypto.text_encrypt(enc_princ.keys.mk_key, container[f],
+			     container[search_field_name(f)] = MylarCrypto.text_encrypt(enc_princ.keys.mk_key, container[f],
 									function(ciph) {
 									    container[search_field_name(f)] = ciph;
 									    done_encrypt();
