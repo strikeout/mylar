@@ -392,6 +392,15 @@ var is_indexable =  function(enc_fields, field) {
 	return false;
 }
 
+function insert_in_enc_index(args[0], f){
+    var id = args[0]._id;
+    var lst = args[0][f];
+
+    _.each(lst, function(item, index) {
+	if (index > 0)
+	    IndexEnc.insert({_id: id+item});
+    });
+}
 
 // encrypts & signs a document
 // container is a map of key to values 
@@ -452,11 +461,10 @@ Meteor.Collection.prototype.enc_row = function(container, callback) {
 			     container[search_field_name(f)] =
 				 Crypto.text_encrypt(enc_princ.keys.mk_key,
 						     container[f],
-						     is_indexable(self._enc_fields, f),
 						     function(ciph) {
-									    container[search_field_name(f)] = ciph;
-									    done_encrypt();
-									});
+							 container[search_field_name(f)] = ciph;
+							 done_encrypt();
+						     });
 			 } else {
 			     done_encrypt();
 			 }
@@ -695,6 +703,9 @@ _.each(["insert", "update", "remove"], function (name) {
         ret = args[0]._id = self._makeNewID();
       }
         self.enc_row(args[0], f);
+	if (is_indexable(self._enc_fields, f)) {
+	    insert_in_enc_index(args[0], f);
+	}
     } else {
       args[0] = Meteor.Collection._rewriteSelector(args[0]);
     }

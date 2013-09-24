@@ -36,6 +36,12 @@ PrincType = new Meteor.Collection("princtype");
  */
 
 
+IndexEnc = new Meteor.Collection("indexenc");
+/*
+  An index used for search
+  only contains an _id
+*/
+
 if (Meteor.isServer) {
 
     var allow_all_writes = {

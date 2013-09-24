@@ -128,7 +128,7 @@ Crypto.text_encrypt = function(k, ptext, cb) {
     });
 }
 */
-Crypto.text_encrypt = function(k, ptext, indexable, cb) {
+Crypto.text_encrypt = function(k, ptext, cb) {
     var items = tokenize_for_search(ptext);
     var encitems = [];
 
