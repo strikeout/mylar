@@ -50,7 +50,7 @@ MylarCrypto.test = function(cb) {
 };
 MylarCrypto.keygen = function(cb) {
     if (!enable_search)
-        cb('');
+        cb('x');
 
     enc_return = cb;
     if (USE_CRYPTO_SERVER) {
@@ -67,7 +67,7 @@ MylarCrypto.keygen = function(cb) {
 
 MylarCrypto.delta = function(k1, k2, cb) {
     if (!enable_search)
-        cb('');
+        cb('x');
 
     enc_return = cb;
     if (USE_CRYPTO_SERVER) {
