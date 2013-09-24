@@ -151,7 +151,6 @@ Meteor.Collection.prototype.publish_search_filter = function(pubname, filter, pr
 				self.added(self_col._name, doc_id, getProj(proj, doc, token));
 			    }
 			} else {
-			    
 			    _.some(enctext, function(encword, index){
 				if (index) {
 				    if (adjusted == encword) {
