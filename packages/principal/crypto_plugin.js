@@ -106,10 +106,11 @@ MylarCrypto.index_enc = function(k, word, cb) {
 	return;
     }
     var enc_fire_e = enc_fire();
-    if (enc_fire_e && enc_fire_e.valid)
+    if (enc_fire_e && enc_fire_e.valid) {
 	cb(enc_fire_e.IndexEnc(k, word));
-    } else
+    } else {
 	enc_module.postMessage("index_enc(" +  k + "," + word + ")");
+    }
 };
 
 var tokenize_for_search = function(text) {
