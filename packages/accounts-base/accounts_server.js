@@ -123,8 +123,8 @@ Accounts.onCreateUser = function (func) {
 
 var certHook = null;
 Accounts.certifyFunc = function(func) {
-    certHook = func;
-}
+  certHook = func;
+};
 
 // XXX see comment on Accounts.createUser in passwords_server about adding a
 // second "server options" argument.
@@ -160,9 +160,9 @@ Accounts.insertUserDoc = function (options, user) {
   }
 
   var fullUser;
-    if (certHook) {
-	fullUser = certHook(options, user);
-    }
+  if (certHook) {
+    fullUser = certHook(options, user);
+  }
   if (onCreateUserHook) {
     fullUser = onCreateUserHook(options, user);
 
