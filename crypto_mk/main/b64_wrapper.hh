@@ -30,8 +30,9 @@ public:
     bool match(const std::string & searchtok, const std::string & ciph);
 
 	std::string pkeygen() const;
-	std::string pencrypt(const std::string &k, const std::string &word);
-	std::string padd(const std::string &k, const std::string &c1, const std::string &c2);
+	std::string ppubkey(const std::string &k);
+	std::string pencrypt(const std::string &pk, const std::string &word);
+	std::string padd(const std::string &pk, const std::string &c1, const std::string &c2);
 	std::string pdecrypt(const std::string &k, const std::string &cipher);
 
 private:

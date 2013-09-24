@@ -31,9 +31,16 @@ idp_init("http://localhost:3000", idp_pub);
 
 (should be available both client and server-side)
 
-2. use Meteor.loginWithIDP to login the user, no arguments needed
+2. Insert {{> idp_client }} in your client template 
 
-(you can still use server-side Accounts.onCreateUser if useful)
+3. use Meteor.loginWithIDP to login the user, no arguments needed
+
+(you can still use server-side Accounts.onCreateUser if useful, which should
+return the (modified) user object)
+
+4. disable search unless you have the crypto plugin (on client):
+
+   principal_enable_search(false);
 
 
 Meteor-enc developers:

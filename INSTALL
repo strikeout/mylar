@@ -4,6 +4,8 @@ apt-get install npm
 install pbc in /usr/local from http://crypto.stanford.edu/pbc/
   pbc needs various libraries itself (lex, bison, etc.)
 install libreadline-dev
+install libssl-dev
+install libntl-dev
 
 ignore crypto_ext
 

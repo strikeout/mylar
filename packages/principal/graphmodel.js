@@ -54,6 +54,7 @@ if (Meteor.isServer) {
     WrappedKeys.allow(allow_all_writes);
     Certs.allow(allow_all_writes);
     PrincType.allow(allow_all_writes);
+    IndexEnc.allow(allow_all_writes);
 
     Meteor.publish("princtype", function(){
 	return PrincType.find({});

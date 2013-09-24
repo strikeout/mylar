@@ -66,7 +66,7 @@ base_crypto = (function () {
 	// authenticated encryption
 	sym_encrypt: function(sk, data) {
 	    if (!data) {
-		throw new Error("cannot sym_encrypt undefined");
+		// throw new Error("cannot sym_encrypt undefined");
 	    }
 	    var ops = {mode:"ccm", cipher: "aes"};
 	    return sjcl.encrypt(sk, data, ops);

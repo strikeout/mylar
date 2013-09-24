@@ -353,7 +353,7 @@ Meteor.Collection.prototype.dec_fields = function(container, fields, callback) {
 			      container[f] = res;
 			  }
 			  if (is_searchable(this._enc_fields, f)) {
-			      Crypto.is_consistent(dec_princ.keys.mk_key, container[f], container[f+"enc"],
+			      MylarCrypto.is_consistent(dec_princ.keys.mk_key, container[f], container[f+"enc"],
 					function(res) {
 					    if (!res)
 						throw new Error(
@@ -463,6 +463,9 @@ Meteor.Collection.prototype.enc_row = function(container, callback) {
 						     container[f],
 						     function(ciph) {
 							 container[search_field_name(f)] = ciph;
+							 if (is_indexable(self._enc_fields, f)) {
+							     insert_in_enc_index(container, search_field_name(f));
+							 }
 							 done_encrypt();
 						     });
 			 } else {
@@ -703,9 +706,6 @@ _.each(["insert", "update", "remove"], function (name) {
         ret = args[0]._id = self._makeNewID();
       }
         self.enc_row(args[0], f);
-	if (is_indexable(self._enc_fields, f)) {
-	    insert_in_enc_index(args[0], f);
-	}
     } else {
       args[0] = Meteor.Collection._rewriteSelector(args[0]);
     }

@@ -35,7 +35,6 @@ Meteor.methods({
 Accounts.validateNewUser(function(user){
     var v = user._validate;
     delete user._validate;
-    
     return v;
 });
 

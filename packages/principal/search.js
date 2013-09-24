@@ -44,7 +44,7 @@ Meteor.Collection.prototype.search = function(pubname, wordmap, princ, filter_ar
 	return;
     }
     
-    Crypto.token(princ.keys.mk_key, word, function(token){
+    MylarCrypto.token(princ.keys.mk_key, word, function(token){
 	var search_info = {};
 	search_info["args"] = filter_args;
 	search_info["princ"] = princ.id;
@@ -52,6 +52,7 @@ Meteor.Collection.prototype.search = function(pubname, wordmap, princ, filter_ar
 	search_info["token"] = token;
 	search_info["field"] = field;
         search_info["pubname"] = pubname;
+	search_info["has_index"] = is_indexable(self._enc_fields, field);
 	
 	search_cb = callback;
 	search_collec = self;
@@ -70,7 +71,7 @@ Deps.autorun(function(){
 	Meteor.subscribe(sub_name(search_collec._name, search_info["pubname"]),
 			 search_info["args"], token,
 			 search_info["enc_princ"], search_info["princ"],
-			 search_field_name(search_info["field"]),
+			 search_field_name(search_info["field"]), search_info["has_index"],
 			 function(){ // on ready handle
 			     var cb = search_cb;
 			     if (cb) {
@@ -106,7 +107,7 @@ Meteor.Collection.prototype.publish_search_filter = function(pubname, filter, pr
     var self_col = this;
     
     Meteor.publish(sub_name(self_col._name, pubname),
-      function(args, token, enc_princ, princ, field){
+      function(args, token, enc_princ, princ, field, has_index){
 	
 	var self = this;
 
@@ -143,16 +144,24 @@ Meteor.Collection.prototype.publish_search_filter = function(pubname, filter, pr
 			var enctext = doc[field];
 			var rand = enctext[0];
 			adjusted = base_crypto.mkhash(rand, adjusted);
-			
-			_.some(enctext, function(encword, index){
-			    if (index) {
-				if (adjusted == encword) {
-				    self.added(self_col._name, doc._id,
-					       getProj(proj, doc, token));
-				    return true;
-				}
+
+			if (has_index) {
+			    var res = IndexEnc.find({_id : adjusted});
+			    if (res) {
+				self.added(self_col._name, doc_id, getProj(proj, doc, token));
 			    }
-			});
+			} else {
+			    
+			    _.some(enctext, function(encword, index){
+				if (index) {
+				    if (adjusted == encword) {
+					self.added(self_col._name, doc._id,
+						   getProj(proj, doc, token));
+					return true;
+				    }
+				}
+			    });
+			}
 		    }
 		});
 		handles.push(handle);
