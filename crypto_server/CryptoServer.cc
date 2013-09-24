@@ -112,14 +112,19 @@ pkeygen(b64mk & mk, const map<string, string> & args) {
 }
 
 static string
+ppubkey(b64mk & mk, const map<string, string> & args) {
+    return mk.ppubkey(get_assert(args, "k"));
+}
+
+static string
 pencrypt(b64mk & mk, const map<string, string> & args) {
-    return mk.pencrypt(get_assert(args, "k"),
+    return mk.pencrypt(get_assert(args, "pk"),
 					   get_assert(args, "plain"));
 }
 
 static string
 padd(b64mk & mk, const map<string, string> & args) {
-    return mk.padd(get_assert(args, "k"),
+    return mk.padd(get_assert(args, "pk"),
 				   get_assert(args, "c1"),
 				   get_assert(args, "c2"));
 }
@@ -165,6 +170,9 @@ CryptoServer::process(const string & request) {
 	}
 	else if (action == "pkeygen") {
 	    resp << pkeygen(mk, args);
+	}
+	else if (action == "ppubkey") {
+	    resp << ppubkey(mk, args);
 	}
 	else if (action == "pencrypt") {
 	    resp << pencrypt(mk, args);

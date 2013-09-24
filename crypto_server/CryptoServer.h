@@ -15,8 +15,9 @@
  * adjust tok delta         -> searchtok
  * match searchtok ciph     -> boolean
  * pkeygen                  -> k
- * pencrypt k plain         -> ciph
- * padd k c1 c2             -> ciph
+ * ppubkey k                -> pk
+ * pencrypt pk plain        -> ciph
+ * padd pk c1 c2            -> ciph
  * pdecrypt k ciph          -> plain
  */
 

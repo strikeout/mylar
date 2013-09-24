@@ -55,9 +55,10 @@ mksum::keygen() const {
 	NTL::ZZ p, q, n, g, a;
 
     do {
+		cerr << "Doing loop." << endl;
         if (abits) {
 			for (;;) {
-				a = rand_zz_nbits(nbits);
+				a = rand_zz_nbits(abits);
 				SetBit(a, 0);
 				
 				if (ProbPrime(a, 10))
@@ -77,14 +78,14 @@ mksum::keygen() const {
         } else {
             a = 0;
 			for (;;) {
-				p = rand_zz_nbits(nbits);
+				p = rand_zz_nbits(nbits/2);
 				SetBit(p, 0);
 				
 				if (ProbPrime(p, 10))
 					break;
 			}
 			for (;;) {
-				q = rand_zz_nbits(nbits);
+				q = rand_zz_nbits(nbits/2);
 				SetBit(q, 0);
 				
 				if (ProbPrime(q, 10))
@@ -92,6 +93,7 @@ mksum::keygen() const {
 			}
         }
         n = p * q;
+		cerr << "Numbits: " << NumBits(n) << " vs expected: " << nbits << endl;
     } while ((nbits != (uint) NumBits(n)) || p == q);
 
     if (p > q)
@@ -112,9 +114,9 @@ mksum::keygen() const {
 }
 
 NTL::ZZ
-mksum::encrypt(const vector<NTL::ZZ> & k, const NTL::ZZ & plain)  {
-	NTL::ZZ n = k[0] * k[1];
-	NTL::ZZ g = k[2];
+mksum::encrypt(const vector<NTL::ZZ> & pk, const NTL::ZZ & plain)  {
+	NTL::ZZ n = pk[0];
+	NTL::ZZ g = pk[1];
 	uint nbits = NumBits(n);
 	NTL::ZZ n2 = n*n;
 
@@ -123,8 +125,8 @@ mksum::encrypt(const vector<NTL::ZZ> & k, const NTL::ZZ & plain)  {
 }
 
 NTL::ZZ
-mksum::add(const vector<NTL::ZZ> & k, const NTL::ZZ & c1, const NTL::ZZ & c2) {
-	NTL::ZZ n = k[0] * k[1];
+mksum::add(const vector<NTL::ZZ> & pk, const NTL::ZZ & c1, const NTL::ZZ & c2) {
+	NTL::ZZ n = pk[0];
 	
 	NTL::ZZ n2 = n*n;
 
