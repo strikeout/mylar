@@ -564,8 +564,13 @@ if (Meteor.isClient) {
 	});
     } 
 
+    var current_user = undefined;
+
     // returns the principal corresponding to the current user
     Principal.user = function () {
+        if (current_user !== undefined)
+            return current_user;
+
 	var pkeys = deserialize_keys(localStorage['user_princ_keys']);
 
 	var user = Meteor.user();
@@ -573,8 +578,14 @@ if (Meteor.isClient) {
 	if (!user || !pkeys) {
 	    return undefined;
 	}
-	
-	return new Principal('user', user.username, pkeys);
+
+        current_user = new Principal('user', user.username, pkeys);
+        return current_user;
+    }
+
+    Principal.set_current_user_keys = function (keys) {
+        localStorage['user_princ_keys'] = keys;
+        current_user = undefined;
     }
     
     // p1.allowSearch(p2) : p1 can now search on data encrypted for p2

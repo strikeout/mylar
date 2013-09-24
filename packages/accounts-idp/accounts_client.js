@@ -25,7 +25,7 @@ function createUser(uname, app_key, cb) {
 
 		    var after_create_cb = function(err) {
                         if (!err) 
-			    localStorage['user_princ_keys'] = ser_keys;
+			    Principal.set_current_user_keys(ser_keys);
 		        cb && cb(err);
 		    }
 
@@ -52,7 +52,7 @@ function finishLoginUser(uname, app_key, cb) {
 
     var dec_func = function(wkey) { // decrypt wrapped key
 	var keys = base_crypto.sym_decrypt(app_key, wkey);
-	localStorage['user_princ_keys'] = keys;
+	Principal.set_current_user_keys(keys);
 	
 	cb && cb();	
     }
