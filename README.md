@@ -35,9 +35,10 @@ idp_init("http://localhost:3000", idp_pub);
 
 3. use Meteor.loginWithIDP to login the user, no arguments needed
 
-(you can still use server-side Accounts.onCreateUser if useful)
+(you can still use server-side Accounts.onCreateUser if useful, which should
+return the (modified) user object)
 
-3. disable search unless you have the crypto plugin:
+4. disable search unless you have the crypto plugin (on client):
 
    principal_enable_search(false);
 
