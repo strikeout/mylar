@@ -64,8 +64,9 @@ function finishLoginUser(uname, app_key, cb) {
 	Meteor.call("GetWrapPrivkey", function(err, wkey){
 	    if (err) {
 		console.log("issue with wrapped key from server", err);
-	    }
-	    dec_func(wkey);
+	    } else {
+	        dec_func(wkey);
+            }
 	});
     } else {
 	dec_func(wk);
