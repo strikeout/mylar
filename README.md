@@ -70,3 +70,6 @@ TODO (post-deadline):
 
 - better error messages; for example, now if you try to add a user that
   does not exist the error is not friendly;
+
+- support encrypting integer values in a collection
+

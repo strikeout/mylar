@@ -721,6 +721,7 @@ if (Meteor.isClient) {
 
     // requires symmetric key of this principal to be set
     Principal.prototype.sym_encrypt = function(pt) {
+        // XXX this works only for strings; what about integers, bools, etc?
 	var self = this;
 	if (self.keys.sym_key) {
 	    return crypto.sym_encrypt(self.keys.sym_key, pt);
