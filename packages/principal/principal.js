@@ -454,6 +454,24 @@ if (Meteor.isClient) {
 
 	}};
 
+    // Principal should not be serialized with JSON.
+    Principal.prototype.toJSONValue = function () {
+        throw new Error('cannot serialize Principal');
+    };
+
+    Principal.prototype.clone = function () {
+        throw new Error('cannot clone Principal');
+    };
+
+    Principal.prototype.typeName = function () {
+        return 'Principal';
+    };
+
+    EJSON.addType('Principal', function () {
+        throw new Error('cannot deserialize Principal');
+    });
+
+    // Principal methods
     Principal.prototype.create_certificate = function (princ) {
 	var self = this;
 	var msg = Certificate.contents(princ);
