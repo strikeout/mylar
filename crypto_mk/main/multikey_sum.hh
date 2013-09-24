@@ -16,12 +16,15 @@ public:
     
 	std::vector<NTL::ZZ> keygen() const;
 
-    std::string encrypt(const std::vector<NTL::ZZ> & k, const std::string & word);
-    std::string add(const std::vector<NTL::ZZ> & k, const std::string & c1, const std::string & c2);
-    std::string decrypt(const std::vector<NTL::ZZ> & k, const std::string & cipher);
+    NTL::ZZ encrypt(const std::vector<NTL::ZZ> & k, const NTL::ZZ & word);
+    NTL::ZZ add(const std::vector<NTL::ZZ> & k, const NTL::ZZ & c1, const NTL::ZZ & c2);
+    NTL::ZZ decrypt(const std::vector<NTL::ZZ> & k, const NTL::ZZ & cipher);
 
 	std::vector<NTL::ZZ> from_bytes(const std::string & serial);
     static std::string to_bytes(const std::vector<NTL::ZZ> & k);
+
+	NTL::ZZ from_bytesN(const std::string & serial);
+    static std::string to_bytes(const NTL::ZZ & k);
 };
 
 

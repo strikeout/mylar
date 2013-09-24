@@ -51,6 +51,26 @@ if (Meteor.isServer) { // server is synchronous
 	    match: function(searchtok, ciph) {
 		var url_ext = 'match?searchtok=' + searchtok + "&ciph=" + ciph;
 		return send_request(url_ext) == '1';
+	    },
+
+	    pkeygen: function() {
+		var url_ext = 'pkeygen?';
+		return send_request(url_ext);
+	    },
+	    	    
+	    pencrypt: function(key, plain) {
+		var url_ext = 'pencrypt?k=' + key + "&plain=" + plain;
+		return send_request(url_ext);
+	    },
+	    
+	    padd: function(key, c1, c2) {
+		var url_ext = 'padd?k=' + key + '&c1=' + c1 + '&c2=' + c2;
+		return send_request(url_ext);
+	    },
+	    
+	    pencrypt: function(key, cipher) {
+		var url_ext = 'pdecrypt?k=' + key + "&cipher=" + cipher;
+		return send_request(url_ext);
 	    }
 	};
     }());

@@ -106,6 +106,30 @@ match(b64mk & mk, const map<string, string> & args) {
 		    get_assert(args, "ciph"));
 }
 
+static string
+pkeygen(b64mk & mk, const map<string, string> & args) {
+    return mk.pkeygen();
+}
+
+static string
+pencrypt(b64mk & mk, const map<string, string> & args) {
+    return mk.pencrypt(get_assert(args, "k"),
+					   get_assert(args, "plain"));
+}
+
+static string
+padd(b64mk & mk, const map<string, string> & args) {
+    return mk.padd(get_assert(args, "k"),
+				   get_assert(args, "c1"),
+				   get_assert(args, "c2"));
+}
+
+static string
+pdecrypt(b64mk & mk, const map<string, string> & args) {
+    return mk.pdecrypt(get_assert(args, "k"),
+					   get_assert(args, "cipher"));
+}
+
 string
 CryptoServer::process(const string & request) {
 
@@ -138,6 +162,18 @@ CryptoServer::process(const string & request) {
 	}
 	else if (action == "match") {
 	    resp << match(mk, args);
+	}
+	else if (action == "pkeygen") {
+	    resp << pkeygen(mk, args);
+	}
+	else if (action == "pencrypt") {
+	    resp << pencrypt(mk, args);
+	}
+	else if (action == "padd") {
+	    resp << padd(mk, args);
+	}
+	else if (action == "pdecrypt") {
+	    resp << pdecrypt(mk, args);
 	} else {
 	    cerr << "invalid action \n";
 	    resp.clear();
