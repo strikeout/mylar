@@ -374,11 +374,25 @@ var is_searchable = function(enc_fields, field) {
 	return false;
     }
     var annot = enc_fields[field];
-    if (annot && annot['attr'] == 'SEARCHABLE') 
+    if (annot && (annot['attr'] == 'SEARCHABLE'
+		  || annot['attr'] == 'SEARCHABLE INDEX')) 
 	return true;
     else
 	return false;
 }
+
+var is_indexable =  function(enc_fields, field) {
+    if (!enc_fields)
+	return false;
+
+    var annot = enc_fields[field];
+    if (annot && annot['attr'] == 'SEARCHABLE INDEX') 
+	return true;
+    else
+	return false;
+}
+
+
 // encrypts & signs a document
 // container is a map of key to values 
 Meteor.Collection.prototype.enc_row = function(container, callback) {
@@ -435,8 +449,11 @@ Meteor.Collection.prototype.enc_row = function(container, callback) {
 			 }
 			 
 			 if (is_searchable(self._enc_fields, f)) {
-			     container[search_field_name(f)] = Crypto.text_encrypt(enc_princ.keys.mk_key, container[f],
-									function(ciph) {
+			     container[search_field_name(f)] =
+				 Crypto.text_encrypt(enc_princ.keys.mk_key,
+						     container[f],
+						     is_indexable(self._enc_fields, f),
+						     function(ciph) {
 									    container[search_field_name(f)] = ciph;
 									    done_encrypt();
 									});
