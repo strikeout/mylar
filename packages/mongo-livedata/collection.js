@@ -128,7 +128,6 @@ Meteor.Collection = function (name, options) {
       update: function (msg) {
         var mongoId = Meteor.idParse(msg.id);
         var doc = self._collection.findOne(mongoId);
-	  markTime("UPDATE")
 
         //  console.log("msg: " + JSON.stringify(msg) );
 	//  console.log("doc: " + JSON.stringify(doc));

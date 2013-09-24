@@ -1,9 +1,12 @@
 timeLog = "";
 
-RECORD_EVAL_LOG = true; // turn off during tput experiments
+LATENCY_LOG = false; // turn off during tput experiments
+
+TPUT_LOG = true;
+TOTAL_MSGS = 0;
 
 logAdd = function(msg) {
-    if (RECORD_EVAL_LOG)
+    if (LATENCY_LOG)
 	timeLog = timeLog + msg;
 }
 
