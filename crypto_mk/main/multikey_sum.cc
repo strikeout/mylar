@@ -135,8 +135,8 @@ mksum::add(const vector<NTL::ZZ> & pk, const NTL::ZZ & c1, const NTL::ZZ & c2) {
 
 NTL::ZZ
 mksum::decrypt(const vector<NTL::ZZ> & k, const NTL::ZZ & cipher)  {
-	NTL::ZZ n = k[0];
-	NTL::ZZ g = k[1];
+	NTL::ZZ n = k[0]*k[1];
+	NTL::ZZ g = k[2];
 	NTL::ZZ n2 = n*n;
 
 	NTL::ZZ p = k[0];
