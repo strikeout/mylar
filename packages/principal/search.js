@@ -71,7 +71,7 @@ Deps.autorun(function(){
 	Meteor.subscribe(sub_name(search_collec._name, search_info["pubname"]),
 			 search_info["args"], token,
 			 search_info["enc_princ"], search_info["princ"],
-			 search_field_name(search_info["field"]), search_info["has_index"],
+			 search_info["field"], search_info["has_index"],
 			 function(){ // on ready handle
 			     var cb = search_cb;
 			     if (cb) {
@@ -87,7 +87,7 @@ Deps.autorun(function(){
 
 if (Meteor.isServer) {
     
-function getProj(proj, doc, token) {
+    function getProj(doc, proj, token) {
     if (!proj) {
 	return _.extend(doc, {_tag: token});
     }
@@ -120,16 +120,16 @@ Meteor.Collection.prototype.publish_search_filter = function(pubname, filter, pr
 	    var filters = filter(args);
 	    var handles = [];
 
-	    var fieldname;
-	    if (has_index) {
-		fieldname = rand_field_name(f); //only need randomness
-		// from the collection for index lookup
-	    } else {
-		fieldname = search_field_name(f);
+	    var rand_f = rand_field_name(field);
+	    var search_f = rand_field_name(field);
+
+	    var proj = {rand_f: 1}; // what to project
+	    if (!has_index) {// don't pull out the field if we use index
+		proj[search_f] = 1;
 	    }
 
 	    _.each(filters, function(filter){
-		var handle = self_col.find(filter, {fields: {fieldname: 1}}).observe({
+		var handle = self_col.find(filter, {fields: proj}).observe({
 		    added: function(doc) {
 			console.log("doc " + JSON.stringify(doc));
 			var princid = doc[enc_princ];
@@ -149,15 +149,14 @@ Meteor.Collection.prototype.publish_search_filter = function(pubname, filter, pr
 			    adjusted = crypto_server.adjust(token, wk.delta);
 			    adj_toks[princid] = adjusted; 
 			} 
-			
-			var enctext = doc[field];
-			var rand = enctext[0];
+
+			var rand = doc[rand_f]
 			adjusted = base_crypto.mkhash(rand, adjusted);
 
 			if (has_index) {
-			    var res = IndexEnc.find({_id : adjusted});
+			    var res = IndexEnc.findOne({_id : adjusted});
 			    if (res) {
-				self.added(self_col._name, doc_id, getProj(proj, doc, token));
+				self.added(self_col._name, doc_id, getProj(self_col.findOne(doc_id), proj, token));
 			    }
 			} else {
 			    _.some(enctext, function(encword, index){
