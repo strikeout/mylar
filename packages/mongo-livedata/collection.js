@@ -448,7 +448,9 @@ Meteor.Collection.prototype.enc_row = function(container, callback) {
 
 			 var done_encrypt = function() {
 			     if (!ENC_DEBUG) {
+				 console.log("deleting field from " + JSON.stringify(container));
 				 delete container[f];
+				 console.log("after del " + JSON.stringify(container))
 			     }
 			     cb();
 			 }
