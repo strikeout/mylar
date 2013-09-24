@@ -458,12 +458,12 @@ Meteor.Collection.prototype.enc_row = function(container, callback) {
 			     container[search_field_name(f)] =
 				 Crypto.text_encrypt(enc_princ.keys.mk_key,
 						     container[f],
-						     function(ciph) {
-							 var search_f = search_field_name(f);
-							 container[search_f] = ciph;
-							 if (is_indexable(self._enc_fields, f))
-							     container[rand_field_name(f)] = ciph[0]; //randomness
+						     function(rand, ciph) {
+							 container[search_field_name(f)] = ciph;
+							 container[rand_field_name(f)] = rand;
+							 if (is_indexable(self._enc_fields, f)) {
 							     insert_in_enc_index(id, ciph);
+							 }
 							 done_encrypt();
 						     });
 			 } else {

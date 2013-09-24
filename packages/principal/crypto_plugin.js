@@ -150,17 +150,17 @@ MylarCrypto.text_encrypt = function(k, ptext, cb) {
 MylarCrypto.text_encrypt = function(k, ptext, cb) {
     var items = tokenize_for_search(ptext);
     var encitems = [];
-
-    callback = _.after(items.length, function() {
-	cb(encitems);
-    })
-
+    
     var r = sjcl.codec.hex.fromBits(sjcl.random.randomWords(2));
-    encitems[0] = r;
+    var encitems = [];
+    
+    callback = _.after(items.length, function() {
+	cb(r, encitems);
+    })
     
     _.each(items, function(item, index) {
 	MylarCrypto.index_enc(k, item, function(encitem) {
-	    encitems[index+1] = base_crypto.mkhash(r , encitem);
+	    encitems[index] = base_crypto.mkhash(r , encitem);
 	    callback();
 	});
     });    

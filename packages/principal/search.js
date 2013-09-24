@@ -120,9 +120,18 @@ Meteor.Collection.prototype.publish_search_filter = function(pubname, filter, pr
 	    var filters = filter(args);
 	    var handles = [];
 
+	    var fieldname;
+	    if (has_index) {
+		fieldname = rand_field_name(f); //only need randomness
+		// from the collection for index lookup
+	    } else {
+		fieldname = search_field_name(f);
+	    }
+
 	    _.each(filters, function(filter){
-		var handle = self_col.find(filter).observe({
+		var handle = self_col.find(filter, {fields: {fieldname: 1}}).observe({
 		    added: function(doc) {
+			console.log("doc " + JSON.stringify(doc));
 			var princid = doc[enc_princ];
 			var adjusted = adj_toks[princid];
 
