@@ -56,22 +56,16 @@ function finishLoginUser(uname, app_key, cb) {
 	
 	cb && cb();	
     }
-    
+
     var wk = Meteor.user()._wrap_privkey;
     if (!wk) {
-	// RPC to server, we don't want to clog user's
-	// subscriptions with the wrapped key
-	Meteor.call("GetWrapPrivkey", function(err, wkey){
-	    if (err) {
-		console.log("issue with wrapped key from server", err);
-	    } else {
-	        dec_func(wkey);
-            }
-	});
+        Meteor.subscribe('_mylar_privkey', function () {
+            wk = Meteor.user()._wrap_privkey;
+            dec_func(wk);
+        });
     } else {
 	dec_func(wk);
     }
-     
 }
 
 Meteor.loginWithIDP = function (callback) {
