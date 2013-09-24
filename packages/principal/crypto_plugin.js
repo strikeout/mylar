@@ -17,6 +17,12 @@ enc_return = undefined;
 USE_CRYPTO_SERVER = false;
 //replaces NaCl or crypto_fire with crypto_server; for testing
 
+var enable_search = true;
+
+principal_enable_search = function (flag) {
+    enable_search = flag;
+};
+
 USE_INDEX = false;
 /*
 Handlebars.registerHelper(
@@ -43,6 +49,9 @@ MylarCrypto.test = function(cb) {
     enc_module.postMessage("testJ()");
 };
 MylarCrypto.keygen = function(cb) {
+    if (!enable_search)
+        cb('');
+
     enc_return = cb;
     if (USE_CRYPTO_SERVER) {
 	crypto_server.keygen(cb);
@@ -57,6 +66,9 @@ MylarCrypto.keygen = function(cb) {
 };
 
 MylarCrypto.delta = function(k1, k2, cb) {
+    if (!enable_search)
+        cb('');
+
     enc_return = cb;
     if (USE_CRYPTO_SERVER) {
 	crypto_server.delta(k1, k2, cb);

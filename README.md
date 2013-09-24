@@ -35,6 +35,10 @@ idp_init("http://localhost:3000", idp_pub);
 
 (you can still use server-side Accounts.onCreateUser if useful)
 
+3. disable search unless you have the crypto plugin:
+
+   principal_enable_search(false);
+
 
 Meteor-enc developers:
 ----------------------
