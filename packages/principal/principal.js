@@ -146,23 +146,23 @@ if (Meteor.isServer) {
 	   finds a key chain from_princ to to_princ. from_princ has access
 	   to to_princ thru this chain. 
 	   TODO: Currently exhaustive search. */
-        keychain: function (from_princ, to_princ) {
+        keychain: function (from_id, from_type, to_id, to_type) {
 	    	 
 	    if (debug) 
-		console.log("KEYCHAIN: from " + JSON.stringify(from_princ) + " to " + JSON.stringify(to_princ));
+		console.log("KEYCHAIN: from", from_id, from_type, "to", to_id, to_type);
 
-	    if (!from_princ.id || !from_princ.type) {
+	    if (!from_id || !from_type) {
 		throw new Error("from principal in key chain must have at least id and type set");
 	    }
 
-	    if (!to_princ.id || !to_princ.type) {
+	    if (!to_id || !to_type) {
 		throw new Error("to_princ in key chain must have at least id and type set");
 	    }
 
 	    // frontier is a list of principal id-s and
 	    // the wrapped keys to reach them starting from from_princ
 	    var frontier = [
-                             [ from_princ.id, [] ],
+                             [ from_id, [] ],
                            ];
 
 	    var found_chain;
@@ -173,7 +173,7 @@ if (Meteor.isServer) {
                     var frontier_id = node[0];
                     var frontier_chain = node[1];
 		    
-	            if (frontier_id === to_princ.id) {
+	            if (frontier_id === to_id) {
                         found_chain = frontier_chain;
 			return found_chain;
                     }
@@ -191,7 +191,7 @@ if (Meteor.isServer) {
                 frontier = new_frontier;
             }
 	    
-	    console.log("did not find a chain from " + from_princ + " to " + to_princ);
+	    console.log("did not find a chain from", from_id, from_type, "to", to_id, to_type);
 	    return undefined;
         },
 
@@ -507,14 +507,9 @@ if (Meteor.isClient) {
 		
 	    if (debug) console.log("no sk keys:  invoke key chain");
 
-	    // create principals with no keys for the server
-	    var auth2 = new Principal(auth.type, auth.name, auth.keys);
-	    auth2.keys = {};
-	    var self2 = new Principal(self.type, self.name, self.keys);
-	    self2.keys = {};
-	    if (debug) console.log("keychain from " + pretty(auth) + " to " + pretty(self2));
-            Meteor.call("keychain", auth2,
-			self2, function (err, chain) {
+	    if (debug) console.log("keychain from " + pretty(auth) + " to " + pretty(self));
+            Meteor.call("keychain", auth.id, auth.type, self.id, self.type,
+			function (err, chain) {
 			    if (debug) console.log("keychain returns: " + JSON.stringify(chain));
 			    if (chain) {
 				self.keys = _.extend(self.keys, base_crypto.chain_decrypt(chain, auth.keys));
