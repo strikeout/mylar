@@ -31,7 +31,9 @@ idp_init("http://localhost:3000", idp_pub);
 
 (should be available both client and server-side)
 
-2. use Meteor.loginWithIDP to login the user, no arguments needed
+2. Insert {{> idp_client }} in your client template 
+
+3. use Meteor.loginWithIDP to login the user, no arguments needed
 
 (you can still use server-side Accounts.onCreateUser if useful)
 
