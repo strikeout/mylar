@@ -26,7 +26,7 @@
      token: the actual cryptographic token
 */
 
-var debug = false;
+var debug = true;
 var crypto = base_crypto;
 
 /******* Data structures ****/
@@ -533,6 +533,7 @@ if (Meteor.isClient) {
 	    on_complete(p);
 	    return;
 	} else {
+	    if (debug) console.log("MISS");
 	}
 
 	if (debug) console.log("lookupByID princ id " + id);
@@ -619,6 +620,7 @@ if (Meteor.isClient) {
 	    on_complete(p);
 	    return;
 	} else {
+	    if (debug) console.log("MISS");
 	}
 	
 	if (debug)

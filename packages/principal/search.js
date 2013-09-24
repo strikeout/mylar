@@ -123,13 +123,13 @@ Meteor.Collection.prototype.publish_search_filter = function(pubname, filter, pr
 	    var rand_f = rand_field_name(field);
 	    var search_f = rand_field_name(field);
 
-	    var proj = {rand_f: 1}; // what to project
+	    var search_proj = {enc_princ: 1, rand_f: 1}; // what to project
 	    if (!has_index) {// don't pull out the field if we use index
-		proj[search_f] = 1;
+		search_proj[search_f] = 1;
 	    }
 
 	    _.each(filters, function(filter){
-		var handle = self_col.find(filter, {fields: proj}).observe({
+		var handle = self_col.find(filter, {fields: search_proj}).observe({
 		    added: function(doc) {
 			console.log("doc " + JSON.stringify(doc));
 			var princid = doc[enc_princ];
@@ -150,13 +150,15 @@ Meteor.Collection.prototype.publish_search_filter = function(pubname, filter, pr
 			    adj_toks[princid] = adjusted; 
 			} 
 
-			var rand = doc[rand_f]
+			var rand = doc[rand_f];
+			console.log("rand is " + rand);
 			adjusted = base_crypto.mkhash(rand, adjusted);
-
+			console.log("final adjust " + adjusted);
 			if (has_index) {
 			    var res = IndexEnc.findOne({_id : adjusted});
 			    if (res) {
-				self.added(self_col._name, doc_id, getProj(self_col.findOne(doc_id), proj, token));
+				self.added(self_col._name, doc._id,
+					   getProj(self_col.findOne(doc._id), proj, token));
 			    }
 			} else {
 			    _.some(enctext, function(encword, index){

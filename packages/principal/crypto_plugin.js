@@ -14,7 +14,7 @@ enc_fire = function() {
 enc_module = undefined;
 enc_return = undefined;
 
-USE_CRYPTO_SERVER = true;
+USE_CRYPTO_SERVER = false;
 //replaces NaCl or crypto_fire with crypto_server; for testing
 
 var enable_search = true;
@@ -126,7 +126,20 @@ MylarCrypto.index_enc = function(k, word, cb) {
 };
 
 var tokenize_for_search = function(text) {
-    return text.match(/\w+|"[^"]+"/g); 
+    var lst = text.match(/\w+|"[^"]+"/g);
+
+    // uniquefy
+    var dict = {}
+    var res = []
+
+    _.each(lst, function(item){
+	if (!_.has(dict, item)) {
+	    dict[item] = 1;
+	    res.push(item);
+	} 
+    });
+
+    return res;
 }
 
 
