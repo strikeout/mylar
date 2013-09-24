@@ -48,8 +48,10 @@ Crypto.keygen = function(cb) {
 	crypto_server.keygen(cb);
 	return;
     }
-    if(enc_fire().valid)
-        cb(enc_fire().Keygen());
+
+    var enc_fire_e = enc_fire();
+    if (enc_fire_e && enc_fire_e.valid)
+        cb(enc_fire_e.Keygen());
     else
         enc_module.postMessage("keygen()");
 };
@@ -61,8 +63,9 @@ Crypto.delta = function(k1, k2, cb) {
 	return;
     }
   
-    if(enc_fire().valid)
-        cb(enc_fire().Delta(k1, k2));
+    var enc_fire_e = enc_fire();
+    if(enc_fire_e && enc_fire_e.valid)
+        cb(enc_fire_e.Delta(k1, k2));
     else
         enc_module.postMessage("delta(" + k1 + "," + k2 + ")");
 };
@@ -74,8 +77,9 @@ Crypto.token = function(k, word, cb) {
 	return;
     }
   
-    if(enc_fire().valid)
-        cb(enc_fire().Token(k, word));
+    var enc_fire_e = enc_fire();
+    if(enc_fire_e && enc_fire_e.valid)
+        cb(enc_fire_e.Token(k, word));
     else
         enc_module.postMessage("token(" + k + "," + word + ")");
 };
@@ -87,8 +91,9 @@ Crypto.encrypt = function(k, word, cb) {
 	return;
     }
   
-    if(enc_fire().valid)
-        cb(enc_fire().Encrypt(k, word));
+    var enc_fire_e = enc_fire();
+    if (enc_fire_e && enc_fire_e.valid)
+        cb(enc_fire_e.Encrypt(k, word));
     else
         enc_module.postMessage("encrypt(" +  k + "," + word + ")");
 };
@@ -100,8 +105,9 @@ Crypto.index_enc = function(k, word, cb) {
 	crypto_server.index_enc(k, word, cb);
 	return;
     }
-    if (enc_fire().valid) {
-	cb(enc_fire().IndexEnc(k, word));
+    var enc_fire_e = enc_fire();
+    if (enc_fire_e && enc_fire_e.valid)
+	cb(enc_fire_e.IndexEnc(k, word));
     } else
 	enc_module.postMessage("index_enc(" +  k + "," + word + ")");
 };
@@ -186,10 +192,11 @@ Crypto.adjust = function(tok, delta, cb) {
 	return;
     }
   
-    if(enc_fire().valid)
-        cb(enc_fire().Adjust(tok, delta));
+    var enc_fire_e = enc_fire();
+    if (enc_fire_e && enc_fire_e.valid)
+        cb(enc_fire_e.Adjust(tok, delta));
     else
-    enc_module.postMessage("adjust(" + tok + "," + delta + ")");
+        enc_module.postMessage("adjust(" + tok + "," + delta + ")");
 };
 
 Crypto.match = function(tok, cipher, cb) {
@@ -199,8 +206,9 @@ Crypto.match = function(tok, cipher, cb) {
 	return;
     }
   
-    if(enc_fire().valid)
-        cb(enc_fire().Match(tok, cipher));
+    var enc_fire_e = enc_fire();
+    if (enc_fire_e && enc_fire_e.valid)
+        cb(enc_fire_e.Match(tok, cipher));
     else
         enc_module.postMessage("match(" + tok + "," + cipher + ")");
 };
