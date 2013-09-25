@@ -373,7 +373,8 @@ if (Meteor.isClient) {
     }
 
     /* Returns the static principal with the given public key.
-       Loads its secret keys if current user has access to it. */
+       Loads its secret keys if current user has access to it.
+    */
     Principal.lookup_static = function(pubkey, cb) {
 	Principal._lookupByID(pubkey, cb);
     }
