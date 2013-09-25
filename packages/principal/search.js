@@ -100,7 +100,7 @@ Deps.autorun(function(){
 
 if (Meteor.isServer) {
     
-    function getProj(doc, proj, token) {
+function getProj(doc, proj, token) {
     if (!proj) {
 	return _.extend(doc, {_tag: token});
     }
@@ -108,8 +108,10 @@ if (Meteor.isServer) {
     var res = {};
     res["_tag"] = token;
 
-    _each(proj, function(field){
-	res[field] = doc[field];
+    console.log('proj' + JSON.stringify(proj));
+    _.each(proj, function(val, field){
+	console.log('field ' + field);
+	res[field] = val;
     });
 
     return res;
@@ -119,7 +121,7 @@ Meteor.Collection.prototype.publish_search_filter = function(pubname, filter, pr
 	
     var self_col = this;
 
-
+    console.log("proj is " + JSON.stringify(proj));
     
     Meteor.publish(sub_name(self_col._name, pubname),
       function(args, token, enc_princ, princ, field, has_index){
@@ -140,7 +142,7 @@ Meteor.Collection.prototype.publish_search_filter = function(pubname, filter, pr
 	    var handles = [];
 
 	    var rand_f = rand_field_name(field);
-	    var search_f = rand_field_name(field);
+	    var search_f = search_field_name(field);
 
 	    var search_proj = {};
 	    search_proj[enc_princ] = 1;
@@ -180,13 +182,13 @@ Meteor.Collection.prototype.publish_search_filter = function(pubname, filter, pr
 					   getProj(self_col.findOne(doc._id), proj, token));
 			    }
 			} else {
+			    var enctext = doc[search_f];
+			    console.log("adjusted is " + adjusted);
+			    console.log("enctext is " + JSON.stringify(enctext));
 			    _.some(enctext, function(encword, index){
-				if (index) {
-				    if (adjusted == encword) {
-					self.added(self_col._name, doc._id,
-						   getProj(proj, doc, token));
-					return true;
-				    }
+				if (adjusted == encword) {
+				    self.added(self_col._name, doc._id,
+					       getProj(doc, proj, token));
 				}
 			    });
 			}

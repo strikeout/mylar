@@ -26,7 +26,7 @@
      token: the actual cryptographic token
 */
 
-var debug = false;
+var debug = true;
 var crypto = base_crypto;
 
 /******* Data structures ****/
@@ -385,10 +385,13 @@ if (Meteor.isClient) {
     // If authority is specified:
     //   -- makes princ certified by authority
     //   -- authority must have secret keys loaded
-    Principal._store = function (princ, authority, is_static = false) {
+    Principal._store = function (princ, authority, is_static) {
 
 	if (debug) console.log("CREATE princ: " + princ.name + " keys " + princ.keys  + " id " + princ.id);
-	
+
+	if (!is_static) {
+	    is_static = false;
+	}
 	Principals.insert({
 	    '_id': princ.id,
 	    'type' : princ.type,
@@ -810,7 +813,7 @@ if (Meteor.isClient) {
     };
 
     _processAccessInbox = function(uprinc, dbprinc) {
-	
+	console.log("_process for princ " + pretty(uprinc) + " dbprinc " + JSON.stringify(dbprinc));
 	if (dbprinc && dbprinc.accessInbox.length > 0) {
 	    if (debug) console.log(" NOT EMPTY ACCESS INBOX " + JSON.stringify(dbprinc.accessInbox));
 	    _.each(dbprinc.accessInbox, function(wid){
