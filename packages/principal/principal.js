@@ -349,7 +349,7 @@ if (Meteor.isClient) {
        keys are stringified
      */
     Principal.create_static = function(type, name, keys, creator, cb) {
-
+	console.log("create static");
 	if (!type || !name) {
 	    throw new Error("cannot create principal with invalid (type, name) "
 			    + type + ", " + name);

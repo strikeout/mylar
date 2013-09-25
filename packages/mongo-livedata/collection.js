@@ -403,8 +403,6 @@ function insert_in_enc_index(ciph){
     });
 }
 
-Submissions.publish_search_filter("search-subs", {}); 
-
 // encrypts & signs a document
 // container is a map of key to values 
 Meteor.Collection.prototype.enc_row = function(container, callback) {
