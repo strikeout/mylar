@@ -146,23 +146,23 @@ if (Meteor.isServer) {
 	   finds a key chain from_princ to to_princ. from_princ has access
 	   to to_princ thru this chain. 
 	   TODO: Currently exhaustive search. */
-        keychain: function (from_princ, to_princ) {
+        keychain: function (from_id, from_type, to_id, to_type) {
 	    	 
 	    if (debug) 
-		console.log("KEYCHAIN: from " + JSON.stringify(from_princ) + " to " + JSON.stringify(to_princ));
+		console.log("KEYCHAIN: from", from_id, from_type, "to", to_id, to_type);
 
-	    if (!from_princ.id || !from_princ.type) {
+	    if (!from_id || !from_type) {
 		throw new Error("from principal in key chain must have at least id and type set");
 	    }
 
-	    if (!to_princ.id || !to_princ.type) {
+	    if (!to_id || !to_type) {
 		throw new Error("to_princ in key chain must have at least id and type set");
 	    }
 
 	    // frontier is a list of principal id-s and
 	    // the wrapped keys to reach them starting from from_princ
 	    var frontier = [
-                             [ from_princ.id, [] ],
+                             [ from_id, [] ],
                            ];
 
 	    var found_chain;
@@ -173,7 +173,7 @@ if (Meteor.isServer) {
                     var frontier_id = node[0];
                     var frontier_chain = node[1];
 		    
-	            if (frontier_id === to_princ.id) {
+	            if (frontier_id === to_id) {
                         found_chain = frontier_chain;
 			return found_chain;
                     }
@@ -191,7 +191,7 @@ if (Meteor.isServer) {
                 frontier = new_frontier;
             }
 	    
-	    console.log("did not find a chain from " + from_princ + " to " + to_princ);
+	    console.log("did not find a chain from", from_id, from_type, "to", to_id, to_type);
 	    return undefined;
         },
 
@@ -278,7 +278,7 @@ generate_princ_keys = function(cb) {
         cb(keys);
     }
     if (Meteor.isClient) {
-        Crypto.keygen(done_cb);
+        MylarCrypto.keygen(done_cb);
     } else {
         var key = crypto_server.keygen();
         done_cb(key);
@@ -342,6 +342,34 @@ if (Meteor.isClient) {
 	});
     }
 
+    /* Creates a static principal and stores it at the server.
+       Gives access to creator to this principal.
+       keys must contain private keys
+       Calls cb on the newly created principal.
+       keys are stringified
+     */
+    Principal.create_static = function(type, name, keys, creator, cb) {
+	console.log("create static");
+	if (!type || !name) {
+	    throw new Error("cannot create principal with invalid (type, name) "
+			    + type + ", " + name);
+	}
+
+	var p = new Principal(type, name, deserialize_keys(keys));
+
+	if (!p._has_secret_keys()) {
+	    throw new Error("cannot create static principal without its public keys");
+	}
+	
+	var pt = PrincType.findOne({type: type, name:name});
+	if (!pt) {
+	    PrincType.insert({type:type, name:name});
+	    Principal._store(p);
+	}
+ 
+	Principal.add_access(creator, p, function(){cb && cb(p);});
+    }
+    
     // Creates a new node in the principal graph for the given principal
     // If authority is specified:
     //   -- makes princ certified by authority
@@ -400,7 +428,7 @@ if (Meteor.isClient) {
 	    wrap = princ1.sym_encrypt(pt);
 
 	    // can compute delta as well so no need for access inbox
-	    Crypto.delta(princ1.keys.mk_key, princ2.keys.mk_key, function(delta) {
+	    MylarCrypto.delta(princ1.keys.mk_key, princ2.keys.mk_key, function(delta) {
 		Meteor.call("updateWrappedKeys", princ2.id, princ1.id, null, wrap, delta, false, cb);
 	    });
 	    return;
@@ -454,6 +482,24 @@ if (Meteor.isClient) {
 
 	}};
 
+    // Principal should not be serialized with JSON.
+    Principal.prototype.toJSONValue = function () {
+        throw new Error('cannot serialize Principal');
+    };
+
+    Principal.prototype.clone = function () {
+        throw new Error('cannot clone Principal');
+    };
+
+    Principal.prototype.typeName = function () {
+        return 'Principal';
+    };
+
+    EJSON.addType('Principal', function () {
+        throw new Error('cannot deserialize Principal');
+    });
+
+    // Principal methods
     Principal.prototype.create_certificate = function (princ) {
 	var self = this;
 	var msg = Certificate.contents(princ);
@@ -489,14 +535,9 @@ if (Meteor.isClient) {
 		
 	    if (debug) console.log("no sk keys:  invoke key chain");
 
-	    // create principals with no keys for the server
-	    var auth2 = new Principal(auth.type, auth.name, auth.keys);
-	    auth2.keys = {};
-	    var self2 = new Principal(self.type, self.name, self.keys);
-	    self2.keys = {};
-	    if (debug) console.log("keychain from " + pretty(auth) + " to " + pretty(self2));
-            Meteor.call("keychain", auth2,
-			self2, function (err, chain) {
+	    if (debug) console.log("keychain from " + pretty(auth) + " to " + pretty(self));
+            Meteor.call("keychain", auth.id, auth.type, self.id, self.type,
+			function (err, chain) {
 			    if (debug) console.log("keychain returns: " + JSON.stringify(chain));
 			    if (chain) {
 				self.keys = _.extend(self.keys, base_crypto.chain_decrypt(chain, auth.keys));
@@ -533,6 +574,7 @@ if (Meteor.isClient) {
 	    on_complete(p);
 	    return;
 	} else {
+	    if (debug) console.log("MISS");
 	}
 
 	if (debug) console.log("lookupByID princ id " + id);
@@ -551,8 +593,13 @@ if (Meteor.isClient) {
 	});
     } 
 
+    var current_user = undefined;
+
     // returns the principal corresponding to the current user
     Principal.user = function () {
+        if (current_user !== undefined)
+            return current_user;
+
 	var pkeys = deserialize_keys(localStorage['user_princ_keys']);
 
 	var user = Meteor.user();
@@ -560,8 +607,14 @@ if (Meteor.isClient) {
 	if (!user || !pkeys) {
 	    return undefined;
 	}
-	
-	return new Principal('user', user.username, pkeys);
+
+        current_user = new Principal('user', user.username, pkeys);
+        return current_user;
+    }
+
+    Principal.set_current_user_keys = function (keys) {
+        localStorage['user_princ_keys'] = keys;
+        current_user = undefined;
     }
     
     // p1.allowSearch(p2) : p1 can now search on data encrypted for p2
@@ -570,7 +623,7 @@ if (Meteor.isClient) {
     // in cases where the search word is to be hidden, allowSearch should only be given
     // to trusted principals
     Principal.allowSearch = function(allowed_princ) {
-	delta = Crypto.delta();
+	delta = MylarCrypto.delta();
     }
 
     // returns a principal for the user with uname and feeds it as input to callback cb
@@ -619,6 +672,7 @@ if (Meteor.isClient) {
 	    on_complete(p);
 	    return;
 	} else {
+	    if (debug) console.log("MISS");
 	}
 	
 	if (debug)
@@ -708,6 +762,7 @@ if (Meteor.isClient) {
 
     // requires symmetric key of this principal to be set
     Principal.prototype.sym_encrypt = function(pt) {
+        // XXX this works only for strings; what about integers, bools, etc?
 	var self = this;
 	if (self.keys.sym_key) {
 	    return crypto.sym_encrypt(self.keys.sym_key, pt);
@@ -769,7 +824,7 @@ if (Meteor.isClient) {
 		     var subject_keys = deserialize_keys(subject_keys_ser);
 		     var sym_wrapped = base_crypto.sym_encrypt(uprinc.keys.sym_key, subject_keys_ser);
 		     // compute delta as well
-		     var delta = Crypto.delta(uprinc.keys.mk_key, subject_keys.mk_key, function(delta) {
+		     var delta = MylarCrypto.delta(uprinc.keys.mk_key, subject_keys.mk_key, function(delta) {
 			 WrappedKeys.update({_id: wid},
 					    {$set : {wrapped_keys: undefined,
 						     delta : delta, 

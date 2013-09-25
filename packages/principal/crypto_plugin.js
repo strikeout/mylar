@@ -17,6 +17,12 @@ enc_return = undefined;
 USE_CRYPTO_SERVER = false;
 //replaces NaCl or crypto_fire with crypto_server; for testing
 
+var enable_search = true;
+
+principal_enable_search = function (flag) {
+    enable_search = flag;
+};
+
 USE_INDEX = false;
 /*
 Handlebars.registerHelper(
@@ -36,83 +42,113 @@ Template._cryptoPlugin.events({
 });
 */
 
-Crypto = function() {};
+MylarCrypto = function() {};
 
-Crypto.test = function(cb) {
+MylarCrypto.test = function(cb) {
     enc_return = cb;
     enc_module.postMessage("testJ()");
 };
-Crypto.keygen = function(cb) {
+MylarCrypto.keygen = function(cb) {
+    if (!enable_search) {
+        cb('x');
+        return;
+    }
+
     enc_return = cb;
     if (USE_CRYPTO_SERVER) {
 	crypto_server.keygen(cb);
 	return;
     }
-    if(enc_fire().valid)
-        cb(enc_fire().Keygen());
+
+    var enc_fire_e = enc_fire();
+    if (enc_fire_e && enc_fire_e.valid)
+        cb(enc_fire_e.Keygen());
     else
         enc_module.postMessage("keygen()");
 };
 
-Crypto.delta = function(k1, k2, cb) {
+MylarCrypto.delta = function(k1, k2, cb) {
+    if (!enable_search) {
+        cb('x');
+        return;
+    }
+
     enc_return = cb;
     if (USE_CRYPTO_SERVER) {
 	crypto_server.delta(k1, k2, cb);
 	return;
     }
   
-    if(enc_fire().valid)
-        cb(enc_fire().Delta(k1, k2));
+    var enc_fire_e = enc_fire();
+    if(enc_fire_e && enc_fire_e.valid)
+        cb(enc_fire_e.Delta(k1, k2));
     else
         enc_module.postMessage("delta(" + k1 + "," + k2 + ")");
 };
 
-Crypto.token = function(k, word, cb) {
+MylarCrypto.token = function(k, word, cb) {
     enc_return = cb;
     if (USE_CRYPTO_SERVER) {
 	crypto_server.token(k, word, cb);
 	return;
     }
   
-    if(enc_fire().valid)
-        cb(enc_fire().Token(k, word));
+    var enc_fire_e = enc_fire();
+    if(enc_fire_e && enc_fire_e.valid)
+        cb(enc_fire_e.Token(k, word));
     else
         enc_module.postMessage("token(" + k + "," + word + ")");
 };
 
-Crypto.encrypt = function(k, word, cb) {
+MylarCrypto.encrypt = function(k, word, cb) {
     enc_return = cb;
     if (USE_CRYPTO_SERVER) {
 	crypto_server.encrypt(k, word, cb);
 	return;
     }
   
-    if(enc_fire().valid)
-        cb(enc_fire().Encrypt(k, word));
+    var enc_fire_e = enc_fire();
+    if (enc_fire_e && enc_fire_e.valid)
+        cb(enc_fire_e.Encrypt(k, word));
     else
         enc_module.postMessage("encrypt(" +  k + "," + word + ")");
 };
 
 
-Crypto.index_enc = function(k, word, cb) {
+MylarCrypto.index_enc = function(k, word, cb) {
     enc_return = cb;
     if (USE_CRYPTO_SERVER) {
 	crypto_server.index_enc(k, word, cb);
 	return;
     }
-    if (enc_fire().valid) {
-	cb(enc_fire().IndexEnc(k, word));
-    } else
+    var enc_fire_e = enc_fire();
+    if (enc_fire_e && enc_fire_e.valid) {
+	cb(enc_fire_e.IndexEnc(k, word));
+    } else {
 	enc_module.postMessage("index_enc(" +  k + "," + word + ")");
+    }
 };
 
 var tokenize_for_search = function(text) {
-    return text.match(/\w+|"[^"]+"/g); 
+    var lst = text.match(/\w+|"[^"]+"/g);
+
+    // uniquefy
+    var dict = {}
+    var res = []
+
+    _.each(lst, function(item){
+	if (!_.has(dict, item)) {
+	    dict[item] = 1;
+	    res.push(item);
+	} 
+    });
+
+    return res;
 }
 
 
 /*
-Crypto.text_encrypt = function(k, ptext, cb) {
+MylarCrypto.text_encrypt = function(k, ptext, cb) {
     var items = tokenize_for_search(ptext);
     var encitems = [];
 
@@ -121,27 +157,27 @@ Crypto.text_encrypt = function(k, ptext, cb) {
     })
     
     _.each(items, function(item, index) {
-	Crypto.encrypt(k, item, function(encitem) {
+	MylarCrypto.encrypt(k, item, function(encitem) {
 	    encitems[index] = encitem;
 	    callback();
 	});
     });
 }
 */
-Crypto.text_encrypt = function(k, ptext, cb) {
+MylarCrypto.text_encrypt = function(k, ptext, cb) {
     var items = tokenize_for_search(ptext);
     var encitems = [];
-
-    callback = _.after(items.length, function() {
-	cb(encitems);
-    })
-
+    
     var r = sjcl.codec.hex.fromBits(sjcl.random.randomWords(2));
-    encitems[0] = r;
+    var encitems = [];
+    
+    callback = _.after(items.length, function() {
+	cb(r, encitems);
+    })
     
     _.each(items, function(item, index) {
-	Crypto.index_enc(k, item, function(encitem) {
-	    encitems[index+1] = base_crypto.mkhash(r , encitem);
+	MylarCrypto.index_enc(k, item, function(encitem) {
+	    encitems[index] = base_crypto.mkhash(r , encitem);
 	    callback();
 	});
     });    
@@ -149,14 +185,14 @@ Crypto.text_encrypt = function(k, ptext, cb) {
 
 
 var _check_index = function(k, word, ciph, cb) {
-    Crypto.index_enc(k, word, function(iciph) {
-	Crypto.match(iciph, ciph, cb);
+    MylarCrypto.index_enc(k, word, function(iciph) {
+	MylarCrypto.match(iciph, ciph, cb);
     });
 }
 
 // check if enctext is a correct encryption of text
 // calls cb with true or false
-Crypto.is_consistent = function(k, ptext, enctext, cb) {
+MylarCrypto.is_consistent = function(k, ptext, enctext, cb) {
     ptext = tokenize_for_search(ptext);
     if (ptext.length != enctext.length) {
 	cb(false);
@@ -179,28 +215,30 @@ Crypto.is_consistent = function(k, ptext, enctext, cb) {
 }
 
 
-Crypto.adjust = function(tok, delta, cb) {
+MylarCrypto.adjust = function(tok, delta, cb) {
     enc_return = cb;
     if (USE_CRYPTO_SERVER) {
 	crypto_server.adjust(tok, delta, cb);
 	return;
     }
   
-    if(enc_fire().valid)
-        cb(enc_fire().Adjust(tok, delta));
+    var enc_fire_e = enc_fire();
+    if (enc_fire_e && enc_fire_e.valid)
+        cb(enc_fire_e.Adjust(tok, delta));
     else
-    enc_module.postMessage("adjust(" + tok + "," + delta + ")");
+        enc_module.postMessage("adjust(" + tok + "," + delta + ")");
 };
 
-Crypto.match = function(tok, cipher, cb) {
+MylarCrypto.match = function(tok, cipher, cb) {
     enc_return = cb;
     if (USE_CRYPTO_SERVER) {
 	crypto_server.match(tok, cipher, cb);
 	return;
     }
   
-    if(enc_fire().valid)
-        cb(enc_fire().Match(tok, cipher));
+    var enc_fire_e = enc_fire();
+    if (enc_fire_e && enc_fire_e.valid)
+        cb(enc_fire_e.Match(tok, cipher));
     else
         enc_module.postMessage("match(" + tok + "," + cipher + ")");
 };

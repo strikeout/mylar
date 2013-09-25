@@ -22,7 +22,7 @@ As a user:
 As a developer of an app
 ------------------------
 
-0. use packages accounts-idp, idp-user
+0. use packages accounts-idp, idp-user, principal
  
 1. specify which IDP you trust, e.g., our IDP:
 
@@ -31,9 +31,16 @@ idp_init("http://localhost:3000", idp_pub);
 
 (should be available both client and server-side)
 
-2. use Meteor.loginWithIDP to login the user, no arguments needed
+2. Insert {{> idp_client }} in your client template 
 
-(you can still use server-side Accounts.onCreateUser if useful)
+3. use Meteor.loginWithIDP to login the user, no arguments needed
+
+(you can still use server-side Accounts.onCreateUser if useful, which should
+return the (modified) user object)
+
+4. disable search unless you have the crypto plugin (on client):
+
+   principal_enable_search(false);
 
 
 Meteor-enc developers:
@@ -63,3 +70,13 @@ TODO (post-deadline):
 
 - better error messages; for example, now if you try to add a user that
   does not exist the error is not friendly;
+
+- support encrypting integer values in a collection
+
+- bugs in photos app:
+  * when initially sharing a photo with a friend, friend's browser
+    throws "keychain not found" exceptions, even though do_insert
+    happens after add_access.
+  * caption edits from the owner propagate to friends but do not
+    take effect in the owner's browser.
+

@@ -28,6 +28,10 @@ search_field_name = function(f) {
     return f + "_mk";
 }
 
+rand_field_name = function(f) {
+    return f + "_rand";
+}
+
 Meteor.Collection = function (name, options) {
   var self = this;
   if (! (self instanceof Meteor.Collection))
@@ -299,6 +303,7 @@ Meteor.Collection.prototype._encrypted_fields = function(lst) {
     if (this._enc_fields && !_.isEqual(this._enc_fields,{}) && !_.isEqual(this._enc_fields, lst)) {
 	throw new Error("cannot declare different annotations for the same collection");
     }
+    
 
     this._enc_fields = lst;
 
@@ -353,7 +358,7 @@ Meteor.Collection.prototype.dec_fields = function(container, fields, callback) {
 			      container[f] = res;
 			  }
 			  if (is_searchable(this._enc_fields, f)) {
-			      Crypto.is_consistent(dec_princ.keys.mk_key, container[f], container[f+"enc"],
+			      MylarCrypto.is_consistent(dec_princ.keys.mk_key, container[f], container[f+"enc"],
 					function(res) {
 					    if (!res)
 						throw new Error(
@@ -374,11 +379,30 @@ var is_searchable = function(enc_fields, field) {
 	return false;
     }
     var annot = enc_fields[field];
-    if (annot && annot['attr'] == 'SEARCHABLE') 
+    if (annot && (annot['attr'] == 'SEARCHABLE'
+		  || annot['attr'] == 'SEARCHABLE INDEX')) 
 	return true;
     else
 	return false;
 }
+
+is_indexable =  function(enc_fields, field) {
+    if (!enc_fields)
+	return false;
+
+    var annot = enc_fields[field];
+    if (annot && annot['attr'] == 'SEARCHABLE INDEX') 
+	return true;
+    else
+	return false;
+}
+
+function insert_in_enc_index(ciph){
+    _.each(ciph, function(item) {
+	IndexEnc.insert({_id: item});
+    });
+}
+
 // encrypts & signs a document
 // container is a map of key to values 
 Meteor.Collection.prototype.enc_row = function(container, callback) {
@@ -435,11 +459,24 @@ Meteor.Collection.prototype.enc_row = function(container, callback) {
 			 }
 			 
 			 if (is_searchable(self._enc_fields, f)) {
-			     container[search_field_name(f)] = Crypto.text_encrypt(enc_princ.keys.mk_key, container[f],
-									function(ciph) {
-									    container[search_field_name(f)] = ciph;
-									    done_encrypt();
-									});
+			     console.log("is searchable");
+			     var time1 = window.performance.now();
+			     MylarCrypto.text_encrypt(enc_princ.keys.mk_key,
+						      container[f],
+						      function(rand, ciph) {
+							  container[search_field_name(f)] = ciph;
+							  container[rand_field_name(f)] = rand;
+							    var time1a = window.performance.now();
+							  if (is_indexable(self._enc_fields, f)) {
+							      console.log("inserting in index");
+							      insert_in_enc_index(ciph);
+							  }
+							  var time1b = window.performance.now();
+							  var time2 = window.performance.now();
+							  console.log("all search takes " + (time2-time1));
+							  console.log("indexing search " + (time1b-time1a));
+							  done_encrypt();
+						      });
 			 } else {
 			     done_encrypt();
 			 }
@@ -456,6 +493,7 @@ Meteor.Collection.prototype.enc_row = function(container, callback) {
  
 }
 
+
 // container is an object with key (field name), value (enc field value)
 Meteor.Collection.prototype.dec_msg = function(container, callback) {
     var self = this;
@@ -466,6 +504,7 @@ Meteor.Collection.prototype.dec_msg = function(container, callback) {
     }
 
     var r = enc_fields(self._enc_fields, self._signed_fields, container);
+
     if (r.length > 0) {
 	startTime("DECMSG");
 	var callback_q = [];

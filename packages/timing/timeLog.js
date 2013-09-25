@@ -2,7 +2,7 @@ timeLog = "";
 
 LATENCY_LOG = false; // turn off during tput experiments
 
-TPUT_LOG = true;
+TPUT_LOG = false;
 TOTAL_MSGS = 0;
 
 logAdd = function(msg) {

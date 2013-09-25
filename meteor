@@ -45,7 +45,8 @@ SCRIPT_DIR=$(pwd -P)
 #	rm "cebin.tar"
 #fi
 
-for D in crypto_mk crypto_server crypto_ext; do
+# removed crypto_ext temporarily
+for D in crypto_mk crypto_server; do
   echo "Building $D"
   ( cd $D && make )
 done

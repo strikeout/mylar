@@ -36,6 +36,12 @@ PrincType = new Meteor.Collection("princtype");
  */
 
 
+IndexEnc = new Meteor.Collection("indexenc");
+/*
+  An index used for search
+  only contains an _id
+*/
+
 if (Meteor.isServer) {
 
     var allow_all_writes = {
@@ -48,6 +54,7 @@ if (Meteor.isServer) {
     WrappedKeys.allow(allow_all_writes);
     Certs.allow(allow_all_writes);
     PrincType.allow(allow_all_writes);
+    IndexEnc.allow(allow_all_writes);
 
     Meteor.publish("princtype", function(){
 	return PrincType.find({});

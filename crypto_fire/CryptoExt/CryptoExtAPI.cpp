@@ -66,14 +66,19 @@ FB::variant CryptoExtAPI::PKeygen()
 	return bmk.pkeygen();
 }
 
-FB::variant CryptoExtAPI::PEncrypt(const FB::variant& k, const FB::variant& word)
+FB::variant CryptoExtAPI::PPubkey(const FB::variant& k)
 {
-	return bmk.pencrypt(k.cast<std::string>(), word.cast<std::string>());
+	return bmk.ppubkey(k.cast<std::string>());
 }
 
-FB::variant CryptoExtAPI::PAdd(const FB::variant& k, const FB::variant& c1, const FB::variant& c2)
+FB::variant CryptoExtAPI::PEncrypt(const FB::variant& pk, const FB::variant& word)
 {
-	return bmk.padd(k.cast<std::string>(), c1.cast<std::string>(), c2.cast<std::string>());
+	return bmk.pencrypt(pk.cast<std::string>(), word.cast<std::string>());
+}
+
+FB::variant CryptoExtAPI::PAdd(const FB::variant& pk, const FB::variant& c1, const FB::variant& c2)
+{
+	return bmk.padd(pk.cast<std::string>(), c1.cast<std::string>(), c2.cast<std::string>());
 }
 
 FB::variant CryptoExtAPI::PDecrypt(const FB::variant& k, const FB::variant& cipher)

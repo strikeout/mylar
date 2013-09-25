@@ -41,6 +41,7 @@ public:
         registerMethod("Match",      make_method(this, &CryptoExtAPI::Match));
         
         registerMethod("PKeygen",      make_method(this, &CryptoExtAPI::PKeygen));
+        registerMethod("PPubkey",      make_method(this, &CryptoExtAPI::PPubkey));
         registerMethod("PEncrypt",      make_method(this, &CryptoExtAPI::PEncrypt));
         registerMethod("PAdd",      make_method(this, &CryptoExtAPI::PAdd));
         registerMethod("PDecrypt",      make_method(this, &CryptoExtAPI::PDecrypt));
@@ -73,8 +74,9 @@ public:
 	FB::variant Match(const FB::variant& tok, const FB::variant& cipher);
     
 	FB::variant PKeygen();
-	FB::variant PEncrypt(const FB::variant& k, const FB::variant& word);
-	FB::variant PAdd(const FB::variant& k, const FB::variant& c1, const FB::variant& c2);
+	FB::variant PPubkey(const FB::variant& k);
+	FB::variant PEncrypt(const FB::variant& pk, const FB::variant& word);
+	FB::variant PAdd(const FB::variant& pk, const FB::variant& c1, const FB::variant& c2);
 	FB::variant PDecrypt(const FB::variant& k, const FB::variant& cipher);
 
 private:

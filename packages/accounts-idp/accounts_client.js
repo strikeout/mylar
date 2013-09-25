@@ -25,7 +25,7 @@ function createUser(uname, app_key, cb) {
 
 		    var after_create_cb = function(err) {
                         if (!err) 
-			    localStorage['user_princ_keys'] = ser_keys;
+			    Principal.set_current_user_keys(ser_keys);
 		        cb && cb(err);
 		    }
 
@@ -52,25 +52,20 @@ function finishLoginUser(uname, app_key, cb) {
 
     var dec_func = function(wkey) { // decrypt wrapped key
 	var keys = base_crypto.sym_decrypt(app_key, wkey);
-	localStorage['user_princ_keys'] = keys;
+	Principal.set_current_user_keys(keys);
 	
 	cb && cb();	
     }
-    
+
     var wk = Meteor.user()._wrap_privkey;
     if (!wk) {
-	// RPC to server, we don't want to clog user's
-	// subscriptions with the wrapped key
-	Meteor.call("GetWrapPrivkey", function(err, wkey){
-	    if (err) {
-		throw new Error("issue with wrapped key from server");
-	    }
-	    dec_func(wkey);
-	});
+        Meteor.subscribe('_mylar_privkey', function () {
+            wk = Meteor.user()._wrap_privkey;
+            dec_func(wk);
+        });
     } else {
 	dec_func(wk);
     }
-     
 }
 
 Meteor.loginWithIDP = function (callback) {
