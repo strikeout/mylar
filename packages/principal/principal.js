@@ -366,9 +366,9 @@ if (Meteor.isClient) {
 	var pt = PrincType.findOne({type: type, name:name});
 	if (!pt) {
 	    PrincType.insert({type:type, name:name});
-	    Principal._store(p);
+	    Principal._store(p, null, true);
 	}
- 
+
 	Principal.add_access(creator, p, function(){cb && cb(p);});
     }
 
@@ -385,7 +385,7 @@ if (Meteor.isClient) {
     // If authority is specified:
     //   -- makes princ certified by authority
     //   -- authority must have secret keys loaded
-    Principal._store = function (princ, authority) {
+    Principal._store = function (princ, authority, is_static = false) {
 
 	if (debug) console.log("CREATE princ: " + princ.name + " keys " + princ.keys  + " id " + princ.id);
 	
@@ -393,7 +393,8 @@ if (Meteor.isClient) {
 	    '_id': princ.id,
 	    'type' : princ.type,
 	    'name' : princ.name,
-	    accessInbox: []
+	    accessInbox: [],
+	    is_static: is_static
 	});
 
 	if (authority) {
@@ -447,11 +448,7 @@ if (Meteor.isClient) {
 
 	// encrypt using public keys
 	var wrap = crypto.encrypt(princ1.keys.encrypt, pt);
-	var add_to_inbox = false;
-	if (princ1.type == "user") {
-	    add_to_inbox = true;
-	}
-	Meteor.call("updateWrappedKeys", princ2.id, princ1.id, wrap, null, null, add_to_inbox, cb);
+	Meteor.call("updateWrappedKeys", princ2.id, princ1.id, wrap, null, null, true, cb);
     };
     
     // Removes princ1 access to princ2
@@ -812,7 +809,36 @@ if (Meteor.isClient) {
 	}
     };
 
-    
+    _processAccessInbox = function(uprinc, dbprinc) {
+	
+	if (dbprinc && dbprinc.accessInbox.length > 0) {
+	    if (debug) console.log(" NOT EMPTY ACCESS INBOX " + JSON.stringify(dbprinc.accessInbox));
+	    _.each(dbprinc.accessInbox, function(wid){
+		Meteor.call("wrappedKeyByID", wid,
+			    function(err, w) {
+				if (!w || !w.wrapped_keys) {
+				    console.log("smth wrong with this wrapped key "  + wid);
+				    return;
+				}
+				var subject_keys_ser = base_crypto.decrypt(uprinc.keys.decrypt, w["wrapped_keys"]);
+				var subject_keys = deserialize_keys(subject_keys_ser);
+				var sym_wrapped = base_crypto.sym_encrypt(uprinc.keys.sym_key, subject_keys_ser);
+				// compute delta as well
+				var delta = MylarCrypto.delta(uprinc.keys.mk_key, subject_keys.mk_key, function(delta) {
+				    WrappedKeys.update({_id: wid},
+						       {$set : {wrapped_keys: undefined,
+								delta : delta, 
+								wrapped_sym_keys : sym_wrapped}
+						       });
+				});
+			    });
+	    });
+	    Principals.update({_id: uprinc.id},
+			      {$set:{accessInbox: []}});
+	}
+	
+    }
+
     processAccessInbox = function() {
 	if (!Meteor.user()) {
 	    return;
@@ -821,32 +847,7 @@ if (Meteor.isClient) {
 	if (debug) console.log("run PROCESS ACCESS INBOX: ");
 	var uprinc = Principal.user();
 	var dbprinc = Principals.findOne({_id : uprinc.id});
-	
-	if (dbprinc && dbprinc.accessInbox.length > 0) {
-	    if (debug) console.log(" NOT EMPTY ACCESS INBOX " + JSON.stringify(dbprinc.accessInbox));
-	    _.each(dbprinc.accessInbox, function(wid){
-		Meteor.call("wrappedKeyByID", wid,
-	         function(err, w) {
-		     if (!w || !w.wrapped_keys) {
-			 console.log("smth wrong with this wrapped key "  + wid);
-			 return;
-		     }
-		     var subject_keys_ser = base_crypto.decrypt(uprinc.keys.decrypt, w["wrapped_keys"]);
-		     var subject_keys = deserialize_keys(subject_keys_ser);
-		     var sym_wrapped = base_crypto.sym_encrypt(uprinc.keys.sym_key, subject_keys_ser);
-		     // compute delta as well
-		     var delta = MylarCrypto.delta(uprinc.keys.mk_key, subject_keys.mk_key, function(delta) {
-			 WrappedKeys.update({_id: wid},
-					    {$set : {wrapped_keys: undefined,
-						     delta : delta, 
-						     wrapped_sym_keys : sym_wrapped}
-					    });
-		     });
-		 });
-	    });
-	    Principals.update({_id: uprinc.id},
-			      {$set:{accessInbox: []}});
-	} 
+	_processAccessInbox(uprinc, dbprinc);
     }
     
     Deps.autorun(processAccessInbox);

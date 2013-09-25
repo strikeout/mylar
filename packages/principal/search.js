@@ -31,6 +31,16 @@ var sub_name = function(coll, pub) {
 if (Meteor.isClient) {
 Meteor.Collection.prototype.search = function(pubname, wordmap, princ, filter_args, callback) {
     var self = this;
+
+    /* First check if this principal has any
+       deltas to convert in inbox */
+    var dbprinc = Principals.findOne({_id: princ.id});
+    if (!dbprinc) {
+	throw new Error("principal does not exist in db");
+    }
+    if (dbprinc.accessInbox.length > 0) {
+	_processAccessInbox(princ, dbprinc);
+    }
     
     var mapkeys = _.keys(wordmap);
     

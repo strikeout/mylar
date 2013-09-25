@@ -60,11 +60,12 @@ if (Meteor.isServer) {
 	return PrincType.find({});
     })
     Meteor.publish("myprinc", function(princid){
-	return Principals.find({_id: princid});
+	return Principals.find({$or: {_id: princid, is_static: true}});
     });
 
     Meteor.methods({
 	updateWrappedKeys: function(pid, pid_for, wpk, wsym, delta, add_to_inbox) {
+	    console.log("update wrapped keys delta is " + delta);
 	    var entry = WrappedKeys.findOne({principal: pid, wrapped_for: pid_for});
 	    var entry_id = "";
 	    if (!entry) {
