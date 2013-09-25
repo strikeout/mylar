@@ -366,9 +366,9 @@ if (Meteor.isClient) {
 	    PrincType.insert({type:type, name:name});
 	    Principal._store(p);
 	}
-
-	Principal.add_access(creator, p, function(){cb(p);});
-    });
+ 
+	Principal.add_access(creator, p, function(){cb && cb(p);});
+    }
     
     // Creates a new node in the principal graph for the given principal
     // If authority is specified:
