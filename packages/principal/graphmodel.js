@@ -60,7 +60,8 @@ if (Meteor.isServer) {
 	return PrincType.find({});
     })
     Meteor.publish("myprinc", function(princid){
-	return Principals.find({$or: {_id: princid, is_static: true}});
+	return Principals.find({$or: {_id: princid,
+				      is_static: true}});
     });
 
     Meteor.methods({
