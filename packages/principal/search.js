@@ -117,7 +117,10 @@ Meteor.Collection.prototype.publish_search_filter = function(pubname, filter, pr
 	  
 	if (token != null) {
 	    
-	    var filters = filter(args);
+	    var filters = {};
+	    if (filter)
+		filters = filter(args);
+
 	    var handles = [];
 
 	    var rand_f = rand_field_name(field);

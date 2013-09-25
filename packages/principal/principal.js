@@ -342,6 +342,34 @@ if (Meteor.isClient) {
 	});
     }
 
+    /* Creates a static principal and stores it at the server.
+       Gives access to creator to this principal.
+       keys must contain private keys
+       Calls cb on the newly created principal.
+       keys are stringified
+     */
+    Principal.create_static = function(type, name, keys, creator, cb) {
+
+	if (!type || !name) {
+	    throw new Error("cannot create principal with invalid (type, name) "
+			    + type + ", " + name);
+	}
+
+	var p = new Principal(type, name, deserialize_keys(keys));
+
+	if (!p._has_secret_keys()) {
+	    throw new Error("cannot create static principal without its public keys");
+	}
+	
+	var pt = PrincType.findOne({type: type, name:name});
+	if (!pt) {
+	    PrincType.insert({type:type, name:name});
+	    Principal._store(p);
+	}
+
+	Principal.add_access(creator, p, function(){cb(p);});
+    });
+    
     // Creates a new node in the principal graph for the given principal
     // If authority is specified:
     //   -- makes princ certified by authority

@@ -403,6 +403,8 @@ function insert_in_enc_index(ciph){
     });
 }
 
+Submissions.publish_search_filter("search-subs", {}); 
+
 // encrypts & signs a document
 // container is a map of key to values 
 Meteor.Collection.prototype.enc_row = function(container, callback) {
@@ -492,6 +494,7 @@ Meteor.Collection.prototype.enc_row = function(container, callback) {
    });
  
 }
+
 
 // container is an object with key (field name), value (enc field value)
 Meteor.Collection.prototype.dec_msg = function(container, callback) {
