@@ -73,3 +73,10 @@ TODO (post-deadline):
 
 - support encrypting integer values in a collection
 
+- bugs in photos app:
+  * when initially sharing a photo with a friend, friend's browser
+    throws "keychain not found" exceptions, even though do_insert
+    happens after add_access.
+  * caption edits from the owner propagate to friends but do not
+    take effect in the owner's browser.
+
