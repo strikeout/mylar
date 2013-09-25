@@ -26,7 +26,7 @@
      token: the actual cryptographic token
 */
 
-var debug = true;
+var debug = false;
 var crypto = base_crypto;
 
 /******* Data structures ****/
@@ -349,7 +349,6 @@ if (Meteor.isClient) {
        keys are stringified
      */
     Principal.create_static = function(type, name, keys, creator, cb) {
-	console.log("create static");
 	if (!type || !name) {
 	    throw new Error("cannot create principal with invalid (type, name) "
 			    + type + ", " + name);
@@ -813,7 +812,6 @@ if (Meteor.isClient) {
     };
 
     _processAccessInbox = function(uprinc, dbprinc) {
-	console.log("_process for princ " + pretty(uprinc) + " dbprinc " + JSON.stringify(dbprinc));
 	if (dbprinc && dbprinc.accessInbox.length > 0) {
 	    if (debug) console.log(" NOT EMPTY ACCESS INBOX " + JSON.stringify(dbprinc.accessInbox));
 	    _.each(dbprinc.accessInbox, function(wid){

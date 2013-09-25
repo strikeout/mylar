@@ -54,10 +54,6 @@ Meteor.Collection.prototype.search = function(pubname, wordmap, princ, filter_ar
 	return;
     }
 
-    console.log("search " + JSON.stringify(wordmap));
-
-    console.log("princ.keys" + serialize_keys(princ.keys));
-    
     MylarCrypto.token(princ.keys.mk_key, word, function(token){
 	var search_info = {};
 	search_info["args"] = filter_args;
@@ -108,9 +104,7 @@ function getProj(doc, proj, token) {
     var res = {};
     res["_tag"] = token;
 
-    console.log('proj' + JSON.stringify(proj));
     _.each(proj, function(val, field){
-	console.log('field ' + field);
 	res[field] = val;
     });
 
@@ -121,12 +115,9 @@ Meteor.Collection.prototype.publish_search_filter = function(pubname, filter, pr
 	
     var self_col = this;
 
-    console.log("proj is " + JSON.stringify(proj));
-    
     Meteor.publish(sub_name(self_col._name, pubname),
       function(args, token, enc_princ, princ, field, has_index){
 
-	  console.log("search for " + field + " enc_princ " + enc_princ);
 	var self = this;
 
 	// a cache of adjusted tokens so we don't adjust
@@ -150,13 +141,11 @@ Meteor.Collection.prototype.publish_search_filter = function(pubname, filter, pr
 	    if (!has_index) {// don't pull out the field if we use index
 		search_proj[search_f] = 1;
 	    }
-	    console.log(JSON.stringify(search_proj));
 	    _.each(filters, function(filter){
 		var handle = self_col.find(filter, {fields: search_proj}).observe({
 		    added: function(doc) {
 			var princid = doc[enc_princ];
 			var adjusted = adj_toks[princid];
-			console.log("observing " + JSON.stringify(doc));
 
 			if (!adjusted) {
 			    // first check if it matches
@@ -183,8 +172,6 @@ Meteor.Collection.prototype.publish_search_filter = function(pubname, filter, pr
 			    }
 			} else {
 			    var enctext = doc[search_f];
-			    console.log("adjusted is " + adjusted);
-			    console.log("enctext is " + JSON.stringify(enctext));
 			    _.some(enctext, function(encword, index){
 				if (adjusted == encword) {
 				    self.added(self_col._name, doc._id,

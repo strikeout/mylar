@@ -66,7 +66,6 @@ if (Meteor.isServer) {
 
     Meteor.methods({
 	updateWrappedKeys: function(pid, pid_for, wpk, wsym, delta, add_to_inbox) {
-	    console.log("update wrapped keys delta is " + delta);
 	    var entry = WrappedKeys.findOne({principal: pid, wrapped_for: pid_for});
 	    var entry_id = "";
 	    if (!entry) {
