@@ -375,6 +375,11 @@ if (Meteor.isClient) {
       Loads its secret keys if current user has access to it.
     */
     Principal.prototype.load_secret_keys = function(cb) {
+	var newprinc = cache_get_id(this.id);
+	if (newprinc) {
+	    cb(newprinc);
+	    return;
+	}
 	this._load_secret_keys(cb);
 	//TODO: verify that returned princ keys 
 	//indeed correspond to pubkeys
