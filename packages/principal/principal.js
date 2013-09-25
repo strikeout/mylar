@@ -372,11 +372,13 @@ if (Meteor.isClient) {
 	Principal.add_access(creator, p, function(){cb && cb(p);});
     }
 
-    /* Returns the static principal with the given public key.
-       Loads its secret keys if current user has access to it.
+    /*
+      Loads its secret keys if current user has access to it.
     */
-    Principal.lookup_static = function(pubkey, cb) {
-	Principal._lookupByID(pubkey, cb);
+    Principal.prototype.load_secret_keys = function(cb) {
+	this._load_secret_keys(cb);
+	//TODO: verify that returned princ keys 
+	//indeed correspond to pubkeys
     }
     
     // Creates a new node in the principal graph for the given principal

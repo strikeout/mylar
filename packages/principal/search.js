@@ -64,7 +64,6 @@ Meteor.Collection.prototype.search = function(pubname, wordmap, princ, filter_ar
     });
     
 }
-
     
 Deps.autorun(function(){
     // check if subscriptions get closed properly
@@ -77,6 +76,7 @@ Deps.autorun(function(){
 			 search_info["enc_princ"], search_info["princ"],
 			 search_info["field"], search_info["has_index"],
 			 function(){ // on ready handle
+			     var self = this;
 			     var cb = search_cb;
 			     if (cb) {
 				 cb(search_collec.find({_tag: token}).fetch());
@@ -86,7 +86,6 @@ Deps.autorun(function(){
 			 });
     }
 });
-    
 }
 
 if (Meteor.isServer) {
@@ -124,7 +123,7 @@ Meteor.Collection.prototype.publish_search_filter = function(pubname, filter, pr
 	  
 	if (token != null) {
 	    
-	    var filters = {};
+	    var filters = [{}];//one filter, all data
 	    if (filter)
 		filters = filter(args);
 
