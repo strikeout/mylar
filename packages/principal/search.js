@@ -43,6 +43,10 @@ Meteor.Collection.prototype.search = function(pubname, wordmap, princ, filter_ar
     if (!word || word == "") {
 	return;
     }
+
+    console.log("search " + JSON.stringify(wordmap));
+
+    console.log("princ.keys" + serialize_keys(princ.keys));
     
     MylarCrypto.token(princ.keys.mk_key, word, function(token){
 	var search_info = {};
@@ -105,10 +109,13 @@ if (Meteor.isServer) {
 Meteor.Collection.prototype.publish_search_filter = function(pubname, filter, proj) {
 	
     var self_col = this;
+
+
     
     Meteor.publish(sub_name(self_col._name, pubname),
       function(args, token, enc_princ, princ, field, has_index){
-	
+
+	  console.log("search for " + field + " enc_princ " + enc_princ);
 	var self = this;
 
 	// a cache of adjusted tokens so we don't adjust
@@ -138,6 +145,7 @@ Meteor.Collection.prototype.publish_search_filter = function(pubname, filter, pr
 		    added: function(doc) {
 			var princid = doc[enc_princ];
 			var adjusted = adj_toks[princid];
+			console.log("observing " + JSON.stringify(doc));
 
 			if (!adjusted) {
 			    // first check if it matches

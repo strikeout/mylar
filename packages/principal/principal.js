@@ -356,10 +356,12 @@ if (Meteor.isClient) {
 	}
 
 	var p = new Principal(type, name, deserialize_keys(keys));
-
+	
 	if (!p._has_secret_keys()) {
 	    throw new Error("cannot create static principal without its public keys");
 	}
+
+	cache_add(p);
 	
 	var pt = PrincType.findOne({type: type, name:name});
 	if (!pt) {
@@ -368,6 +370,12 @@ if (Meteor.isClient) {
 	}
  
 	Principal.add_access(creator, p, function(){cb && cb(p);});
+    }
+
+    /* Returns the static principal with the given public key.
+       Loads its secret keys if current user has access to it. */
+    Principal.lookup_static = function(pubkey, cb) {
+	Principal._lookupByID(pubkey, cb);
     }
     
     // Creates a new node in the principal graph for the given principal
