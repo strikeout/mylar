@@ -179,7 +179,7 @@ Meteor.logout = function (callback) {
 	    callback && callback();
 	}
 	if (useEnc()) {
-	    localStorage['user_princ_keys'] = undefined;
+	    Principal.set_current_user_keys(undefined);
 	}
     });
 };

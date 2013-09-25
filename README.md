@@ -22,7 +22,7 @@ As a user:
 As a developer of an app
 ------------------------
 
-0. use packages accounts-idp, idp-user
+0. use packages accounts-idp, idp-user, principal
  
 1. specify which IDP you trust, e.g., our IDP:
 
@@ -70,3 +70,6 @@ TODO (post-deadline):
 
 - better error messages; for example, now if you try to add a user that
   does not exist the error is not friendly;
+
+- support encrypting integer values in a collection
+

@@ -65,18 +65,20 @@ base_crypto = (function () {
 		
 	// authenticated encryption
 	sym_encrypt: function(sk, data) {
-	    if (!data) {
-		// throw new Error("cannot sym_encrypt undefined");
-	    }
-	    var ops = {mode:"ccm", cipher: "aes"};
-	    return sjcl.encrypt(sk, data, ops);
+	    if (data === undefined) {
+		console.log('sym_encrypt: undefined', data);
+	    } else {
+	        var ops = {mode:"ccm", cipher: "aes"};
+	        return sjcl.encrypt(sk, data, ops);
+            }
 	},
 	
 	sym_decrypt: function(sk, ct) {
-	    if (!ct) {
-		throw new Error("cannot sym decrypt undefined");
-	    }
-	    return sjcl.decrypt(sk, ct);
+	    if (ct === undefined) {
+		console.log('sym_decrypt: undefined', ct);
+	    } else {
+	        return sjcl.decrypt(sk, ct);
+            }
 	},
 	
         sign: function (msg, sk) {

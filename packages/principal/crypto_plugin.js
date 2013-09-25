@@ -49,8 +49,10 @@ MylarCrypto.test = function(cb) {
     enc_module.postMessage("testJ()");
 };
 MylarCrypto.keygen = function(cb) {
-    if (!enable_search)
+    if (!enable_search) {
         cb('x');
+        return;
+    }
 
     enc_return = cb;
     if (USE_CRYPTO_SERVER) {
@@ -66,8 +68,10 @@ MylarCrypto.keygen = function(cb) {
 };
 
 MylarCrypto.delta = function(k1, k2, cb) {
-    if (!enable_search)
+    if (!enable_search) {
         cb('x');
+        return;
+    }
 
     enc_return = cb;
     if (USE_CRYPTO_SERVER) {

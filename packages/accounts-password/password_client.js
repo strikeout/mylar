@@ -52,7 +52,7 @@ Meteor.loginWithPassword = function (selector, password, callback) {
 		if (!keys) {
 		    throw new Error("idp error, cannot login this user");
 		}
- 		localStorage['user_princ_keys']= keys;
+ 		Principal.set_current_user_keys(keys);
 		Accounts.callLoginMethod({
 		    methodArguments: [{srp: response}],
 		    validateResult: function (result) {
@@ -99,7 +99,7 @@ Accounts.createUser = function (options, callback) {
 	    
 	    // store user keys in local storage
 	    // localStorage can only deal with serialized strings
-	    localStorage['user_princ_keys'] = serialize_keys(uprinc.keys);
+	    Principal.set_current_user_keys(serialize_keys(uprinc.keys));
 	    
 	    idp.set_keys(uname, pwd, ser_keys, function(){
 		Accounts.callLoginMethod({
