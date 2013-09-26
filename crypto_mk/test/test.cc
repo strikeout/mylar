@@ -232,11 +232,94 @@ bench(int ac, char **av) {
 
 }
 
+
+static void
+bench_b64(int ac, char **av) {
+    cerr << "benchmark: \n";
+
+    if (ac != 2) {
+	cerr << "usage : ./test num_words \n";
+	exit(-1);
+    }
+    uint num_words = atoi(av[1]);
+    
+    vector<string> words = get_words(num_words);
+
+    b64mk mk;
+
+    string k = mk.keygen();
+    string kk = mk.keygen();
+
+    Timer t;
+
+    //encrypt 
+    vector<string> ciph = vector<string>(num_words);
+
+    t.lap();
+
+    for (uint i = 0; i < num_words; i++) {
+	ciph[i] = mk.encrypt(kk, words[i]);
+    }
+
+    p(t.lap(), num_words, "encrypt");
+
+    string d;
+
+    t.lap();
+    
+    // time to compute delta
+    for (uint i = 0; i < num_words; i++) {
+	d = mk.delta(k, kk);
+	if (i  && i % 493280 == 0) {
+	    cerr << "d " << d << "\n";
+	}
+    }
+
+    p(t.lap(), num_words, "delta");
+
+    t.lap();
+    
+    for (uint i = 0; i < num_words; i++) {
+	string token = mk.token(k, words[i]);
+
+	if (i && i % 493280 == 0) {
+	    cerr << "t " << token << "\n";
+	}
+    }
+
+    p(t.lap(), num_words, "token");
+
+    string token = mk.token(k, words[0]);
+    string stoken;
+    
+    t.lap();
+
+    for (uint i = 0; i < num_words; i++) {
+	stoken = mk.adjust(token, d);
+	if (i && i % 398420 == 0) {
+	    cerr << "stoken " << stoken << "\n";
+	}
+    }
+
+    p(t.lap(), num_words, "adjust");
+
+    uint count = 0;
+    t.lap();
+
+    for (uint i = 0; i < num_words; i++) {
+	count += mk.match(stoken, ciph[i]);
+    }
+
+    p(t.lap(), num_words, "search: ");
+    assert_s(count == 1, "incorrect search results");
+
+}
+
 int
 main(int ac, char **av)
 {
-    bool benchf = false;
+    bool benchf = true;
     if (!benchf) test();
-    if (benchf) bench(ac, av);
-    
+    if (benchf) bench_b64(ac, av);
+    if (!benchf) bench(ac, av);
 }
