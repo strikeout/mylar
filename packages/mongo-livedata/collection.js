@@ -518,7 +518,7 @@ Meteor.Collection.prototype.dec_msg = function(container, callback) {
     }
 
     var r = fields_for_dec(self._enc_fields, self._signed_fields, container);
-    console.log("dec: r is " + JSON.stringify(r));
+    if (debug) console.log("dec: r is " + JSON.stringify(r));
     
     if (r.length > 0) {
 	startTime("DECMSG");

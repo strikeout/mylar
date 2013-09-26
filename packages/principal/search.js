@@ -22,7 +22,7 @@
 search_cb = undefined;
 search_collec = undefined;
 
-const search_debug = true;
+const search_debug = false;
 
 var sub_name = function(coll, pub) {
     return coll+"++"+pub;
@@ -58,7 +58,6 @@ Meteor.Collection.prototype.single_search = function(pubname, wordmap, princ, fi
 
     var callback2 = _.after(rooms.length, function(){
 
-	console.log("done collectings princs");
 	var search_info = {};
 	search_info["args"] = filter_args;
 	search_info["princ"] = "x";
@@ -70,7 +69,6 @@ Meteor.Collection.prototype.single_search = function(pubname, wordmap, princ, fi
         search_info["pubname"] = pubname;
 	search_info["has_index"] = is_indexable(self._enc_fields, field);
 
-	console.log("search info is " + JSON.stringify(search_info));
 	if (search_debug)
 	    console.log("word " + word + " tokens " + tokens);
 	
@@ -82,10 +80,10 @@ Meteor.Collection.prototype.single_search = function(pubname, wordmap, princ, fi
 
     _.each(rooms, function(room){
 	var createdBy = room.createdByID;
-	console.log("createdby " + createdBy);
 	var creator_uname = Meteor.users.findOne({"_id": createdBy})["username"];
-	
-	Principal.lookup([new PrincAttr("room", room.roomTitle)], creator_uname,
+
+	Principal._lookupByID(room.roomprinc, 
+	//Principal.lookup([new PrincAttr("room", room.roomTitle)], creator_uname,
 			 function(princ) {
 			     if (!princ._has_secret_keys()) {
 				 throw new Error("princ does not have secret keys");
@@ -220,14 +218,8 @@ Meteor.Collection.prototype.publish_search_filter = function(pubname, filter, pr
 	    var rand_f = rand_field_name(field);
 	    var search_f = search_field_name(field);
 
-	    var search_proj = {};
-	    search_proj[enc_princ] = 1;
-	    search_proj[rand_f] = 1;
-	    if (!has_index) {// don't pull out the field if we use index
-		search_proj[search_f] = 1;
-	    }
 	    _.each(filters, function(filter){
-		var handle = self_col.find(filter, {fields: search_proj}).observe({
+		var handle = self_col.find(filter).observe({
 		    added: function(doc) {
 			var princid = doc[enc_princ];
 			var adjusted = adj_toks[princid];
@@ -300,7 +292,7 @@ Meteor.Collection.prototype.publish_search_filter = function(pubname, filter, pr
 		_.each(handles, function(handle) {handle.stop();});
 	    });
 
-	    console.log("found " + found);
+	    //console.log("found " + found);
 
 	    //console.log("time " + (new Date().getTime() - starttime));
 	    self.ready();
@@ -316,12 +308,9 @@ Meteor.Collection.prototype.publish_single_search_filter = function(pubname, fil
 	
     var self_col = this;
 
-    console.log("publish single search ");
-
     Meteor.publish(sub_name(self_col._name, pubname),
       function(args, token, tag, enc_princ, princ, field, has_index){
 
-	  console.log("token is " + token);  
         if (search_debug)
 	    console.log("\n\n START SEARCH \n\n enc_princ " + enc_princ);
 	  
@@ -346,8 +335,7 @@ Meteor.Collection.prototype.publish_single_search_filter = function(pubname, fil
 	    _.each(filters, function(filter){
 		var handle = self_col.find(filter).observe({
 		    added: function(doc) {
-			console.log("added doc is " + JSON.stringify(doc));
-			console.log("enc_princ is " + JSON.stringify(enc_princ));
+
 			var princid = doc[enc_princ];
 			var adjusted = adjtokens[princid];
 
@@ -387,7 +375,7 @@ Meteor.Collection.prototype.publish_single_search_filter = function(pubname, fil
 		_.each(handles, function(handle) {handle.stop();});
 	    });
 
-	    console.log("found " + found);
+	    //console.log("found " + found);
 
 	    //console.log("time " + (new Date().getTime() - starttime));
 	    self.ready();
