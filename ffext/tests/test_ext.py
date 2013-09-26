@@ -5,24 +5,24 @@ from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 
 REPS = 10
-PLAIN = ('http://www.youtube.com', 'YouTube')
-HTTPS = ('https://www.youtube.com','YouTube')
-ENC = ('https://idp','idp')
+PLAIN = ('https://18.26.4.162', 'kChat')
+HTTPS = ('https://18.26.4.162','kChat')
+ENC = ('https://18.26.4.162:4344','kChat')
 
 def test_main(p):
     driver = webdriver.Firefox(p)
-    driver.get('http://localhost')
+    time.sleep(0.5)
     t1 = test_enc_page(driver)
-    t2 = test_other_page(driver)
-    t3 = test_other_page_https(driver)
+    #t2 = test_other_page(driver)
+    #t3 = test_other_page_https(driver)
     driver.close()
-    return [t1,t2,t3]
+    return [t1]#,t2,t3]
 
 def test_generic(driver,page):
-    start = time.time()
     driver.get(page[0])
     assert page[1] in driver.title
-    dur = time.time() - start
+    time.sleep(2)
+    dur = driver.execute_script("return performance.timing.loadEventEnd - performance.timing.navigationStart")
     return dur
 
 def test_enc_page(driver):
