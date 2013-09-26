@@ -10,7 +10,7 @@ var debug = false;
 
 // if true, an unencrypted copy of the fields
 // will be kept for debugging mode
-var ENC_DEBUG = false;
+var ENC_DEBUG = true;
 
 set_enc_debug = function (flag) {
     ENC_DEBUG = flag;
@@ -251,7 +251,7 @@ var intersect = function(a, b) {
         // A further complication is signed fields -- some of those
         // might be encrypted (so only the _enc version is present),
         // and some of those might be plaintext.
-        if (_.has(b, f) || _.has(b, f + "_enc")) {
+        if (_.has(b, f)) {
             r.push(f);
         }
     });
@@ -264,7 +264,17 @@ function enc_fields(enc_fields, signed_fields, container) {
     return intersect(_.union(_.keys(enc_fields), _.keys(signed_fields)), container);
 }
 
+function fields_for_dec(enc_fields, signed_fields, container) {
+    var r = []
 
+    _.each(enc_fields, function(v, f) {
+	if (_.has(container, enc_field_name(f))) {
+	    r.push(f);
+	}
+    });
+
+    return r;
+}
 
 
 // returns a function F, such that F
@@ -348,6 +358,8 @@ Meteor.Collection.prototype.dec_fields = function(container, fields, callback) {
 			      throw new Error("signature does not verify on field " + f);
 			  }
 		      }
+		      if (debug) console.log("dec f; f is " + f);
+
 		      if (dec_princ) {
 			  var res  = dec_princ.decrypt(container[enc_field_name(f)]);
 			  if (ENC_DEBUG) {
@@ -368,6 +380,8 @@ Meteor.Collection.prototype.dec_fields = function(container, fields, callback) {
 					});
 			      return;
 			  } 
+		      } else {
+			  if (debug) console.log("no dec princ");
 		      }
 		      cb();
 		  });	
@@ -459,22 +473,22 @@ Meteor.Collection.prototype.enc_row = function(container, callback) {
 			 }
 			 
 			 if (is_searchable(self._enc_fields, f)) {
-			     console.log("is searchable");
-			     var time1 = window.performance.now();
+			     if (debug) console.log("is searchable");
+			     //var time1 = window.performance.now();
 			     MylarCrypto.text_encrypt(enc_princ.keys.mk_key,
 						      container[f],
 						      function(rand, ciph) {
 							  container[search_field_name(f)] = ciph;
 							  container[rand_field_name(f)] = rand;
-							    var time1a = window.performance.now();
+							  //var time1a = window.performance.now();
 							  if (is_indexable(self._enc_fields, f)) {
-							      console.log("inserting in index");
+							      if (debug) console.log("inserting in index");
 							      insert_in_enc_index(ciph);
 							  }
-							  var time1b = window.performance.now();
-							  var time2 = window.performance.now();
-							  console.log("all search takes " + (time2-time1));
-							  console.log("indexing search " + (time1b-time1a));
+							  //var time1b = window.performance.now();
+							  //var time2 = window.performance.now();
+							  //console.log("all search takes " + (time2-time1));
+							  //console.log("indexing search " + (time1b-time1a));
 							  done_encrypt();
 						      });
 			 } else {
@@ -503,8 +517,9 @@ Meteor.Collection.prototype.dec_msg = function(container, callback) {
 	return;
     }
 
-    var r = enc_fields(self._enc_fields, self._signed_fields, container);
-
+    var r = fields_for_dec(self._enc_fields, self._signed_fields, container);
+    console.log("dec: r is " + JSON.stringify(r));
+    
     if (r.length > 0) {
 	startTime("DECMSG");
 	var callback_q = [];
