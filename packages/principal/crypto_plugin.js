@@ -14,7 +14,7 @@ enc_fire = function() {
 enc_module = undefined;
 enc_return = undefined;
 
-USE_CRYPTO_SERVER = false;
+USE_CRYPTO_SERVER = true;
 //replaces NaCl or crypto_fire with crypto_server; for testing
 
 var enable_search = true;
