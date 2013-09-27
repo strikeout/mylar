@@ -16,13 +16,13 @@ AVG:
 
 
 plain with extension:
-914.4
+914
 
 plain without extension
-291.5
+291
 
 enc with extension:
-1109.3
+1109
 
 enc without extension:
-356.1
+356
