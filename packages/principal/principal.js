@@ -586,6 +586,7 @@ if (Meteor.isClient) {
 	var p = cache_get_id(id);
 	if (p) {
 	    endTime("lookup");
+	    if (debug) console.log("HIT");
 	    on_complete(p);
 	    return;
 	} else {

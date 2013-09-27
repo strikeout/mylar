@@ -352,7 +352,8 @@ Meteor.Collection.prototype.dec_fields = function(container, fields, callback) {
 		      }
 		      var dec_princ = results[0];
 		      var verif_princ = results[1];
-		      
+
+
 		      if (verif_princ) {
 			  if (!verif_princ.verify(container[enc_field_name(f)], container[sig_field_name(f)])) {
 			      throw new Error("signature does not verify on field " + f);
@@ -381,7 +382,7 @@ Meteor.Collection.prototype.dec_fields = function(container, fields, callback) {
 			      return;
 			  } 
 		      } else {
-			  if (debug) console.log("no dec princ");
+			   console.log("no dec princ");
 		      }
 		      cb();
 		  });	
@@ -471,8 +472,10 @@ Meteor.Collection.prototype.enc_row = function(container, callback) {
 			     }
 			     cb();
 			 }
-			 
+
+			     startTime("mk");
 			 if (is_searchable(self._enc_fields, f)) {
+
 			     if (debug) console.log("is searchable");
 			     //var time1 = window.performance.now();
 			     MylarCrypto.text_encrypt(enc_princ.keys.mk_key,
@@ -489,6 +492,7 @@ Meteor.Collection.prototype.enc_row = function(container, callback) {
 							  //var time2 = window.performance.now();
 							  //console.log("all search takes " + (time2-time1));
 							  //console.log("indexing search " + (time1b-time1a));
+							  endTime("mk");
 							  done_encrypt();
 						      });
 			 } else {
