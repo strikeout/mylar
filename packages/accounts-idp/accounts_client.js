@@ -7,7 +7,7 @@ function app_password(app_key) {
 var onCreatePrincipal = undefined;
 
 function createUser(uname, app_key, cb) {
-    if (idp_debug()) 
+    if (idp_debug) 
 	console.log("create user " + uname + " app_key " + app_key);
 
     Principal.create("user", uname, null, function(uprinc) {
@@ -72,7 +72,7 @@ Meteor.loginWithIDP = function (callback) {
 
     idp_get_uname(function(uname) {
 
-	if (idp_debug()) {
+	if (idp_debug) {
 	    console.log("uname " + uname);
 	}
 
@@ -82,7 +82,7 @@ Meteor.loginWithIDP = function (callback) {
 	}
 	idp_get_app_key(function(app_key) {
 
-	    if (idp_debug()) {
+	    if (idp_debug) {
 		console.log("app key" + app_key);
 	    }
 
