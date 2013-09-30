@@ -20,11 +20,11 @@ Accounts.sendVerificationEmail = function (userId, address) {
 
 // Based on the verifyEmail method in accounts-password/password_server.js.
 Meteor.methods({verifyEmailMylar: function (r) {
-  if (!base_crypto.verify(r.msg, r.sig, idp_verify))
+  if (!idp_verify_msg(r.msg, r.sig))
     throw new Meteor.Error(403, "Certificate signature incorrect");
 
   var msgx = JSON.parse(r.msg);
-  if (msgx.origin != app_url())
+  if (msgx.origin != idp_app_url())
     throw new Meteor.Error(403, "Certificate for wrong app URL");
   if (msgx.type != 'user')
     throw new Meteor.Error(403, "Wrong certificate type");

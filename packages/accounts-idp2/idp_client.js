@@ -1,3 +1,6 @@
+var idp_url;
+var idp_verify;
+var idp_debug;
 var idp_conn;
 
 function idp_connect() {
@@ -7,7 +10,16 @@ function idp_connect() {
   return idp_conn;
 }
 
-function app_url() {
+idp_init = function(url, pk, debug) {
+  idp_url = url;
+  idp_verify = base_crypto.deserialize_public(pk, 'ecdsa');
+  idp_debug = debug;
+
+  Accounts.config({ sendVerificationEmail: !!idp_url,
+                    forbidClientAccountCreation: false });
+};
+
+idp_app_url = function () {
   return Meteor.absoluteUrl() + '/#';
 };
 
@@ -36,4 +48,8 @@ idp_obtain_cert = function (email, pk, token, cb) {
 
     cb({ msg: r.msg, sig: r.sig });
   });
+};
+
+idp_verify_msg = function (msg, sig) {
+  return base_crypto.verify(msg, sig, idp_verify);
 };
