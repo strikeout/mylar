@@ -80,3 +80,13 @@ TODO (post-deadline):
   * caption edits from the owner propagate to friends but do not
     take effect in the owner's browser.
 
+- what are remaining ways an attacker can fool user?
+
+- multi-key summation?
+
+- what can be an acceptable idp?
+
+- meteor over https
+
+- change some of the princ graph to use symmetric keys for efficiency?
+
