@@ -69,8 +69,6 @@ TODO (post-deadline):
 - better error messages; for example, now if you try to add a user that
   does not exist the error is not friendly;
 
-- support encrypting integer values in a collection
-
 - bugs in photos app:
   * when initially sharing a photo with a friend, friend's browser
     throws "keychain not found" exceptions, even though do_insert

@@ -355,14 +355,14 @@ Meteor.Collection.prototype.dec_fields = function(container, fields, callback) {
 
 
 		      if (verif_princ) {
-			  if (!verif_princ.verify(container[enc_field_name(f)], container[sig_field_name(f)])) {
+			  if (!verif_princ.verify(JSON.stringify(container[enc_field_name(f)]), container[sig_field_name(f)])) {
 			      throw new Error("signature does not verify on field " + f);
 			  }
 		      }
 		      if (debug) console.log("dec f; f is " + f);
 
 		      if (dec_princ) {
-			  var res  = dec_princ.decrypt(container[enc_field_name(f)]);
+			  var res  = JSON.parse(dec_princ.decrypt(container[enc_field_name(f)]));
 			  if (ENC_DEBUG) {
 			      if (res != container[f]) {
 				  throw new Error ("inconsistency in the value decrypted and plaintext");
@@ -371,7 +371,7 @@ Meteor.Collection.prototype.dec_fields = function(container, fields, callback) {
 			      container[f] = res;
 			  }
 			  if (is_searchable(this._enc_fields, f)) {
-			      MylarCrypto.is_consistent(dec_princ.keys.mk_key, container[f], container[f+"enc"],
+			      MylarCrypto.is_consistent(dec_princ.keys.mk_key, container[f], container[search_field_name(f)],
 					function(res) {
 					    if (!res)
 						throw new Error(
@@ -461,9 +461,9 @@ Meteor.Collection.prototype.enc_row = function(container, callback) {
 
 		     // encrypt value
 		     if (enc_princ) {
-			 container[enc_field_name(f)] = enc_princ.sym_encrypt(container[f]);
+			 container[enc_field_name(f)] = enc_princ.sym_encrypt(JSON.stringify(container[f]));
 			 if (sign_princ) {
-			     container[sig_field_name(f)] = sign_princ.sign(container[enc_field_name(f)]);
+			     container[sig_field_name(f)] = sign_princ.sign(JSON.stringify(container[enc_field_name(f)]));
 			 }
 
 			 var done_encrypt = function() {
@@ -503,7 +503,7 @@ Meteor.Collection.prototype.enc_row = function(container, callback) {
 
 		     // do not encrypt value
 		     if (sign_princ) {
-			 container[sig_field_name(f)] = sign_princ.sign(container[f]);
+			 container[sig_field_name(f)] = sign_princ.sign(JSON.stringify(container[f]));
 		     }
 		     cb();
 	      });	
