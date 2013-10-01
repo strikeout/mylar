@@ -29,8 +29,8 @@ Meteor.methods({verifyEmailMylar: function (r) {
   if (msgx.type != 'user')
     throw new Meteor.Error(403, "Wrong certificate type");
 
-  // XXX find by email address field?
-  var user = Meteor.users.findOne(msgx.email);
+  // XXX does this mean the username MUST be the email address?
+  var user = Meteor.users.findOne({ username: msgx.email });
   if (!user)
     throw new Meteor.Error(403, "Cannot find user");
 

@@ -28,12 +28,16 @@ Meteor.methods({
 
   obtain_cert: function (token) {
     var tokenx = JSON.parse(token);
-    if (!base_crypto.verify(tokenx.msg, tokenx.sig, key_verify))
+    if (!base_crypto.verify(tokenx.msg, tokenx.sig, keys.verify)) {
+      console.log('obtain_cert: bad signature');
       return;
+    }
 
     var msgx = JSON.parse(tokenx.msg);
-    if (msgx.type !== 'token')
+    if (msgx.type !== 'token') {
+      console.log('obtain_cert: bad msg type');
       return;
+    }
 
     var cert_msg = JSON.stringify({ type: 'user',
                                     email: msgx.email,
