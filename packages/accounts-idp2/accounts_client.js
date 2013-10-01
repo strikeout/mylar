@@ -5,7 +5,8 @@ Meteor.autorun(function () {
   if (u && u.wrap_privkeys && current_pw) {
     var keys = sjcl.decrypt(current_pw, u.wrap_privkeys);
     console.log('Setting user keys:', keys);
-    Principal.set_current_user_keys(keys);
+    // XXX is it a problem to use the username from Meteor.user()?
+    Principal.set_current_user_keys(keys, u.name);
   }
 });
 
@@ -17,7 +18,7 @@ Accounts.createUser = function (options, callback) {
 
   Principal.create('user', uname, null, function (uprinc) {
     var ukeys = serialize_keys(uprinc.keys);
-    Principal.set_current_user_keys(ukeys);
+    Principal.set_current_user_keys(ukeys, uname);
 
     options = _.clone(options);
     options.wrap_privkeys = sjcl.encrypt(password, ukeys);
