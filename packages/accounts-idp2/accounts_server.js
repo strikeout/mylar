@@ -57,3 +57,22 @@ Meteor.methods({verifyEmailMylar: function (r) {
   this.setUserId(user._id);
   return {token: stampedLoginToken.token, id: user._id};
 }});
+
+var onCreateUserHook2;
+Accounts.onCreateUser(function (options, user) {
+  user.public_keys = options.public_keys;
+  user.wrap_privkeys = options.wrap_privkeys;
+
+  if (onCreateUserHook2) {
+    return onCreateUserHook2(options, user);
+  } else {
+    // Emulate defaultCreateUserHook which is not exported.
+    if (options.profile)
+      user.profile = options.profile;
+    return user;
+  }
+});
+
+Accounts.onCreateUser = function (hook) {
+  onCreateUserHook2 = hook;
+};
