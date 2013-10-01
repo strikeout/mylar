@@ -20,12 +20,12 @@ idp_init = function(url, pk, debug) {
 };
 
 idp_app_url = function () {
-  return Meteor.absoluteUrl() + '/#';
+  return Meteor.absoluteUrl('#/verify-email/');
 };
 
-idp_request_cert = function (email, keys) {
+idp_request_cert = function (email, pubkey) {
   var c = idp_connect();
-  c.call('request_cert', email, serialize_public(keys), app_url());
+  c.call('request_cert', email, pubkey, idp_app_url());
 };
 
 idp_obtain_cert = function (email, pk, token, cb) {
@@ -39,7 +39,7 @@ idp_obtain_cert = function (email, pk, token, cb) {
     }
 
     var msgx = JSON.parse(msg);
-    if (msgx.type != 'user' || msgx.origin != app_url() ||
+    if (msgx.type != 'user' || msgx.origin != idp_app_url() ||
         msgx.email != email || msgx.pk != pk)
     {
       cb(null);

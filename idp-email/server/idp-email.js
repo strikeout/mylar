@@ -12,7 +12,7 @@ Meteor.methods({
                                origin: origin });
     var sig = base_crypto.sign(msg, keys.sign);
     var token = JSON.stringify({ msg: msg, sig: sig });
-    var url = origin + '/idp_token?token=' + encodeURIComponent(token);
+    var url = origin + encodeURIComponent(token);
 
     var text = 'Please click on the following link to verify your email\n' +
                'address for ' + origin + ':\n' +

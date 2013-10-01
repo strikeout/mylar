@@ -6,7 +6,8 @@ Meteor.autorun(function () {
     Principal.set_current_user_keys(sjcl.decrypt(current_pw, u.wrap_privkeys));
 });
 
-Accounts.createUserMylar = function (options, callback) {
+var createUserOrig = Accounts.createUser;
+Accounts.createUser = function (options, callback) {
   var uname = options.email || options.username;
   var password = options.password;
   current_pw = password;
@@ -17,13 +18,14 @@ Accounts.createUserMylar = function (options, callback) {
     options = _.clone(options);
     options.wrap_privkeys = wrapped;
     options.public_keys = serialize_public(uprinc.keys);
-    Accounts.createUser(options, callback);
+    createUserOrig(options, callback);
   });
 };
 
-Meteor.loginWithPasswordMylar = function (selector, password, callback) {
+var loginWithPasswordOrig = Meteor.loginWithPassword;
+Meteor.loginWithPassword = function (selector, password, callback) {
   current_pw = password;
-  Meteor.loginWithPassword(selector, password, callback);
+  loginWithPasswordOrig(selector, password, callback);
 };
 
 // Based on Accounts.verifyEmail from accounts-password/password_client.js.
