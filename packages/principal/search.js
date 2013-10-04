@@ -162,10 +162,8 @@ Deps.autorun(function(){
 			     var self = this;
 			     var cb = search_cb;
 			     if (cb) {
-				 cb(search_collec.find({_tag: tag}).fetch());
+				 cb(search_collec.find({_tag: tag}));
 			     }
-			     Session.set("_search_info", null);
-			     search_cb = undefined;
 			 });
     }
 });
