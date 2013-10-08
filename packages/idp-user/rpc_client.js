@@ -1,30 +1,65 @@
-// Meteor template hooks for the iframe
-function idp_origin () {
-  return Session.get('idp_user_origin');
-};
-Template.idp_client.origin = idp_origin;
-
-idp_debug = function() {
-  return Session.get('idp_user_debug');
-};
-
-Template.idp_client.debug = idp_debug;
+// Global parameters initialized with idp_user_init()
+var idp_user_origin = undefined;
+var idp_user_debug = false;
 
 // RPC infrastructure
 var req_id = 0;
 var req_cb = {};
+var req_queue = [];
+var req_iframe = undefined;
+var req_iframe_ready = false;
+
+function check_iframe() {
+  if (req_iframe === undefined) {
+    var iframe_ready = function () {
+      if (idp_user_debug)
+        console.log('IDP iframe ready');
+
+      req_iframe_ready = true;
+      check_iframe();
+    }
+
+    req_iframe = document.createElement('iframe');
+    if (req_iframe.addEventListener) {
+      req_iframe.addEventListener('load', iframe_ready, false);
+    } else if (req_iframe.attachEvent) {
+      req_iframe.attachEvent('onload', iframe_ready);
+    } else {
+      console.log('How to register for iframe load?');
+    }
+
+    req_iframe.style.display = 'none';
+    req_iframe.setAttribute('src', idp_user_origin);
+    document.body.appendChild(req_iframe);
+
+    if (idp_user_debug)
+      console.log('Created iframe', req_iframe);
+  }
+
+  if (req_iframe_ready) {
+    var win = req_iframe.contentWindow;
+    for (var i = 0; i < req_queue.length; i++) {
+      var msg = req_queue[i];
+      if (idp_user_debug)
+        console.log('Sending', msg, 'to', idp_user_origin);
+      win.postMessage(msg, idp_user_origin);
+    }
+
+    req_queue = [];
+  }
+}
 
 function call(op, arg, cb) {
-  var iframe = document.getElementById('idp_iframe').contentWindow;
   var id = req_id++;
 
   req_cb[id] = cb;
   var msg = { id: id, op: op, arg: arg };
   var json_msg = JSON.stringify(msg);
-  if (idp_debug())
-    console.log('Sending', json_msg, 'to', idp_origin());
+  if (idp_user_debug)
+    console.log('Queueing', json_msg);
 
-  iframe.postMessage(json_msg, idp_origin());
+  req_queue.push(json_msg);
+  check_iframe();
 }
 
 Meteor.startup(function () {
@@ -32,11 +67,11 @@ Meteor.startup(function () {
     var origin = ev.origin;
     var data = ev.data;
 
-    if (idp_debug())
+    if (idp_user_debug)
       console.log('Received', data, 'from', origin);
 
-    if (origin != idp_origin()) {
-      console.log('Surprising response from', origin, 'not', idp_origin());
+    if (origin != idp_user_origin) {
+      console.log('Surprising response from', origin, 'not', idp_user_origin);
       return;
     }
 
@@ -50,6 +85,11 @@ Meteor.startup(function () {
 });
 
 // API exposed to the rest of the application
+idp_user_init = function (origin, debug) {
+  idp_user_origin = origin;
+  idp_user_debug = debug;
+};
+
 idp_get_app_key = function (cb) {
   call('get_app_key', null, cb);
 };
@@ -59,6 +99,5 @@ idp_create_cert = function (msg, cb) {
 };
 
 idp_get_uname = function(cb) {
-    call('get_uname','', cb);
-}
-
+  call('get_uname','', cb);
+};

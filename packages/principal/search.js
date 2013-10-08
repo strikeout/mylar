@@ -126,7 +126,7 @@ Meteor.Collection.prototype.search = function(pubname, wordmap, princ, filter_ar
 	return;
     }
 
-    MylarCrypto.token(princ.keys.mk_key, word, function(token){
+    MylarCrypto.token(princ.keys.mk_key, word.toLowerCase(), function(token){
 	var search_info = {};
 	search_info["args"] = filter_args;
 	search_info["princ"] = princ.id;
@@ -136,6 +136,9 @@ Meteor.Collection.prototype.search = function(pubname, wordmap, princ, filter_ar
 	search_info["field"] = field;
         search_info["pubname"] = pubname;
 	search_info["has_index"] = is_indexable(self._enc_fields, field);
+
+        // To force Meteor to re-do the autorun function below.
+        search_info["freshness_nonce"] = Meteor.uuid();
 
 	if (search_debug)
 	    console.log("word " + word + " token " + token);
@@ -151,21 +154,22 @@ Deps.autorun(function(){
     // check if subscriptions get closed properly
     var search_info = Session.get("_search_info");
     
-    if (search_info) {
+    if (search_info && search_collec) {
 	var token = search_info.token;
 	var tag = search_info.tag;
+
 	Meteor.subscribe(sub_name(search_collec._name, search_info["pubname"]),
 			 search_info["args"], token, tag,
 			 search_info["enc_princ"], search_info["princ"],
 			 search_info["field"], search_info["has_index"],
 			 function(){ // on ready handle
+			     console.log("ready handle");
 			     var self = this;
 			     var cb = search_cb;
 			     if (cb) {
-				 cb(search_collec.find({_tag: tag}).fetch());
+				 search_tag = tag;
+				 cb(search_collec.find({_tag: tag}));
 			     }
-			     Session.set("_search_info", null);
-			     search_cb = undefined;
 			 });
     }
 });
@@ -194,7 +198,7 @@ Meteor.Collection.prototype.publish_search_filter = function(pubname, filter, pr
 
     Meteor.publish(sub_name(self_col._name, pubname),
       function(args, token, tag, enc_princ, princ, field, has_index){
-
+	  console.log("searching for " + tag);
           if (search_debug)
 	      console.log("\n\n START SEARCH \n\n enc_princ " + enc_princ);
 	  
@@ -219,8 +223,10 @@ Meteor.Collection.prototype.publish_search_filter = function(pubname, filter, pr
 	    var search_f = search_field_name(field);
 
 	    _.each(filters, function(filter){
+		//console.log("each");
 		var handle = self_col.find(filter).observe({
 		    added: function(doc) {
+			//console.log("added");
 			var princid = doc[enc_princ];
 			var adjusted = adj_toks[princid];
 
@@ -228,9 +234,11 @@ Meteor.Collection.prototype.publish_search_filter = function(pubname, filter, pr
 			//    console.log("considering doc " + JSON.stringify(doc));
 			
 			if (!adjusted) {
+			    //console.log("not adjusted");
 			    // first check if it matches
 			    var wk = WrappedKeys.findOne({principal: princid,
 							  wrapped_for: princ});
+			    //console.log("adj A");
 			    if (!wk) {
 				throw new Error("no wrapped key");
 			    }
@@ -238,13 +246,19 @@ Meteor.Collection.prototype.publish_search_filter = function(pubname, filter, pr
 				throw new Error("missing delta");
 			    }
 			
+			    //console.log("adj B");
+			    //console.log("token is " + token + " delta " + wk.delta);
 			    adjusted = crypto_server.adjust(token, wk.delta);
-			    adj_toks[princid] = adjusted; 
-			} 
+			    //console.log("adj C");
+			    adj_toks[princid] = adjusted;
+
+			}
+			
 
 			var rand = doc[rand_f];
 			adjusted = base_crypto.mkhash(rand, adjusted);
 
+			//console.log("adjusted");
 			if (search_debug)
 			    console.log("adjusted " + adjusted + " has index " + has_index);
 			
@@ -267,6 +281,7 @@ Meteor.Collection.prototype.publish_search_filter = function(pubname, filter, pr
 					   
 			    }
 			} else {
+			    //console.log("no index");
 			    var enctext = doc[search_f];
 			    if (search_debug) console.log("enctext " + JSON.stringify(enctext));
 			    _.some(enctext, function(encword, index){
@@ -278,6 +293,7 @@ Meteor.Collection.prototype.publish_search_filter = function(pubname, filter, pr
 					console.log("\n\n docproj is " + JSON.stringify(docproj));
 				    self.added(self_col._name, doc._id, docproj);
 				    found = true;
+				    console.log("matched " + JSON.stringify(enctext));
 				    return true;
 				}
 			    });
@@ -286,6 +302,8 @@ Meteor.Collection.prototype.publish_search_filter = function(pubname, filter, pr
 		});
 		handles.push(handle);
 	    });
+
+	    //console.log("done");
 	    
 	    
 	    self.onStop(function(){

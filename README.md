@@ -31,8 +31,6 @@ idp_init("http://localhost:3000", idp_pub);
 
 (should be available both client and server-side)
 
-2. Insert {{> idp_client }} in your client template 
-
 3. use Meteor.loginWithIDP to login the user, no arguments needed
 
 (you can still use server-side Accounts.onCreateUser if useful, which should
@@ -71,12 +69,20 @@ TODO (post-deadline):
 - better error messages; for example, now if you try to add a user that
   does not exist the error is not friendly;
 
-- support encrypting integer values in a collection
-
 - bugs in photos app:
   * when initially sharing a photo with a friend, friend's browser
     throws "keychain not found" exceptions, even though do_insert
     happens after add_access.
   * caption edits from the owner propagate to friends but do not
     take effect in the owner's browser.
+
+- what are remaining ways an attacker can fool user?
+
+- multi-key summation?
+
+- what can be an acceptable idp?
+
+- meteor over https
+
+- change some of the princ graph to use symmetric keys for efficiency?
 

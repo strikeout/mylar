@@ -10,7 +10,7 @@ var debug = false;
 
 // if true, an unencrypted copy of the fields
 // will be kept for debugging mode
-var ENC_DEBUG = true;
+var ENC_DEBUG = false;
 
 set_enc_debug = function (flag) {
     ENC_DEBUG = flag;
@@ -352,16 +352,17 @@ Meteor.Collection.prototype.dec_fields = function(container, fields, callback) {
 		      }
 		      var dec_princ = results[0];
 		      var verif_princ = results[1];
-		      
+
+
 		      if (verif_princ) {
-			  if (!verif_princ.verify(container[enc_field_name(f)], container[sig_field_name(f)])) {
+			  if (!verif_princ.verify(JSON.stringify(container[enc_field_name(f)]), container[sig_field_name(f)])) {
 			      throw new Error("signature does not verify on field " + f);
 			  }
 		      }
 		      if (debug) console.log("dec f; f is " + f);
 
 		      if (dec_princ) {
-			  var res  = dec_princ.decrypt(container[enc_field_name(f)]);
+			  var res  = JSON.parse(dec_princ.decrypt(container[enc_field_name(f)]));
 			  if (ENC_DEBUG) {
 			      if (res != container[f]) {
 				  throw new Error ("inconsistency in the value decrypted and plaintext");
@@ -370,7 +371,7 @@ Meteor.Collection.prototype.dec_fields = function(container, fields, callback) {
 			      container[f] = res;
 			  }
 			  if (is_searchable(this._enc_fields, f)) {
-			      MylarCrypto.is_consistent(dec_princ.keys.mk_key, container[f], container[f+"enc"],
+			      MylarCrypto.is_consistent(dec_princ.keys.mk_key, container[f], container[search_field_name(f)],
 					function(res) {
 					    if (!res)
 						throw new Error(
@@ -381,7 +382,7 @@ Meteor.Collection.prototype.dec_fields = function(container, fields, callback) {
 			      return;
 			  } 
 		      } else {
-			  if (debug) console.log("no dec princ");
+			   console.log("no dec princ");
 		      }
 		      cb();
 		  });	
@@ -460,9 +461,9 @@ Meteor.Collection.prototype.enc_row = function(container, callback) {
 
 		     // encrypt value
 		     if (enc_princ) {
-			 container[enc_field_name(f)] = enc_princ.sym_encrypt(container[f]);
+			 container[enc_field_name(f)] = enc_princ.sym_encrypt(JSON.stringify(container[f]));
 			 if (sign_princ) {
-			     container[sig_field_name(f)] = sign_princ.sign(container[enc_field_name(f)]);
+			     container[sig_field_name(f)] = sign_princ.sign(JSON.stringify(container[enc_field_name(f)]));
 			 }
 
 			 var done_encrypt = function() {
@@ -471,8 +472,10 @@ Meteor.Collection.prototype.enc_row = function(container, callback) {
 			     }
 			     cb();
 			 }
-			 
+
+			     startTime("mk");
 			 if (is_searchable(self._enc_fields, f)) {
+
 			     if (debug) console.log("is searchable");
 			     //var time1 = window.performance.now();
 			     MylarCrypto.text_encrypt(enc_princ.keys.mk_key,
@@ -489,6 +492,7 @@ Meteor.Collection.prototype.enc_row = function(container, callback) {
 							  //var time2 = window.performance.now();
 							  //console.log("all search takes " + (time2-time1));
 							  //console.log("indexing search " + (time1b-time1a));
+							  endTime("mk");
 							  done_encrypt();
 						      });
 			 } else {
@@ -499,7 +503,7 @@ Meteor.Collection.prototype.enc_row = function(container, callback) {
 
 		     // do not encrypt value
 		     if (sign_princ) {
-			 container[sig_field_name(f)] = sign_princ.sign(container[f]);
+			 container[sig_field_name(f)] = sign_princ.sign(JSON.stringify(container[f]));
 		     }
 		     cb();
 	      });	

@@ -1,6 +1,6 @@
 timeLog = "";
 
-LATENCY_LOG = false; // turn off during tput experiments
+LATENCY_LOG = true; // turn off during tput experiments
 
 TPUT_LOG = true;
 TOTAL_MSGS = 0;

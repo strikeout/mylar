@@ -586,6 +586,7 @@ if (Meteor.isClient) {
 	var p = cache_get_id(id);
 	if (p) {
 	    endTime("lookup");
+	    if (debug) console.log("HIT");
 	    on_complete(p);
 	    return;
 	} else {
@@ -616,19 +617,19 @@ if (Meteor.isClient) {
             return current_user;
 
 	var pkeys = deserialize_keys(localStorage['user_princ_keys']);
+        var username = localStorage['user_princ_name'];
 
-	var user = Meteor.user();
-	
-	if (!user || !pkeys) {
+	if (!pkeys || !username) {
 	    return undefined;
 	}
 
-        current_user = new Principal('user', user.username, pkeys);
+        current_user = new Principal('user', username, pkeys);
         return current_user;
     }
 
-    Principal.set_current_user_keys = function (keys) {
+    Principal.set_current_user_keys = function (keys, username) {
         localStorage['user_princ_keys'] = keys;
+        localStorage['user_princ_name'] = username;
         current_user = undefined;
     }
     
