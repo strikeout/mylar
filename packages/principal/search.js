@@ -126,7 +126,7 @@ Meteor.Collection.prototype.search = function(pubname, wordmap, princ, filter_ar
 	return;
     }
 
-    MylarCrypto.token(princ.keys.mk_key, word, function(token){
+    MylarCrypto.token(princ.keys.mk_key, word.toLowerCase(), function(token){
 	var search_info = {};
 	search_info["args"] = filter_args;
 	search_info["princ"] = princ.id;

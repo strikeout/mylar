@@ -136,10 +136,11 @@ var tokenize_for_search = function(text) {
     var dict = {}
     var res = []
 
-    _.each(lst, function(item){
-	if (!_.has(dict, item)) {
-	    dict[item] = 1;
-	    res.push(item);
+    _.each(lst, function (item) {
+        var t = String(item).toLowerCase();
+	if (!_.has(dict, t)) {
+	    dict[t] = 1;
+	    res.push(t);
 	} 
     });
 
