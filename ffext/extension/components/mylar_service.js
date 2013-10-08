@@ -54,29 +54,33 @@ CFNamespace = {
         return decodeURIComponent( escape( s ) );
     },
 
+    uri2key: function(uri){
+        return uri['protocol']+'://'+uri['host']+':'+uri['port'];
+    },
+
     is_safe_page: function(uri) {
         uri = parseUri(uri);
-        return this.safe_pages.hasOwnProperty(uri['host']);
+        var key = this.uri2key(uri);
+        return this.safe_pages.hasOwnProperty(key);
     },
 
     add_safe_page: function(uri) {
-        //XXX: combine host + port + protocol for same-origin check?
-        this.safe_pages[uri['host']] = true;
+        var key = this.uri2key(uri);
+        dump("adding " + key + " to safe pages\n");
+        this.safe_pages[key] = true;
     },
 
     /*
      * load current developer public key
-     * XXX: not efficient when loading signed content from
-     * several different origins
      */
     set_public_key: function(uri,serialized_key) {
-        if(serialized_key == this.serialized_public[uri['host']])
+        if(serialized_key == this.serialized_public[this.uri2key(uri)])
             return; //no need to recompute
         try{
-            this.serialized_public[uri['host']] = serialized_key;
+            this.serialized_public[this.uri2key(uri)] = serialized_key;
             c = sjcl.ecc.curves['c192'];
-            pt = c.fromBits(sjcl.codec.hex.toBits(this.serialized_public[uri['host']]));
-            this.pub[uri['host']] = new sjcl.ecc["ecdsa"].publicKey(c,pt);
+            pt = c.fromBits(sjcl.codec.hex.toBits(this.serialized_public[this.uri2key(uri)]));
+            this.pub[this.uri2key(uri)] = new sjcl.ecc["ecdsa"].publicKey(c,pt);
         } catch (e) {
             dump("CF Error: " + e + "\n");
         }
@@ -84,21 +88,27 @@ CFNamespace = {
 
     get_public_key: function(uri) {
         //just crash if not found?
-        if(this.pub.hasOwnProperty(uri['host']))
-            return this.pub[uri['host']];
+        if(this.pub.hasOwnProperty(this.uri2key(uri)))
+            return this.pub[this.uri2key(uri)];
         return false;
     },
 
-    checkForHash: function (originalUri){
-        var uri = parseUri(originalUri);
-        if(uri.query.length != 40)
+    //return hash value, if query string contains well formated mylar_hash
+    //return true if there is mylar_hash in uri
+    //return false if uri doesn't contain 'mylar_hash='
+    checkForHash: function (uri){
+        var key = 'mylar_hash=';
+        var kpos = uri.query.indexOf(key);
+        if(kpos < 0){
             return false;
-        
+        }
+       
+        var hashstring =  uri.query.substr(kpos+key.length,40);
         //parse as hexadecimal to check format
-        if(isNaN(parseInt(uri.query,16)))
-            return false;
+        if(isNaN(parseInt(hashstring,16)))
+            return true; //return true to force hash check
 
-        return uri.query;
+        return hashstring;
     },
 
 };
@@ -168,8 +178,10 @@ mylar_service.prototype =
             var s = new Date()
             //dump("start http-on-examine " + s.getTime() + "\n");
             aSubject.QueryInterface(Ci.nsIHttpChannel);
-            var hash = CFN.checkForHash(aSubject.originalURI.spec);
+            //dump("hash " + hash + "\n");
+            //dump("uri " + aSubject.originalURI.spec);
             var uri = parseUri(aSubject.originalURI.spec)
+            var hash = CFN.checkForHash(uri);
             var si = aSubject.securityInfo;
 
             //extract developer sig from cert. 
@@ -181,9 +193,12 @@ mylar_service.prototype =
                     CFN.set_public_key(uri,k);
                     this.attachChannelListener(aSubject);
                     attached = true;
+                    dump("page has sig: "+aSubject.originalURI.spec + "\n");
                 }
             }
             if(hash && !attached){
+                dump("listening for hash\n");
+                //aSubject.referrer = Subject.originalURI;
                 this.attachChannelListener(aSubject,'hash_only');
             }
             var d = new Date()
@@ -203,8 +218,10 @@ mylar_service.prototype =
     },
   
     onModifyRequest: function(oHttp) {
-        if(CFN.is_safe_page(oHttp.originalURI.spec)){
-          //prevent loading from cache in secure origin
+        //XXX: Not sure if the referrer field can't be modified... this might be a security hole
+        if(CFN.is_safe_page(oHttp.originalURI.spec) || CFN.is_safe_page(oHttp.referrer.spec)){
+          //prevent loading from cache, because cache might store malicious content
+          //and firefox will load stuff from cache before we can intercept it
          oHttp.loadFlags |= Ci.nsICachingChannel.LOAD_BYPASS_LOCAL_CACHE;
         }
     },
@@ -314,19 +331,19 @@ CopyTracingListener.prototype =
       var httpRequest = request.QueryInterface(Ci.nsIRequest);
       //var responseSource = this.receivedData.join('');
 
-    //var d = new Date()
-    //dump("after join" + (d.getTime()-start) + "\n");
-    //dump("len after join" + responseSource.length + "\n");
+      //var d = new Date()
+      //dump("after join" + (d.getTime()-start) + "\n");
+      //dump("len after join" + responseSource.length + "\n");
 
-var hash = this._hasher.finish(false);
-// return the two-digit hexadecimal code for a byte
-function toHexString(charCode)
-{
-  return ("0" + charCode.toString(16)).slice(-2);
-}
-
-// convert the binary hash data to a hex string.
-var s = [toHexString(hash.charCodeAt(i)) for (i in hash)].join("");
+      var hash = this._hasher.finish(false);
+      // return the two-digit hexadecimal code for a byte
+      function toHexString(charCode)
+      {
+        return ("0" + charCode.toString(16)).slice(-2);
+      }
+  
+      // convert the binary hash data to a hex string.
+      var s = [toHexString(hash.charCodeAt(i)) for (i in hash)].join("");
 
 
 
@@ -335,7 +352,7 @@ var s = [toHexString(hash.charCodeAt(i)) for (i in hash)].join("");
       var prehash = CFN.checkForHash(uri);
       if(prehash && prehash !== hashed){
           dump('content failed hash check\n');
-          dump('expected: ' + prehash + ' actual: ' + hashed);
+          dump('expected: ' + prehash + ' actual: ' + hashed + "\n");
           this.emitFakeResponse(request,context,statusCode,uri);
           return;
       }
@@ -343,12 +360,12 @@ var s = [toHexString(hash.charCodeAt(i)) for (i in hash)].join("");
 
       //if outside secure origin, skip signature check
       if(this.type === 'hash_only'){
-    var d = new Date()
-    //dump("stop request done hash before pass" + (d.getTime()-start) + "\n");
+        var d = new Date()
+        //dump("stop request done hash before pass" + (d.getTime()-start) + "\n");
         this.passOnData(request,context,statusCode,uri);
-    var d = new Date()
-    //dump("stop request done hash after pass" + (d.getTime()-start) + "\n");
-    //dump("stop request done hash total time" + (d.getTime()-this.startTime) + "\n");
+        var d = new Date()
+        //dump("stop request done hash after pass" + (d.getTime()-start) + "\n");
+        //dump("stop request done hash total time" + (d.getTime()-this.startTime) + "\n");
         return;
       }
 
@@ -361,10 +378,11 @@ var s = [toHexString(hash.charCodeAt(i)) for (i in hash)].join("");
                  uri //XXX clean this up some time
                 );
       if(sig){
+        CFN.add_safe_page(uri)
         this.passOnData(request,context,statusCode,uri);
-    var d = new Date()
-    //dump("stop request done sig" + (d.getTime()-start) + "\n");
-    //dump("stop request done sig total time" + (d.getTime()-this.startTime) + "\n");
+        var d = new Date()
+        //dump("stop request done sig" + (d.getTime()-start) + "\n");
+        //dump("stop request done sig total time" + (d.getTime()-this.startTime) + "\n");
         return;
       }
 
@@ -405,7 +423,6 @@ var s = [toHexString(hash.charCodeAt(i)) for (i in hash)].join("");
 
   //passes data held back by onAvailable to next listener in queue.
   passOnData: function(request,context,statusCode,uri) {
-    CFN.add_safe_page(uri)
     for (var i = 0; i < this.receivedData.length; i++) {
       var offset = this.offsetcount[i][0];
       var count = this.offsetcount[i][1];

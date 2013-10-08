@@ -563,7 +563,7 @@ _.extend(Bundle.prototype, {
         where: 'client',
         type: type,
         cacheable: true,
-        url: (rootUrl || '') + name + '?' + hash,
+        url: (rootUrl || '') + name + '?mylar_hash=' + hash,
         size: contents.length,
         hash: hash,
         //signature: signature
@@ -758,7 +758,7 @@ _.extend(Bundle.prototype, {
 
         delete self.files.client[file];
         self.files.client_cacheable[file] = contents;
-        url = file + '?' + sha1(contents);
+        url = file + '?mylar_hash=' + sha1(contents);
       }
       else
         throw new Error('unable to find file: ' + file);
