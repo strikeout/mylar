@@ -147,7 +147,7 @@ var appUrl = function (url) {
   if (url === '/app.manifest')
     return false;
 
-  //for cryptframe, loading config separately from main html file
+  //for mylar, loading config separately from main html file
   if (url === '/config.json')
     return false;
 
@@ -194,7 +194,7 @@ var run = function () {
         //XXX quick ugly hash. better extract hash from request and do direct lookup.
         for(var hash in info.signatures){
             if (req.url.indexOf(hash) !== -1){
-                res.setHeader('Cryptframe-Signature',info.signatures[hash]);
+                res.setHeader('Mylar-Signature',info.signatures[hash]);
                 //console.log("signature added");
                 break;
             }
@@ -338,7 +338,7 @@ var run = function () {
 
       res.writeHead(200, {
         'Content-Type': 'text/html; charset=UTF-8',
-        'Cryptframe-Signature':info.signatures['app.html']  
+        'Mylar-Signature':info.signatures['app.html']  
       });
 
       //file must stay static for ecdsa signature to remain valid

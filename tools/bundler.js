@@ -47,7 +47,7 @@ var uglify = require('uglify-js');
 var cleanCSS = require('clean-css');
 var _ = require('underscore');
 var project = require(path.join(__dirname, 'project.js'));
-//needed for cryptframe signing
+//needed for mylar signing
 var sjcl = require(path.join(__dirname, 'sjcl.js'));
 
 // files to ignore when bundling. node has no globs, so use regexps
@@ -320,7 +320,7 @@ var Bundle = function () {
   // the individual input files that were combined.
   self.manifest = [];
   
-  // this dict holds all the signatures crypt-frame will verify
+  // this dict holds all the signatures mylar will verify
   self.signatures = {};
 
   // these directories are copied (cp -r) or symlinked into the

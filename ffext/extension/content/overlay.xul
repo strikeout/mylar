@@ -12,10 +12,10 @@
         {
             window.removeEventListener("load", Flagfox_loadForThisWindow, false);
             var icon = window.document.getElementById("flagfox-icon");
-            icon.src = "chrome://cryptframe/content/icons/stop.png";
+            icon.src = "chrome://mylar/content/icons/stop.png";
             let scope = {};
             try{
-                Components.utils.import("resource://cryptframe/cryptframe.jsm",scope);
+                Components.utils.import("resource://mylar/mylar.jsm",scope);
                 scope.Notifier.init(window);
             } catch (e) {
                 dump("E: " + e + "\n");
@@ -29,7 +29,7 @@
             <image id="flagfox-icon" context="flagfox-menu" tooltip="flagfox-tooltip"/>
             <menupopup id="flagfox-menu" style="direction: &locale.dir;;"/>
             <tooltip id="flagfox-tooltip" style="direction: &locale.dir;;">
-                <label id="cf-tooltip-info" value="CFextension: This page safe" />
+                <label id="cf-tooltip-info" value="Mylar: The code on this page is signed." />
             </tooltip>
         </box>
 

@@ -4,12 +4,12 @@
   xmlns:em="http://www.mozilla.org/2004/em-rdf#">
 
   <Description about="urn:mozilla:install-manifest">
-    <em:id>cryptframeext@pdos.csail.mit.edu</em:id>
-    <em:name>Cryptframe client side signature verification</em:name>
+    <em:id>mylar@pdos.csail.mit.edu</em:id>
+    <em:name>Mylar client side signature verification</em:name>
     <em:description>Extension providing client side encryption support</em:description>
     <em:version>0.1</em:version>
     <em:creator>MIT CSAIL PDOS</em:creator>
-    <em:homepageURL>https://pdos.csail.mit.edu/cryptframe</em:homepageURL>
+    <em:homepageURL>https://pdos.csail.mit.edu/mylar</em:homepageURL>
     <em:type>2</em:type>
 
     <!-- Mozilla Firefox -->

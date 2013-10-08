@@ -6,7 +6,7 @@ file, then restart firefox.
 Alternatively, write the path of this directory into the appropriate
 file in the Firefox extensions directory:
 
-  pwd > ~/.mozilla/firefox/<profiledir>/extensions/cryptframeext@pdos.csail.mit.edu
+  pwd > ~/.mozilla/firefox/<profiledir>/extensions/mylar@pdos.csail.mit.edu
 
 
 
