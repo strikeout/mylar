@@ -137,6 +137,9 @@ Meteor.Collection.prototype.search = function(pubname, wordmap, princ, filter_ar
         search_info["pubname"] = pubname;
 	search_info["has_index"] = is_indexable(self._enc_fields, field);
 
+        // To force Meteor to re-do the autorun function below.
+        search_info["freshness_nonce"] = Meteor.uuid();
+
 	if (search_debug)
 	    console.log("word " + word + " token " + token);
 	
@@ -151,7 +154,7 @@ Deps.autorun(function(){
     // check if subscriptions get closed properly
     var search_info = Session.get("_search_info");
     
-    if (search_info) {
+    if (search_info && search_collec) {
 	var token = search_info.token;
 	var tag = search_info.tag;
 
