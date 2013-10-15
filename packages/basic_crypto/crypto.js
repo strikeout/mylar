@@ -62,25 +62,37 @@ base_crypto = (function () {
 	    var new_secret = sjcl.hash.sha256.hash(composed);
 	    return JSON.stringify(new_secret);
 	},
-		
+
 	// authenticated encryption
 	sym_encrypt: function(sk, data) {
 	    if (data === undefined) {
 		console.log('sym_encrypt: undefined', data);
-	    } else {
-	        var ops = {mode:"ccm", cipher: "aes"};
-	        return sjcl.encrypt(sk, data, ops);
+                return;
             }
+
+            var prp = new sjcl.cipher['aes'](sk);
+            var iv = sjcl.random.randomWords(4, 0);
+            var pt = sjcl.codec.utf8String.toBits(data);
+            var ct = sjcl.mode['ccm'].encrypt(prp, pt, iv);
+            // Undefined adata/tag; might be useful later?
+
+	    return sjcl.codec.base64.fromBits(iv.concat(ct), 1);
 	},
-	
-	sym_decrypt: function(sk, ct) {
-	    if (ct === undefined) {
-		console.log('sym_decrypt: undefined', ct);
-	    } else {
-	        return sjcl.decrypt(sk, ct);
+
+	sym_decrypt: function(sk, data) {
+	    if (data === undefined) {
+		console.log('sym_decrypt: undefined', data);
+                return;
             }
+
+            var prp = new sjcl.cipher['aes'](sk);
+            var bits = sjcl.codec.base64.toBits(data);
+            var iv = bits.slice(0, 4);
+            var ct = bits.slice(4);
+            var pt = sjcl.mode['ccm'].decrypt(prp, ct, iv);
+            return sjcl.codec.utf8String.fromBits(pt);
 	},
-	
+
         sign: function (msg, sk) {
             var hash = sjcl.hash.sha256.hash(msg);
             return sk.sign(hash);
