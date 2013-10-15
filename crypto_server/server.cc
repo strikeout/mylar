@@ -75,7 +75,7 @@ main(int argc, char *argv[]) {
 	 if (n < 0) error("ERROR reading from socket");
 
 	 if (VERB)
-	     cerr << "=================== \n message " << buffer;
+	     cerr << "\n\n=================== \n message " << buffer;
 	 
 	 resp = cs.process(string(buffer));
 	 

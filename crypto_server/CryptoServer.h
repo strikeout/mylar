@@ -21,7 +21,7 @@
  * pdecrypt k ciph          -> plain
  */
 
-#define VERB false
+#define VERB true
 
 class CryptoServer {
 

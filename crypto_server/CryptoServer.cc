@@ -35,9 +35,10 @@ parse_input(const string & request, string & action, map<string, string> & args)
   string line = request.substr(0, request.find('\n'));
 
   if (line.find("GET") != 0) {
-    action = "";
-    cerr << "returning as http was not GET\n";
-    return;
+      cerr << "line is " << line << " request is " + request + "\n";
+      action = "";
+      cerr << "returning as http was not GET\n";
+      return;
   }
 
   int file = line.find("GET ") + 4;
@@ -183,7 +184,7 @@ CryptoServer::process(const string & request) {
 	else if (action == "pdecrypt") {
 	    resp << pdecrypt(mk, args);
 	} else {
-	    cerr << "invalid action \n";
+	    cerr << "invalid action " + action + " \n";
 	    resp.clear();
 	    resp << "HTTP/1.0 406 Not Acceptable\r\nAccess-Control-Allow-Origin: *\r\n\r\n";
 	    return resp.str();

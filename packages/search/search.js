@@ -19,6 +19,9 @@
 
 *******************/
 
+MYLAR_USE_SEARCH = true;
+
+
 search_cb = undefined;
 search_collec = undefined;
 
@@ -32,74 +35,7 @@ var sub_name = function(coll, pub) {
 if (Meteor.isClient) {
 
     
-    
-    
-// HACKED UP SINGLE KEY SEARCH for eval
-Meteor.Collection.prototype.single_search = function(pubname, wordmap, princ, filter_args, callback) {
-    var self = this;
-    
-    var mapkeys = _.keys(wordmap);
-    
-    if (_.keys(wordmap).length != 1) {
-	throw new Error("must specify one word");
-    }
-    var field = mapkeys[0];
-    var word = wordmap[field];
-    
-    if (!word || word == "") {
-	return;
-    }
-
-    // need to figure out all rooms this user is in
-    var rooms = Rooms.find({}).fetch();
-
-    // need to lookup these room princs
-    var roomprincs = {};
-
-    var callback2 = _.after(rooms.length, function(){
-
-	var search_info = {};
-	search_info["args"] = filter_args;
-	search_info["princ"] = "x";
-	search_info["enc_princ"] = self._enc_fields[field].princ;
-	var tokens = JSON.stringify(roomprincs);
-	search_info["token"] = tokens;
-	search_info["tag"] = base_crypto.mkhash(tokens);
-	search_info["field"] = field;
-        search_info["pubname"] = pubname;
-	search_info["has_index"] = is_indexable(self._enc_fields, field);
-
-	if (search_debug)
-	    console.log("word " + word + " tokens " + tokens);
-	
-	search_cb = callback;
-	search_collec = self;
-	Session.set("_search_info", search_info);
-
-    });
-
-    _.each(rooms, function(room){
-	var createdBy = room.createdByID;
-	var creator_uname = Meteor.users.findOne({"_id": createdBy})["username"];
-
-	Principal._lookupByID(room.roomprinc, 
-	//Principal.lookup([new PrincAttr("room", room.roomTitle)], creator_uname,
-			 function(princ) {
-			     if (!princ._has_secret_keys()) {
-				 throw new Error("princ does not have secret keys");
-			     }
-			     MylarCrypto.index_enc(princ.keys.mk_key, word, function(token){
-				 roomprincs[princ.id] = token;
-				 callback2();
-			     });
-			 });
-    });
-    
-   
- }
-
-
-
+  
     
 Meteor.Collection.prototype.search = function(pubname, wordmap, princ, filter_args, callback) {
     var self = this;
@@ -418,4 +354,80 @@ Meteor.Collection.prototype.publish_single_search_filter = function(pubname, fil
 
 
     
+}
+
+/***********************************
+*
+* Single-key search for eval
+* - only works for kChat
+***********************************/
+
+if (Meteor.isClient) {
+       
+    
+Meteor.Collection.prototype.single_search = function(pubname, wordmap, princ, filter_args, callback) {
+    var self = this;
+    
+    var mapkeys = _.keys(wordmap);
+    
+    if (_.keys(wordmap).length != 1) {
+	throw new Error("must specify one word");
+    }
+    var field = mapkeys[0];
+    var word = wordmap[field];
+    
+    if (!word || word == "") {
+	return;
+    }
+
+    // need to figure out all rooms this user is in
+    var rooms = Rooms.find({}).fetch();
+
+    // need to lookup these room princs
+    var roomprincs = {};
+
+    var callback2 = _.after(rooms.length, function(){
+
+	var search_info = {};
+	search_info["args"] = filter_args;
+	search_info["princ"] = "x";
+	search_info["enc_princ"] = self._enc_fields[field].princ;
+	var tokens = JSON.stringify(roomprincs);
+	search_info["token"] = tokens;
+	search_info["tag"] = base_crypto.mkhash(tokens);
+	search_info["field"] = field;
+        search_info["pubname"] = pubname;
+	search_info["has_index"] = is_indexable(self._enc_fields, field);
+
+	if (search_debug)
+	    console.log("word " + word + " tokens " + tokens);
+	
+	search_cb = callback;
+	search_collec = self;
+	Session.set("_search_info", search_info);
+
+    });
+
+    _.each(rooms, function(room){
+	var createdBy = room.createdByID;
+	var creator_uname = Meteor.users.findOne({"_id": createdBy})["username"];
+
+	Principal._lookupByID(room.roomprinc, 
+	//Principal.lookup([new PrincAttr("room", room.roomTitle)], creator_uname,
+			 function(princ) {
+			     if (!princ._has_secret_keys()) {
+				 throw new Error("princ does not have secret keys");
+			     }
+			     MylarCrypto.index_enc(princ.keys.mk_key, word, function(token){
+				 roomprincs[princ.id] = token;
+				 callback2();
+			     });
+			 });
+    });
+    
+   
+ }
+
+
+
 }

@@ -8,7 +8,8 @@ if (Meteor.isServer) { // server is synchronous
 	
 	// synchronous send request
 	function send_request(url_extension) {
-	    var res =  Meteor.http.call("GET", base_url+url_extension);
+	    //console.log("SENDING " + base_url + url_extension);
+	    var res =  Meteor.http.call("GET", base_url+url_extension, {headers:{"Connection": "close"}});
 	    if (!res.content || !res.content.length) {
 		console.log("crypto server could not service request: " + res.headers + " " + res.content);
 		return null;
@@ -83,6 +84,7 @@ if (Meteor.isClient) { // client must be asynchronous
 	
 	// calls cb on the content of the response
 	function send_request(url_extension, cb) {
+
 	    Meteor.http.call("GET", base_url+url_extension, {}, function(error, res){
 		if (!error && res && res.statusCode == 200) {
 		    cb(res.content);
