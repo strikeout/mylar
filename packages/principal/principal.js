@@ -29,6 +29,13 @@
 var debug = false;
 var crypto = base_crypto;
 
+
+/******** Use search or not ****/
+
+function use_search(){
+    return typeof MYLAR_USE_SEARCH && MYLAR_USE_SEARCH;
+}
+
 /******* Data structures ****/
 
 PrincAttr = function (type, name) {
@@ -277,11 +284,14 @@ generate_princ_keys = function(cb) {
         keys['mk_key'] = key;
         cb(keys);
     }
-    if (Meteor.isClient) {
-        MylarCrypto.keygen(done_cb);
-    } else {
-        var key = crypto_server.keygen();
-        done_cb(key);
+
+    if (use_search()) {
+	if (Meteor.isClient) {
+            MylarCrypto.keygen(done_cb);
+	} else {
+            var key = crypto_server.keygen();
+            done_cb(key);
+	}
     }
 };
 
@@ -445,11 +455,15 @@ if (Meteor.isClient) {
 
 	if (princ1._has_secret_keys()) { // encrypt symmetrically
 	    wrap = princ1.sym_encrypt(pt);
-
-	    // can compute delta as well so no need for access inbox
-	    MylarCrypto.delta(princ1.keys.mk_key, princ2.keys.mk_key, function(delta) {
-		Meteor.call("updateWrappedKeys", princ2.id, princ1.id, null, wrap, delta, false, cb);
-	    });
+	    
+	    if (use_search()) {
+		// can compute delta as well so no need for access inbox
+		MylarCrypto.delta(princ1.keys.mk_key, princ2.keys.mk_key, function(delta) {
+		    Meteor.call("updateWrappedKeys", princ2.id, princ1.id, null, wrap, delta, false, cb);
+		});
+	    } else {
+		Meteor.call("updateWrappedKeys", princ2.id, princ1.id, null, wrap, null, false, cb);
+	    }
 	    return;
 	}
 
@@ -530,10 +544,11 @@ if (Meteor.isClient) {
 	if (!self.keys) {
 	    return false;
 	}
-	if (self.keys.decrypt && self.keys.sign && self.keys.mk_key && self.keys.sym_key) {
+	if (self.keys.decrypt && self.keys.sign &&
+	    (!use_search() || self.keys.mk_key) && self.keys.sym_key) {
 	    return true;
 	}
-	if (self.keys.decrypt || self.keys.sign || self.keys.mk_key || self.keys.sym_key) {
+	if (self.keys.decrypt || self.keys.sign || (use_search() && self.keys.mk_key) || self.keys.sym_key) {
 	    throw new Error("principal " + princ.id + " type " + princ.type + " has partial secret keys" );
 	}
 	return false;
@@ -834,14 +849,23 @@ if (Meteor.isClient) {
 				var subject_keys_ser = base_crypto.decrypt(uprinc.keys.decrypt, w["wrapped_keys"]);
 				var subject_keys = deserialize_keys(subject_keys_ser);
 				var sym_wrapped = base_crypto.sym_encrypt(uprinc.keys.sym_key, subject_keys_ser);
-				// compute delta as well
-				var delta = MylarCrypto.delta(uprinc.keys.mk_key, subject_keys.mk_key, function(delta) {
+
+                                var with_delta = function(delta) {
 				    WrappedKeys.update({_id: wid},
 						       {$set : {wrapped_keys: undefined,
 								delta : delta, 
 								wrapped_sym_keys : sym_wrapped}
-						       });
-				});
+						       });    
+				}
+
+				if (use_search()) {
+				// compute delta as well
+				    MylarCrypto.delta(uprinc.keys.mk_key,
+						      subject_keys.mk_key,
+						      with_delta);
+				} else {
+				    with_delta(null);
+				}
 			    });
 	    });
 	    Principals.update({_id: uprinc.id},
