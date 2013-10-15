@@ -778,24 +778,28 @@ if (Meteor.isClient) {
 
     // requires symmetric key of this principal to be set
     Principal.prototype.sym_encrypt = function(pt) {
-        // XXX this works only for strings; what about integers, bools, etc?
 	var self = this;
 	if (self.keys.sym_key) {
 	    return crypto.sym_encrypt(self.keys.sym_key, pt);
 	}
-	throw new Error("encrypt key must be set");
-    }
+	throw new Error("sym_key must be set for sym_encrypt");
+    };
 
     // requires keys.decrypt to be set
-    Principal.prototype.decrypt = function (ct) {
+    Principal.prototype.sym_decrypt = function (ct) {
 	var self = this;
 	if (self.keys.sym_key) {
 	    return crypto.sym_decrypt(self.keys.sym_key, ct);
 	}
+	throw new Error("sym_key must be set for sym_decrypt");
+    };
+
+    Principal.prototype.asym_decrypt = function (ct) {
+        var self = this;
 	if (self.keys.decrypt) {
 	    return crypto.decrypt(self.keys.decrypt, ct);
-	} 
-	throw new Error("cannot decrypt without decrypt key");
+	}
+	throw new Error("decrypt key must be set for asym_decrypt");
     };
 
     // requires sign key to be set
