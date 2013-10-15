@@ -26,10 +26,10 @@ Meteor.methods({
     });
   },
 
-  obtain_cert: function (token) {
+  obtain_cert: function (token, register_msg, register_sig) {
     var tokenx = JSON.parse(token);
     if (!base_crypto.verify(tokenx.msg, tokenx.sig, keys.verify)) {
-      console.log('obtain_cert: bad signature');
+      console.log('obtain_cert: bad signature on token');
       return;
     }
 
@@ -39,11 +39,37 @@ Meteor.methods({
       return;
     }
 
+    /*
+     * Check that the caller has the appropriate secret key: register_msg
+     * must have a signature that verifies using the public key we're about
+     * to include in a certificate.
+     *
+     * XXX: This doesn't check the other components of msgx.pk, such as
+     * the encrypt key!
+     */
+    var pk = deserialize_keys(msgx.pk);
+    if (!base_crypto.verify(register_msg, register_sig, pk.verify)) {
+      console.log('obtain_cert: bad signature on register_msg',
+                  register_msg, register_sig, serialize_keys(pk));
+      return;
+    }
+
+    var registerx = JSON.parse(register_msg);
+    if (registerx.type !== 'register' ||
+        registerx.email !== msgx.email ||
+        registerx.origin !== msgx.origin) {
+      console.log('obtain_cert: mismatch in register_msg',
+                  registerx, msgx);
+      return;
+    }
+
     var cert_msg = JSON.stringify({ type: 'user',
                                     email: msgx.email,
                                     pk: msgx.pk,
                                     origin: msgx.origin });
     var cert_sig = base_crypto.sign(cert_msg, keys.sign);
+
+    console.log('Generated cert', cert_msg);
     return { msg: cert_msg, sig: cert_sig };
   },
 });

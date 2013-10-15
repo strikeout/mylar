@@ -28,9 +28,20 @@ idp_request_cert = function (email, pubkey) {
   c.call('request_cert', email, pubkey, idp_app_url());
 };
 
-idp_obtain_cert = function (email, pk, token, cb) {
+idp_obtain_cert = function (email, pk, sk, token, cb) {
+  var register_msgx = {
+    type: 'register',
+    email: email,
+    origin: idp_app_url(),
+  };
+
+  var register_msg = JSON.stringify(register_msgx);
+  var register_sig = base_crypto.sign(register_msg, sk);
+
+  console.log('register sign', register_msg, register_sig, pk, sk);
+
   var c = idp_connect();
-  c.call('obtain_cert', token, function (err, r) {
+  c.call('obtain_cert', token, register_msg, register_sig, function (err, r) {
     if (err) {
       console.log('obtain_cert: error', err);
       cb(null);

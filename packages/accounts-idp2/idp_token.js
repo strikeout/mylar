@@ -17,7 +17,7 @@ Meteor.startup(function () {
 
     var email = u.name;
     var pk = serialize_public(u.keys);
-    idp_obtain_cert(email, pk, token, function (r) {
+    idp_obtain_cert(email, pk, u.keys.sign, token, function (r) {
       if (!r) {
         console.log('Unable to obtain certificate for email address');
         return;
