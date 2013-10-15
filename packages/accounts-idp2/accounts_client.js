@@ -10,6 +10,13 @@ Meteor.autorun(function () {
   }
 });
 
+var createPrincipalCB = function (uprinc, cb) {
+  cb();
+};
+Meteor.onCreatePrincipal = function (f) {
+  createPrincipalCB = f;
+};
+
 var createUserOrig = Accounts.createUser;
 Accounts.createUser = function (options, callback) {
   var uname = options.email || options.username;
@@ -17,13 +24,15 @@ Accounts.createUser = function (options, callback) {
   current_pw = password;
 
   Principal.create('user', uname, null, function (uprinc) {
-    var ukeys = serialize_keys(uprinc.keys);
-    Principal.set_current_user_keys(ukeys, uname);
+    createPrincipalCB(uprinc, function () {
+      var ukeys = serialize_keys(uprinc.keys);
+      Principal.set_current_user_keys(ukeys, uname);
 
-    options = _.clone(options);
-    options.wrap_privkeys = sjcl.encrypt(password, ukeys);
-    options.public_keys = serialize_public(uprinc.keys);
-    createUserOrig(options, callback);
+      options = _.clone(options);
+      options.wrap_privkeys = sjcl.encrypt(password, ukeys);
+      options.public_keys = serialize_public(uprinc.keys);
+      createUserOrig(options, callback);
+    });
   });
 };
 

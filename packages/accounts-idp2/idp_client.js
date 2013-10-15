@@ -15,8 +15,12 @@ idp_init = function(url, pk, debug) {
   idp_verify = base_crypto.deserialize_public(pk, 'ecdsa');
   idp_debug = debug;
 
-  Accounts.config({ sendVerificationEmail: !!idp_url,
-                    forbidClientAccountCreation: false });
+  /*
+   * Your application should call something like:
+   *
+   * Accounts.config({ sendVerificationEmail: !!idp_url,
+   *                   forbidClientAccountCreation: false });
+   */
 };
 
 idp_app_url = function () {
