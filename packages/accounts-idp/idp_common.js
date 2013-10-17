@@ -1,6 +1,6 @@
 idp_pk = undefined;
 idp_url = undefined;
-idp_debug = undefined;
+idp_debug = true;
 
 idp_init = function(url, pk, debug) {
     idp_pk = deserialize_keys(pk);

@@ -26,7 +26,7 @@
      token: the actual cryptographic token
 */
 
-var debug = false;
+var debug = true;
 var crypto = base_crypto;
 
 
@@ -280,18 +280,20 @@ if (Meteor.isServer) {
 // generates keys: standard crypto + multi-key
 generate_princ_keys = function(cb) {
     keys = crypto.generate_keys();
-    var done_cb = function (key) {
-        keys['mk_key'] = key;
-        cb(keys);
-    }
-
+    console.log("keys are " +  serialize_keys(keys));
     if (use_search()) {
+	var done_cb = function (key) {
+            keys['mk_key'] = key;
+            cb(keys);
+	}
 	if (Meteor.isClient) {
             MylarCrypto.keygen(done_cb);
 	} else {
             var key = crypto_server.keygen();
             done_cb(key);
 	}
+    } else {
+	cb(keys);
     }
 };
 
@@ -343,6 +345,7 @@ if (Meteor.isClient) {
 	generate_princ_keys(function(keys) {
 	    var p = new Principal(type, name, keys);
 	    cache_add(p, {'princ': creator});
+	    console.log("princ keys are " + serialize_keys(keys));
 	    Principal._store(p, creator);
 	    if (creator) {
 		Principal.add_access(creator, p, function(){cb(p);});	
@@ -401,7 +404,7 @@ if (Meteor.isClient) {
     //   -- authority must have secret keys loaded
     Principal._store = function (princ, authority, is_static) {
 
-	if (debug) console.log("CREATE princ: " + princ.name + " keys " + princ.keys  + " id " + princ.id);
+	if (debug) console.log("CREATE princ: " + princ.name + " keys " + JSON.stringify(princ.keys.sym_key)  + " id " + princ.id);
 
 	if (!is_static) {
 	    is_static = false;
