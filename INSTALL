@@ -2,7 +2,7 @@ apt-get install npm
 ( cd dev_bundle/lib && npm install mime )
 
 install pbc in /usr/local from http://crypto.stanford.edu/pbc/
-  pbc needs various libraries itself (lex, bison, etc.)
+  pbc needs various libraries itself (flex, bison, etc.)
 install libreadline-dev
 install libssl-dev
 install libntl-dev

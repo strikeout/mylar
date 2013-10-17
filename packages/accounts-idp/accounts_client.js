@@ -15,7 +15,7 @@ function createUser(uname, app_key, cb) {
 	var ser_keys = serialize_keys(keys);
 	var pub_keys = serialize_public(keys);
 	console.log("here, app key is " + app_key);
-	var wrap_privkeys = base_crypto.sym_encrypt(app_key,
+	var wrap_privkeys = base_crypto.sym_encrypt(JSON.parse(app_key),
 						    ser_keys);
 
 	console.log("after");
