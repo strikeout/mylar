@@ -24,6 +24,7 @@ Meteor.methods({
       subject: 'Email address verification',
       text: text,
     });
+      console.log(text);
   },
 
   obtain_cert: function (token, register_msg, register_sig) {

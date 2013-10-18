@@ -19,12 +19,16 @@ Meteor.onCreatePrincipal = function (f) {
 
 var createUserOrig = Accounts.createUser;
 Accounts.createUser = function (options, callback) {
+
+    if (!options.email) {
+	throw new Error("need to specify user email for accounts-idp2");
+    }
   var uname = options.email || options.username;
   var password = options.password;
   current_pw = password;
 
   Principal.create('user', uname, null, function (uprinc) {
-    createPrincipalCB(uprinc, function () {
+      createPrincipalCB(uprinc, function () {
       var ukeys = serialize_keys(uprinc.keys);
       Principal.set_current_user_keys(ukeys, uname);
 
