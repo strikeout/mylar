@@ -33,7 +33,11 @@ var crypto = base_crypto;
 /******** Use search or not ****/
 
 function use_search(){
-    return typeof MYLAR_USE_SEARCH && MYLAR_USE_SEARCH;
+  if (typeof(MYLAR_USE_SEARCH) === 'undefined') {
+    return false;
+  } else {
+    return MYLAR_USE_SEARCH;
+  }
 }
 
 /******* Data structures ****/
