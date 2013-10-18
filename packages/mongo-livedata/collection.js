@@ -364,8 +364,8 @@ Meteor.Collection.prototype.dec_fields = function(container, fields, callback) {
 		      if (dec_princ) {
 			  var res  = JSON.parse(dec_princ.sym_decrypt(container[enc_field_name(f)]));
 			  if (ENC_DEBUG) {
-			      if (res != container[f]) {
-				  throw new Error ("inconsistency in the value decrypted and plaintext");
+			      if (JSON.stringify(res) != JSON.stringify(container[f])) {
+			       	  throw new Error ("inconsistency in the value decrypted and plaintext");
 			      }
 			  } else {
 			      container[f] = res;
