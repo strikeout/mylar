@@ -17,11 +17,6 @@ enc_return = undefined;
 USE_CRYPTO_SERVER = true;
 //replaces NaCl or crypto_fire with crypto_server; for testing
 
-var enable_search = true;
-
-principal_enable_search = function (flag) {
-    enable_search = flag;
-};
 
 USE_INDEX = false;
 
@@ -83,11 +78,6 @@ MylarCrypto.test = function(cb) {
 MylarCrypto.keygen = function(cb) {
     setup_crypto();
 
-    if (!enable_search) {
-        cb('x');
-        return;
-    }
-
     enc_return = cb;
     if (USE_CRYPTO_SERVER) {
 	crypto_server.keygen(cb);
@@ -103,11 +93,6 @@ MylarCrypto.keygen = function(cb) {
 
 MylarCrypto.delta = function(k1, k2, cb) {
     setup_crypto();
-
-    if (!enable_search) {
-        cb('x');
-        return;
-    }
 
     enc_return = cb;
     if (USE_CRYPTO_SERVER) {
@@ -190,24 +175,6 @@ var tokenize_for_search = function(text) {
     return res;
 }
 
-
-/*
-MylarCrypto.text_encrypt = function(k, ptext, cb) {
-    var items = tokenize_for_search(ptext);
-    var encitems = [];
-
-    callback = _.after(items.length, function() {
-	cb(encitems);
-    })
-    
-    _.each(items, function(item, index) {
-	MylarCrypto.encrypt(k, item, function(encitem) {
-	    encitems[index] = encitem;
-	    callback();
-	});
-    });
-}
-*/
 MylarCrypto.text_encrypt = function(k, ptext, cb) {
     setup_crypto();
 

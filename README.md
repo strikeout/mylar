@@ -36,10 +36,6 @@ idp_init("http://localhost:3000", idp_pub);
 (you can still use server-side Accounts.onCreateUser if useful, which should
 return the (modified) user object)
 
-4. disable search unless you have the crypto plugin (on client):
-
-   principal_enable_search(false);
-
 
 Meteor-enc developers:
 ----------------------
@@ -59,12 +55,15 @@ packages/idp-user:
 packages/idp-provider:
 : runs at the idp client, responds to idp-user
 
+packages/search:
+: search over encrypted data
+-- requires installation of the crypto plugin
+(one can alternatively install the crypto_server, and set USE_CRYPTO_SERVER = true
+in crypto_plugin.js)
 
 
-TODO (post-deadline):
-======================
-- it would be nice to have the app open a login window to idp upon sign
-  in, instead of asking the user to have a window open with the idp
+TODO:
+=====
 
 - better error messages; for example, now if you try to add a user that
   does not exist the error is not friendly;
@@ -83,6 +82,4 @@ TODO (post-deadline):
 - what can be an acceptable idp?
 
 - meteor over https
-
-- change some of the princ graph to use symmetric keys for efficiency?
 
