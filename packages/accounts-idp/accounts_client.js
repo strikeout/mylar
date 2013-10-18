@@ -6,6 +6,7 @@ function app_password(app_key) {
 
 var onCreatePrincipal = undefined;
 
+
 function createUser(uname, app_key, cb) {
     if (idp_debug) 
 	console.log("create user " + uname + " app_key " + app_key);

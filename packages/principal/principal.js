@@ -26,7 +26,7 @@
      token: the actual cryptographic token
 */
 
-var debug = true;
+var debug = false;
 var crypto = base_crypto;
 
 
@@ -280,7 +280,6 @@ if (Meteor.isServer) {
 // generates keys: standard crypto + multi-key
 generate_princ_keys = function(cb) {
     keys = crypto.generate_keys();
-    console.log("keys are " +  serialize_keys(keys));
     if (use_search()) {
 	var done_cb = function (key) {
             keys['mk_key'] = key;
@@ -345,7 +344,6 @@ if (Meteor.isClient) {
 	generate_princ_keys(function(keys) {
 	    var p = new Principal(type, name, keys);
 	    cache_add(p, {'princ': creator});
-	    console.log("princ keys are " + serialize_keys(keys));
 	    Principal._store(p, creator);
 	    if (creator) {
 		Principal.add_access(creator, p, function(){cb(p);});	

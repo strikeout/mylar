@@ -24,31 +24,65 @@ principal_enable_search = function (flag) {
 };
 
 USE_INDEX = false;
-/*
-Handlebars.registerHelper(
-    "cryptoPlugin",
-    function (options) {
-        return new Handlebars.SafeString(Template._cryptoPlugin());
-    });
 
-Template._cryptoPlugin.events({
-    'load *': function(evt) {
-        enc_module = document.getElementById("_cryptoNACL");
-    },
-    'message *': function(evt) {
-        if(enc_return)
-            enc_return(evt.data);
-    }
-});
-*/
 
 MylarCrypto = function() {};
 
+
+_is_crypto_setup = false;
+
+// setup crypto template
+setup_crypto = function(){
+
+    if (Meteor.isServer || _is_crypto_setup) {
+	return;
+    }
+  
+    console.log("creating document");
+    var fire_div = document.createElement('div');
+    fire_div.id = "_cryptoFIREWrapper";
+    
+    fire_obj = document.createElement("object");
+    fire_obj.id = "_cryptoFIRE";
+    fire_obj.type = "application/x-cryptoext";
+    fire_obj.width = "0"
+    fire_obj.height = "0"
+    
+    fire_div.appendChild(fire_obj);
+    
+    var nacl_div = document.createElement("div");
+    nacl_div.id = "_cryptoNACLWrapper";
+    
+    nacl_embed = document.createElement("embed");
+    nacl_embed.name = "nacl_module";
+    nacl_embed.id = "_cryptoNACL";
+    nacl_embed.width = 0;
+    nacl_embed.height = 0;
+    nacl_embed.src = "/packages/search/crypto_ext/crypto_ext.nmf";
+    nacl_embed.type = "application/x-nacl";
+    
+    nacl_div.appendChild(nacl_embed);
+    
+    
+    var crypto_div = document.createElement('div');
+    crypto_div.id = "_cryptoPlugin";
+    crypto_div.appendChild(fire_div);
+    crypto_div.appendChild(nacl_div);
+    
+    document.body.appendChild(crypto_div);
+    _is_crypto_setup = true;
+};
+
+
 MylarCrypto.test = function(cb) {
+    setup_crypto();
+
     enc_return = cb;
     enc_module.postMessage("testJ()");
 };
 MylarCrypto.keygen = function(cb) {
+    setup_crypto();
+
     if (!enable_search) {
         cb('x');
         return;
@@ -68,6 +102,8 @@ MylarCrypto.keygen = function(cb) {
 };
 
 MylarCrypto.delta = function(k1, k2, cb) {
+    setup_crypto();
+
     if (!enable_search) {
         cb('x');
         return;
@@ -87,6 +123,8 @@ MylarCrypto.delta = function(k1, k2, cb) {
 };
 
 MylarCrypto.token = function(k, word, cb) {
+    setup_crypto();
+
     enc_return = cb;
     if (USE_CRYPTO_SERVER) {
 	crypto_server.token(k, word, cb);
@@ -101,6 +139,8 @@ MylarCrypto.token = function(k, word, cb) {
 };
 
 MylarCrypto.encrypt = function(k, word, cb) {
+    setup_crypto();
+
     enc_return = cb;
     if (USE_CRYPTO_SERVER) {
 	crypto_server.encrypt(k, word, cb);
@@ -116,6 +156,9 @@ MylarCrypto.encrypt = function(k, word, cb) {
 
 
 MylarCrypto.index_enc = function(k, word, cb) {
+    setup_crypto();
+
+
     enc_return = cb;
     if (USE_CRYPTO_SERVER) {
 	crypto_server.index_enc(k, word, cb);
@@ -166,6 +209,9 @@ MylarCrypto.text_encrypt = function(k, ptext, cb) {
 }
 */
 MylarCrypto.text_encrypt = function(k, ptext, cb) {
+    setup_crypto();
+
+
     var items = tokenize_for_search(ptext);
     var encitems = [];
     
@@ -194,6 +240,9 @@ var _check_index = function(k, word, ciph, cb) {
 // check if enctext is a correct encryption of text
 // calls cb with true or false
 MylarCrypto.is_consistent = function(k, ptext, enctext, cb) {
+    setup_crypto();
+
+
     ptext = tokenize_for_search(ptext);
     if (ptext.length != enctext.length) {
 	cb(false);
@@ -217,6 +266,9 @@ MylarCrypto.is_consistent = function(k, ptext, enctext, cb) {
 
 
 MylarCrypto.adjust = function(tok, delta, cb) {
+    setup_crypto();
+
+
     enc_return = cb;
     if (USE_CRYPTO_SERVER) {
 	crypto_server.adjust(tok, delta, cb);
@@ -231,6 +283,9 @@ MylarCrypto.adjust = function(tok, delta, cb) {
 };
 
 MylarCrypto.match = function(tok, cipher, cb) {
+    setup_crypto();
+
+
     enc_return = cb;
     if (USE_CRYPTO_SERVER) {
 	crypto_server.match(tok, cipher, cb);

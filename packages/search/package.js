@@ -12,7 +12,7 @@ Package.on_use(function (api, where) {
   
     api.add_files(['search.js', 'crypto_server.js'], where);
 
-    api.add_files('crypto_plugin.html', 'client');
+//    api.add_files('crypto_plugin.html', 'client');
     api.add_files('crypto_plugin.js', 'client');
 
         
