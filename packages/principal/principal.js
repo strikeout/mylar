@@ -357,7 +357,7 @@ if (Meteor.isClient) {
        Gives access to creator to this principal.
        keys must contain private keys
        Calls cb on the newly created principal.
-       keys are stringified
+       given keys are stringified
      */
     Principal.create_static = function(type, name, keys, creator, cb) {
 	if (!type || !name) {
@@ -380,6 +380,14 @@ if (Meteor.isClient) {
 	}
 
 	Principal.add_access(creator, p, function(){cb && cb(p);});
+    }
+    
+    /*
+      Returns the principal with type, name, keys.
+      Keys are stringified.
+    */
+    Principal.get_static = function(type, name, keys) {
+	return new Principal(type, name, deserialize_keys(keys));
     }
 
     /*
