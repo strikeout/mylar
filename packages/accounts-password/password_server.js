@@ -458,6 +458,10 @@ Meteor.methods({createUser: function (options) {
   if (Accounts._options.forbidClientAccountCreation)
     throw new Meteor.Error(403, "Signups forbidden");
 
+  var restrictClient = Accounts._options.restrictClientAccountCreation;
+  if (restrictClient && restrictClient(this.userId))
+    throw new Meteor.Error(403, "Signup forbidden");
+
   // Create user. result contains id and token.
   var result = createUser(options);
   // safety belt. createUser is supposed to throw on error. send 500 error
