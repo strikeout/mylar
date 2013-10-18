@@ -8,7 +8,7 @@ var debug = false;
 
 // if true, an unencrypted copy of the fields
 // will be kept for debugging mode
-var ENC_DEBUG = false;
+var ENC_DEBUG = true;
 
 set_enc_debug = function (flag) {
     ENC_DEBUG = flag;
@@ -126,7 +126,7 @@ _dec_fields = function(_enc_fields, _signed_fields, container, fields, callback)
 		      if (dec_princ) {
 			  var res  = JSON.parse(dec_princ.sym_decrypt(container[enc_field_name(f)]));
 			  if (ENC_DEBUG) {
-			      if (res != container[f]) {
+			      if (JSON.stringify(res) != JSON.stringify(container[f])) {
 				  throw new Error ("inconsistency in the value decrypted and plaintext");
 			      }
 			  } else {
