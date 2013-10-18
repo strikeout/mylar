@@ -4,7 +4,7 @@
    The field f contains plaintext and is not sent to the server
    unless ENC_DEBUG is true */
 
-var debug = false;
+var debug = true;
 
 // if true, an unencrypted copy of the fields
 // will be kept for debugging mode
@@ -53,18 +53,6 @@ var intersect = function(a, b) {
 
 function enc_fields(enc_fields, signed_fields, container) {
     return intersect(_.union(_.keys(enc_fields), _.keys(signed_fields)), container);
-}
-
-function fields_for_dec(enc_fields, signed_fields, container) {
-    var r = []
-
-    _.each(enc_fields, function(v, f) {
-	if (_.has(container, enc_field_name(f))) {
-	    r.push(f);
-	}
-    });
-
-    return r;
 }
 
 
@@ -123,6 +111,7 @@ _dec_fields = function(_enc_fields, _signed_fields, container, fields, callback)
 		      }
 		      if (debug) console.log("dec f; f is " + f);
 
+		      console.log("dec princ is " + dec_princ.id);
 		      if (dec_princ) {
 			  var res  = JSON.parse(dec_princ.sym_decrypt(container[enc_field_name(f)]));
 			  if (ENC_DEBUG) {
@@ -130,15 +119,16 @@ _dec_fields = function(_enc_fields, _signed_fields, container, fields, callback)
 				  throw new Error ("inconsistency in the value decrypted and plaintext");
 			      }
 			  } else {
+			      console.log("f is " + f);
 			      container[f] = res;
 			  }
-			  if (is_searchable(this._enc_fields, f)) {
+			  if (is_searchable(_enc_fields, f)) {
 			      MylarCrypto.is_consistent(dec_princ.keys.mk_key, container[f], container[search_field_name(f)],
 					function(res) {
-					    if (!res)
-						throw new Error(
-						    "search encryption not consistent for "
-							+ f + " content " + container[f]);
+					    // TODO: if (!res)
+						//throw new Error(
+						//    "search encryption not consistent for "
+						//	+ f + " content " + container[f]);
 					    cb();
 					});
 			      return;
@@ -265,36 +255,6 @@ _enc_row_helper = function(_enc_fields, _signed_fields, container, callback) {
 	      });	
    });
  
-}
-
-
-
-// container is an object with key (field name), value (enc field value)
-_dec_msg_helper = function(_enc_fields, _signed_fields, container, callback) {
-    
-    var r = fields_for_dec(self._enc_fields, self._signed_fields, container);
-    if (debug) console.log("dec: r is " + JSON.stringify(r));
-    
-    if (r.length > 0) {
-	startTime("DECMSG");
-	var callback_q = [];
-	self._decrypt_cb.push(callback_q);
-	callback2 = function () {
-	    endTime("DECMSG");
-	    if (callback) {
-		callback();
-	    }
-	    self._decrypt_cb = _.without(self._decrypt_cb, callback_q);
-	    _.each(callback_q, function (f) {
-		f();
-	    });
-	};
-
-        _dec_fields(_enc_fields,_signed_fields, container, r, callback2);
-    } else {
-        callback && callback();
-    }
-
 }
 
 
