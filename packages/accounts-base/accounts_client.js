@@ -68,6 +68,7 @@ Accounts.callLoginMethod = function (options) {
   options = _.extend({
     methodName: 'login',
     methodArguments: [],
+    suppressLogin: false,
     _suppressLoggingIn: false
   }, options);
   // Set defaults for callback arguments to no-op functions; make sure we
@@ -145,7 +146,8 @@ Accounts.callLoginMethod = function (options) {
     }
 
     // Make the client logged in. (The user data should already be loaded!)
-    Accounts._makeClientLoggedIn(result.id, result.token);
+    if (!options.suppressLogin)
+      Accounts._makeClientLoggedIn(result.id, result.token);
     options.userCallback();
   };
 

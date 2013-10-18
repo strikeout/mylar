@@ -22,7 +22,8 @@ if (!Accounts._options) {
 //     Do not allow clients to create accounts directly.
 Accounts.config = function(options) {
   // validate option keys
-  var VALID_KEYS = ["sendVerificationEmail", "forbidClientAccountCreation"];
+  var VALID_KEYS = ["sendVerificationEmail", "forbidClientAccountCreation",
+                    "restrictClientAccountCreation"];
   _.each(_.keys(options), function (key) {
     if (!_.contains(VALID_KEYS, key)) {
       throw new Error("Accounts.config: Invalid key: " + key);
