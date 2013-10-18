@@ -437,7 +437,7 @@ _.each(["insert", "update", "remove"], function (name) {
           // XXX handle only updates, not push
           if (args.length > 2) self.enc_row(args[1]['$set'], f)
           else self.enc_row(args[1]['$set'], f)
-      }
+      } 
 
       if (name == "remove") {
           f();
