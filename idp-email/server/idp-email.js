@@ -30,14 +30,12 @@ Meteor.methods({
   obtain_cert: function (token, register_msg, register_sig) {
     var tokenx = JSON.parse(token);
     if (!base_crypto.verify(tokenx.msg, tokenx.sig, keys.verify)) {
-      console.log('obtain_cert: bad signature on token');
-      return;
+	throw new Meteor.Error(400, 'obtain_cert: bad signature on token');
     }
 
     var msgx = JSON.parse(tokenx.msg);
     if (msgx.type !== 'token') {
-      console.log('obtain_cert: bad msg type');
-      return;
+	throw new Meteor.Error(400, 'obtain_cert: bad msg type');
     }
 
     /*
@@ -50,9 +48,9 @@ Meteor.methods({
      */
     var pk = deserialize_keys(msgx.pk);
     if (!base_crypto.verify(register_msg, register_sig, pk.verify)) {
-      console.log('obtain_cert: bad signature on register_msg',
-                  register_msg, register_sig, serialize_keys(pk));
-      return;
+	throw new Meteor.Error(400, 'obtain_cert: bad signature on register_msg'
+			       + register_msg + register_sig
+			       + serialize_keys(pk));
     }
 
     var registerx = JSON.parse(register_msg);
@@ -61,7 +59,8 @@ Meteor.methods({
         registerx.origin !== msgx.origin) {
       console.log('obtain_cert: mismatch in register_msg',
                   registerx, msgx);
-      return;
+	throw new Meteor.Error(400, 'obtain_cert: mismatch in register_msg'
+			       + JSON.stringify(registerx) + JSON.stringify(msgx));
     }
 
     var cert_msg = JSON.stringify({ type: 'user',
