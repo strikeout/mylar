@@ -114,6 +114,7 @@ Accounts.createUser = function (options, callback) {
 	Accounts.callLoginMethod({
 	    methodName: 'createUser',
 	    methodArguments: [options],
+	    suppressLogin: options.suppressLogin,
 	    userCallback: callback
 	}); 
     }

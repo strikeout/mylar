@@ -472,7 +472,9 @@ Meteor.methods({createUser: function (options) {
     Accounts.sendVerificationEmail(result.id, options.email);
 
   // client gets logged in as the new user afterwards.
-  this.setUserId(result.id);
+  if (!options.suppressLogin)
+    this.setUserId(result.id);
+
   return result;
 }});
 
