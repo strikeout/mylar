@@ -211,6 +211,7 @@ Meteor.Collection = function (name, options) {
 
 Meteor.Collection.prototype._encrypted_fields = function(lst) {
     this._enc_fields = _process_enc_fields(this._enc_fields, lst);
+    console.log("enc_fields are " + JSON.stringify(this._enc_fields));
 } 
 
 // encrypts & signs a document
@@ -218,10 +219,14 @@ Meteor.Collection.prototype._encrypted_fields = function(lst) {
 Meteor.Collection.prototype.enc_row = function(container, callback) {
     var self = this;
 
-    if (!self._enc_fields || !self._enc_fields.length || !Meteor.isClient || !container) {
+    console.log("should I encrypt? " + JSON.stringify(container) + " with " + JSON.stringify(self._enc_fields));
+
+    if (!self._enc_fields || !_.keys(self._enc_fields).length || !Meteor.isClient || !container) {
 	callback();
 	return;
     }
+
+    console.log("encrypting");
     
     _enc_row_helper(self._enc_fields, self._signed_fields, container, callback);
 }
@@ -230,7 +235,7 @@ Meteor.Collection.prototype.enc_row = function(container, callback) {
 Meteor.Collection.prototype.dec_msg = function(container, callback) {
     var self = this;
 
-    if (!self._enc_fields || !self._enc_fields.length || !Meteor.isClient || !container) {
+    if (!self._enc_fields || !_.keys(self._enc_fields).length || !Meteor.isClient || !container) {
 	callback();
 	return;
     }
