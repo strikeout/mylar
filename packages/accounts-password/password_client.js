@@ -93,7 +93,7 @@ Accounts.createUser = function (options, callback) {
     delete options.password;
     options.srp = verifier;
 
-    if (useEnc()) {
+    if (useEnc()) { 
 	Principal.create("user", uname, null, function(uprinc){
 	    var ser_keys = serialize_keys(uprinc.keys);
 	    
@@ -110,7 +110,7 @@ Accounts.createUser = function (options, callback) {
 	    });
 	    
 	});
-    } else {
+    } else { 
 	Accounts.callLoginMethod({
 	    methodName: 'createUser',
 	    methodArguments: [options],
