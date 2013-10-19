@@ -8,7 +8,7 @@ var debug = true;
 
 // if true, an unencrypted copy of the fields
 // will be kept for debugging mode
-var ENC_DEBUG = true;
+var ENC_DEBUG = false;
 
 set_enc_debug = function (flag) {
     ENC_DEBUG = flag;

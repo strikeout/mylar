@@ -48,6 +48,7 @@ Meteor.loginWithPassword = function (selector, password, callback) {
 	var response = srp.respondToChallenge(result);
 	
 	if (useEnc()) {
+	    console.log("get rid of this code");
 	    idp.get_keys(uname, password, function(keys) {
 		if (!keys) {
 		    throw new Error("idp error, cannot login this user");
@@ -62,6 +63,7 @@ Meteor.loginWithPassword = function (selector, password, callback) {
 		    userCallback: callback});
 	    });
 	} else {
+	    console.log("not use enc");
 	    Accounts.callLoginMethod({
 		methodArguments: [{srp: response}],
 		validateResult: function (result) {

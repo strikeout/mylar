@@ -53,8 +53,8 @@ Meteor.methods({verifyEmailMylar: function (r) {
      'emails.address': msgx.email},
       {$set: {'emails.$.verified': true,
 	      _pubkey_cert : r.sig},
-     $push: {'services.resume.loginTokens': stampedLoginToken}});
-
+       $push: {'services.resume.loginTokens': stampedLoginToken}});
+    console.log("UPDATED");
   
   this.setUserId(user._id);
   return {token: stampedLoginToken.token, id: user._id};
@@ -64,7 +64,6 @@ var onCreateUserHook2;
 Accounts.onCreateUser(function (options, user) {
     user._pk = options.public_keys;
     user._wrap_privkey = options.wrap_privkeys;
-   // user._pubkey_cert = options.key_cert;
     
   if (onCreateUserHook2) {
     return onCreateUserHook2(options, user);
