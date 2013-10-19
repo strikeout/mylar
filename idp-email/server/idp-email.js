@@ -4,14 +4,6 @@ var idp_email = 'nickolai.zeldovich+idp@gmail.com';
 var keys = undefined;
 var debug = true;
 
-format_idp_msg = function(email, pk, origin) {
-    return JSON.stringify({
-	type: 'user',
-	email: email,
-	pk: pk,
-	origin: origin
-    });
-}
 
 Meteor.methods({
   request_cert: function (email, pk, origin) {
