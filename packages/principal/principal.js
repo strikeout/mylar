@@ -637,11 +637,14 @@ if (Meteor.isClient) {
 
     // returns the principal corresponding to the current user
     Principal.user = function () {
-        if (current_user !== undefined)
+        var username = localStorage['user_princ_name'];
+	
+        if (current_user !== undefined &&
+	    username == current_user.name)
             return current_user;
 
 	var pkeys = deserialize_keys(localStorage['user_princ_keys']);
-        var username = localStorage['user_princ_name'];
+
 
 	if (!pkeys || !username) {
 	    return undefined;
