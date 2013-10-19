@@ -15,7 +15,7 @@ Accounts.sendVerificationEmail = function (userId, address) {
   if (!address || !_.contains(_.pluck(user.emails || [], 'address'), address))
     throw new Error("No such email address for user.");
 
-  idp_request_cert(address, user.public_keys);
+  idp_request_cert(address, user._pk);
 };
 
 // Based on the verifyEmail method in accounts-password/password_server.js.
@@ -51,18 +51,21 @@ Meteor.methods({verifyEmailMylar: function (r) {
   Meteor.users.update(
     {_id: user._id,
      'emails.address': msgx.email},
-    {$set: {'emails.$.verified': true},
+      {$set: {'emails.$.verified': true,
+	      _pubkey_cert : r.sig},
      $push: {'services.resume.loginTokens': stampedLoginToken}});
 
+  
   this.setUserId(user._id);
   return {token: stampedLoginToken.token, id: user._id};
 }});
 
 var onCreateUserHook2;
 Accounts.onCreateUser(function (options, user) {
-  user.public_keys = options.public_keys;
-  user.wrap_privkeys = options.wrap_privkeys;
-
+    user._pk = options.public_keys;
+    user._wrap_privkey = options.wrap_privkeys;
+   // user._pubkey_cert = options.key_cert;
+    
   if (onCreateUserHook2) {
     return onCreateUserHook2(options, user);
   } else {

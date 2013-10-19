@@ -26,7 +26,7 @@
      token: the actual cryptographic token
 */
 
-var debug = false;
+var debug = true;
 var crypto = base_crypto;
 
 
@@ -681,13 +681,15 @@ if (Meteor.isClient) {
 	Meteor.call("userPK", uname, function(err, uinfo) {
 	    if (debug) console.log("userPK answer " + JSON.stringify(uinfo));
 	    if (err || !uinfo || !uinfo._pk || !uinfo._pubkey_cert) {
+		console.log("user "+ uname + " " + JSON.stringify(uinfo));
 		throw new Error("user " + uname + " public keys are not available");
 	    }
 	    var keys = uinfo._pk;
 	    var cert = uinfo._pubkey_cert;
 
 	    //verify certificate
-	    var res = idp_check(keys, uname, cert);
+	    var res = idp_verify_msg(format_cert(uname, keys, idp_app_url()),
+				     cert);
 	    if (!res) {
 		throw new Error("server provided invalid pub key certificate!");
 	    }

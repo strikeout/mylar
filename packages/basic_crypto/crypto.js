@@ -212,3 +212,15 @@ serialize_private = function (keys) {
 serialize_public = function(keys) {
     return EJSON.stringify(_prepare_public(keys));
 }
+
+
+/*********** Other util *************/
+
+format_cert = function(email, pk, origin) {
+    return JSON.stringify({
+	type: 'user',
+	email: email,
+	pk: pk,
+	origin: origin
+    });
+}

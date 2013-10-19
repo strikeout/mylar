@@ -241,6 +241,7 @@ function fields_for_dec(enc_fields, signed_fields, container) {
 
 // container is an object with key (field name), value (enc field value)
 Meteor.Collection.prototype.dec_msg = function(container, callback) {
+    var debug = false;
     var self = this;
 
     if (!self._enc_fields || !_.keys(self._enc_fields).length || !Meteor.isClient || !container) {
