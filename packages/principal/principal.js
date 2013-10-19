@@ -26,7 +26,7 @@
      token: the actual cryptographic token
 */
 
-var debug = true;
+var debug = false;
 var crypto = base_crypto;
 
 
@@ -245,7 +245,7 @@ if (Meteor.isServer) {
 		var princattr = princattrs[i];
                 var new_princs = {};
                 _.each(princs, function (cert_lst, princid) {
-		    // p is current authority
+		    // p is current authority 
                     var cs = Certs.find({
                         subject_type: princattr.type,
                         subject_name: princattr.name,
