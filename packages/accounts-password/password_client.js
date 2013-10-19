@@ -47,31 +47,15 @@ Meteor.loginWithPassword = function (selector, password, callback) {
 	
 	var response = srp.respondToChallenge(result);
 	
-	if (useEnc()) {
-	    console.log("get rid of this code");
-	    idp.get_keys(uname, password, function(keys) {
-		if (!keys) {
-		    throw new Error("idp error, cannot login this user");
-		}
- 		Principal.set_current_user_keys(keys);
-		Accounts.callLoginMethod({
-		    methodArguments: [{srp: response}],
-		    validateResult: function (result) {
-			if (!srp.verifyConfirmation({HAMK: result.HAMK}))
-			    throw new Error("Server is cheating!");
-		    },
-		    userCallback: callback});
-	    });
-	} else {
-	    console.log("not use enc");
-	    Accounts.callLoginMethod({
-		methodArguments: [{srp: response}],
-		validateResult: function (result) {
-		    if (!srp.verifyConfirmation({HAMK: result.HAMK}))
-			throw new Error("Server is cheating!");
-		},
-		userCallback: callback});
-	}
+
+	Accounts.callLoginMethod({
+	    methodArguments: [{srp: response}],
+	    validateResult: function (result) {
+		if (!srp.verifyConfirmation({HAMK: result.HAMK}))
+		    throw new Error("Server is cheating!");
+	    },
+	    userCallback: callback});
+	
     });
     
 };
@@ -95,31 +79,12 @@ Accounts.createUser = function (options, callback) {
     delete options.password;
     options.srp = verifier;
 
-    if (useEnc()) { 
-	Principal.create("user", uname, null, function(uprinc){
-	    var ser_keys = serialize_keys(uprinc.keys);
-	    
-	    // store user keys in local storage
-	    // localStorage can only deal with serialized strings
-	    Principal.set_current_user_keys(serialize_keys(uprinc.keys));
-	    
-	    idp.set_keys(uname, pwd, ser_keys, function(){
-		Accounts.callLoginMethod({
-		    methodName: 'createUser',
-		    methodArguments: [options],
-		    userCallback: callback
-		});    
-	    });
-	    
-	});
-    } else { 
-	Accounts.callLoginMethod({
-	    methodName: 'createUser',
-	    methodArguments: [options],
-	    suppressLogin: options.suppressLogin,
-	    userCallback: callback
-	}); 
-    }
+    Accounts.callLoginMethod({
+	methodName: 'createUser',
+	methodArguments: [options],
+	suppressLogin: options.suppressLogin,
+	userCallback: callback
+    }); 
 };
 
 

@@ -26,7 +26,7 @@
      token: the actual cryptographic token
 */
 
-var debug = false;
+var debug = true;
 var crypto = base_crypto;
 
 
@@ -379,7 +379,8 @@ if (Meteor.isClient) {
 	    Principal._store(p, null, true);
 	}
 
-	Principal.add_access(creator, p, function(){cb && cb(p);});
+	Principal.add_access(creator, p,
+			     function(){cb && cb(p);});
     }
     
     /*

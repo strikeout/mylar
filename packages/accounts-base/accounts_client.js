@@ -7,12 +7,6 @@ Meteor.userId = function () {
   return Meteor.default_connection.userId();
 };
 
-useEnc = function() {
-    return false; /*TODOs
-    return (typeof IS_IDP == "undefined" || !IS_IDP) &&
-	(typeof Principal !=  "undefined");*/
-}
-
 var loggingIn = false;
 var loggingInDeps = new Deps.Dependency;
 // This is mostly just called within this file, but Meteor.loginWithPassword
@@ -179,9 +173,6 @@ Meteor.logout = function (callback) {
 	} else {
 	    Accounts._makeClientLoggedOut();
 	    callback && callback();
-	}
-	if (useEnc()) {
-	    Principal.set_current_user_keys(undefined, undefined);
 	}
     });
 };

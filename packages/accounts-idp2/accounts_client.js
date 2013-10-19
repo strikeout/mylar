@@ -23,24 +23,24 @@ Accounts.createUser = function (options, callback) {
     if (!options.email) {
 	throw new Error("need to specify user email for accounts-idp2");
     }
-  var uname = options.email || options.username;
-  var password = options.password;
-  current_pw = password;
-
+    var uname = options.email || options.username;
+    var password = options.password;
+    current_pw = password;
+    
     console.log("create user options" +JSON.stringify(options)); 
-  Principal.create('user', uname, null, function (uprinc) {
-      createPrincipalCB(uprinc, function () {
-      var ukeys = serialize_keys(uprinc.keys);
-      Principal.set_current_user_keys(ukeys, uname);
-
-      options = _.clone(options);
-	  options.wrap_privkeys = sjcl.encrypt(password, ukeys);
-	  options.public_keys = serialize_public(uprinc.keys);
-
-	  createUserOrig(options, callback);
-
+    Principal.create('user', uname, null, function (uprinc) {
+	createPrincipalCB(uprinc, function () {
+	    var ukeys = serialize_keys(uprinc.keys);
+	    Principal.set_current_user_keys(ukeys, uname);
+	    
+	    options = _.clone(options);
+	    options.wrap_privkeys = sjcl.encrypt(password, ukeys);
+	    options.public_keys = serialize_public(uprinc.keys);
+	    
+	    createUserOrig(options, callback);
+	    
+	});
     });
-  });
 };
 
 var loginWithPasswordOrig = Meteor.loginWithPassword;
