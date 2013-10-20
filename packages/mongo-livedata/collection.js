@@ -219,9 +219,7 @@ Meteor.Collection.prototype._encrypted_fields = function(lst) {
 }
 
 Meteor.Collection.prototype._immutable = function(annot) {
-    if (!this._enc_fields)
-	throw new Error("must declare enc_fields before immutable annotation");
-
+  
     this._immutable = annot;
 }
 
@@ -234,7 +232,8 @@ Meteor.Collection.prototype.enc_row = function(container, callback) {
 	callback();
 	return;
     }
-    
+
+    _add_macs(self._immutable, container);
     _enc_row_helper(self._enc_fields, self._signed_fields, container, callback);
 }
 

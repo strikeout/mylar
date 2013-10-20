@@ -197,6 +197,137 @@ function get_adata(_enc_fields, f, container) {
     return JSON.stringify(adata);
 }
 
+
+_check_immutable = function(_enc_fields, annot) {
+    if (!_enc_fields)
+	throw new Error("must declare enc_fields before immutable annotation");
+
+    _.each(annot, function(lst, princ){
+	_.each(lst, function(f){
+	    if (_enc_fields[f])
+		throw new Error("use auth annotation for encrypted fields " +
+				"instead of immutable annotation");
+	})
+    });
+}
+
+_add_macs = function(immutable, container, cb) {
+
+    if (!immutable || immutable == {}) {
+	cb && cb();
+	return;
+    }
+    
+    if (container['_macs']) {
+	cb && cb();
+	return; // already added macs
+    }
+    
+    var macs = {};
+
+    var when_done = function() {
+	container['_macs'] = macs;
+	cb && cb();
+    };
+
+    var each_cb = _.after(_.keys(immutable).length, when_done);
+    
+    // all fields in immutable must be in container
+    _.each(immutable, function(lst, princ) {
+	var princ_id = container[princ];
+	if (!princ_id)
+	    throw new Error("container does not container princ in immutable annotation");
+	var res = {princ: princ_id};
+	
+	_.each(lst, function(el){
+	    var val = container[el];
+	    if (!val)
+		throw new Error('container does not contain field in immutable ' + el);
+	    res[el] = val;
+	});
+
+	Principal._lookupByID(princ_id, function(p) {
+	    macs[princ] = p.sym_encrypt(" ", JSON.stringify(res));
+	    each_cb();
+	});
+    })
+}
+
+function encrypt_row(_enc_fields, _signed_fields, container, callback) {
+
+    var cb = _.after(r.length, function() {
+	callback();
+    });
+
+    _.each(r, function(f) {
+	
+	async.map([_enc_fields, _signed_fields], lookup_princ_func(f, container),
+		  function(err, results) {
+		      if (err) {
+			  throw new Error("could not find princs");
+		      }
+		      var enc_princ = results[0];
+		      var sign_princ = results[1];
+		      
+		      // encrypt value
+		      if (enc_princ) {
+			  
+			  // encrypt data
+			  container[enc_field_name(f)] = enc_princ.sym_encrypt(
+			      JSON.stringify(container[f]),
+			      get_adata(_enc_fields, f, container));
+			  
+			  
+			  if (sign_princ) {
+			      container[sig_field_name(f)] = sign_princ.sign(
+				  JSON.stringify(container[enc_field_name(f)]));
+			  }
+			  
+			  var done_encrypt = function() {
+			      if (!ENC_DEBUG) {
+				  delete container[f];
+			      }
+			      cb();
+			  }
+			  
+			  startTime("mk");
+			  if (is_searchable(_enc_fields, f)) {
+			      
+			      if (debug) console.log("is searchable");
+			      //var time1 = window.performance.now();
+			      MylarCrypto.text_encrypt(enc_princ.keys.mk_key,
+						       container[f],
+						       function(rand, ciph) {
+							   container[search_field_name(f)] = ciph;
+							   container[rand_field_name(f)] = rand;
+							   //var time1a = window.performance.now();
+							   if (is_indexable(_enc_fields, f)) {
+							       if (debug) console.log("inserting in index");
+							       insert_in_enc_index(ciph);
+							   }
+							   //var time1b = window.performance.now();
+							   //var time2 = window.performance.now();
+							   //console.log("all search takes " + (time2-time1));
+							   //console.log("indexing search " + (time1b-time1a));
+							   endTime("mk");
+							   done_encrypt();
+						       });
+			  } else {
+			      done_encrypt();
+			  }
+			  return;
+		      }
+		      
+		      // do not encrypt value
+		      if (sign_princ) {
+			  container[sig_field_name(f)] = sign_princ.sign(JSON.stringify(container[f]));
+		      }
+		      cb();
+		  });	
+   });
+    
+}
+
 // encrypts & signs a document
 // container is a map of key to values
 //_enc_fields is set
@@ -209,80 +340,13 @@ _enc_row_helper = function(_enc_fields, _signed_fields, container, callback) {
         callback();
         return;
     }
-
-    // we start timing here because we want time of encryption
-    // so we want to average over docs with enc fields
-    startTime("ENC");
-    var cb = _.after(r.length, function() {
-	endTime("ENC");
-	callback();
-    });
-
-   _.each(r, function(f) {
-
-       async.map([_enc_fields, _signed_fields], lookup_princ_func(f, container),
-		 function(err, results) {
-		     if (err) {
-			 throw new Error("could not find princs");
-		     }
-		     var enc_princ = results[0];
-		     var sign_princ = results[1];
-
-		     // encrypt value
-		     if (enc_princ) {
-
-			 container[enc_field_name(f)] = enc_princ.sym_encrypt(
-			     JSON.stringify(container[f]),
-			     get_adata(_enc_fields, f, container));
-
-			 if (sign_princ) {
-			     container[sig_field_name(f)] = sign_princ.sign(
-				 JSON.stringify(container[enc_field_name(f)]));
-			 }
-
-			 var done_encrypt = function() {
-			     if (!ENC_DEBUG) {
-				 delete container[f];
-			     }
-			     cb();
-			 }
-
-			 startTime("mk");
-			 if (is_searchable(_enc_fields, f)) {
-
-			     if (debug) console.log("is searchable");
-			     //var time1 = window.performance.now();
-			     MylarCrypto.text_encrypt(enc_princ.keys.mk_key,
-						      container[f],
-						      function(rand, ciph) {
-							  container[search_field_name(f)] = ciph;
-							  container[rand_field_name(f)] = rand;
-							  //var time1a = window.performance.now();
-							  if (is_indexable(_enc_fields, f)) {
-							      if (debug) console.log("inserting in index");
-							      insert_in_enc_index(ciph);
-							  }
-							  //var time1b = window.performance.now();
-							  //var time2 = window.performance.now();
-							  //console.log("all search takes " + (time2-time1));
-							  //console.log("indexing search " + (time1b-time1a));
-							  endTime("mk");
-							  done_encrypt();
-						      });
-			 } else {
-			     done_encrypt();
-			 }
-			 return;
-		     }
-
-		     // do not encrypt value
-		     if (sign_princ) {
-			 container[sig_field_name(f)] = sign_princ.sign(JSON.stringify(container[f]));
-		     }
-		     cb();
-	      });	
-   });
- 
+    
+    // certify immutable sets
+    _add_macs(self._immutable, container,
+	     function(){
+		 encrypt_row(_enc_fields, _signed_fields, container, callback);
+	     });
+     
 }
 
 
