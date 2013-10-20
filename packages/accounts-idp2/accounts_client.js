@@ -4,7 +4,6 @@ Meteor.autorun(function () {
   var u = Meteor.user();
   if (u && u._wrap_privkey && current_pw) {
       var keys = sjcl.decrypt(current_pw, u._wrap_privkey);
-    console.log('Setting user keys:', keys);
     // XXX is it a problem to use the username from Meteor.user()?
     Principal.set_current_user_keys(keys, u.username);
   }

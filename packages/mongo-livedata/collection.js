@@ -102,16 +102,15 @@ Meteor.Collection = function (name, options) {
         var mongoId = Meteor.idParse(msg.id);
         var doc = self._collection.findOne(mongoId);
 
-        //  console.log("msg: " + JSON.stringify(msg) );
-	//  console.log("doc: " + JSON.stringify(doc));
+	//console.log("id " + mongoId);
+        //console.log("msg: " + JSON.stringify(msg) );
+	//console.log("doc: " + JSON.stringify(doc));
         // Is this a "replace the whole doc" message coming from the quiescence
         // of method writes to an object? (Note that 'undefined' is a valid
         // value meaning "remove it".)
           if (msg.msg === 'replace') {
               var replace = msg.replace;
-	      	      console.log("replaced " + JSON.stringify(msg.fields));
-	      console.log("MSG ID " + msg.id);
-	      self.dec_msg(msg.id, replace, function() {
+	      self.dec_msg(mongoId, replace, function() {
                   if (!replace) {
                       if (doc)
                           self._collection.remove(mongoId);
@@ -124,8 +123,7 @@ Meteor.Collection = function (name, options) {
               });
               return;
           } else if (msg.msg === 'added') {
-	      console.log("MSG ID " + msg.id);
-              self.dec_msg(msg.id, msg.fields, function() {
+              self.dec_msg(mongoId, msg.fields, function() {
                   var doc = self._collection.findOne({_id: mongoId});
                   if (doc) {
                       throw new Error("Expected not to find a document already present for an add");
@@ -138,7 +136,6 @@ Meteor.Collection = function (name, options) {
 	      }
           self._collection.remove(mongoId);
         } else if (msg.msg === 'changed') {
-	    	      console.log("changed " + JSON.stringify(msg.fields));
           if (!doc)
             throw new Error("Expected to find a document to change");
           if (!_.isEmpty(msg.fields)) {
@@ -156,8 +153,7 @@ Meteor.Collection = function (name, options) {
             });
 	      //modifier.$set maps keys to values for fields that are newly added to doc in "changed" 
 	      // meteor-enc:
-	      console.log("MSG ID " + msg.id);
-              self.dec_msg(msg.id, modifier.$set, function() {
+              self.dec_msg(mongoId, modifier.$set, function() {
                   self._collection.update(mongoId, modifier);
               });
           }
@@ -268,33 +264,28 @@ Meteor.Collection.prototype.dec_msg = function(id, container, callback) {
 	return;
     }
 
+    var callback_q = [];
+    self._decrypt_cb.push(callback_q);
+    callback2 = function () {
+	if (callback) {
+	    callback();
+	}
+	self._decrypt_cb = _.without(self._decrypt_cb, callback_q);
+	_.each(callback_q, function (f) {
+	    f();
+	});
+    };
+
     // check macs
     _check_macs(self._im_rings,  id, container, function(){
 	var r = fields_for_dec(self._enc_fields, self._signed_fields, container);
-	if (debug) console.log("dec: r is " + JSON.stringify(r));
 	
 	if (r.length > 0) {
-	    startTime("DECMSG");
-	    var callback_q = [];
-	    self._decrypt_cb.push(callback_q);
-	    callback2 = function () {
-		endTime("DECMSG");
-		if (callback) {
-		    callback();
-		}
-		self._decrypt_cb = _.without(self._decrypt_cb, callback_q);
-		_.each(callback_q, function (f) {
-		    f();
-		});
-	    };
-	    
             _dec_fields(self._enc_fields, self._signed_fields, id, container, r, callback2);
 	} else {
-            callback && callback();
+            callback2();
 	}
-
     });
-
   
 }
 

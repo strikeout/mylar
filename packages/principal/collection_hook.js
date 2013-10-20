@@ -98,12 +98,13 @@ _dec_fields = function(_enc_fields, _signed_fields, id, container, fields, callb
     _.each(fields, function(f) {
 	async.map([_enc_fields, _signed_fields], lookup_princ_func(f, container),
 		  function(err, results) {
+		      console.log("calling for field " + f);
+		      
 		      if (err) {
 			  throw new Error("could not find princs");
 		      }
 		      var dec_princ = results[0];
 		      var verif_princ = results[1];
-
 
 		      if (verif_princ) {
 			  if (!verif_princ.verify(JSON.stringify(container[enc_field_name(f)]), container[sig_field_name(f)])) {
@@ -112,7 +113,6 @@ _dec_fields = function(_enc_fields, _signed_fields, id, container, fields, callb
 		      }
 		      if (debug) console.log("dec f; f is " + f);
 
-		      console.log("dec princ is " + dec_princ.id);
 		      if (dec_princ) {
 			  var auth_data = get_adata(_enc_fields, f, _.extend(container, {_id: id}));
 			  var res  = JSON.parse(dec_princ.sym_decrypt(
@@ -125,17 +125,7 @@ _dec_fields = function(_enc_fields, _signed_fields, id, container, fields, callb
 			      console.log("f is " + f);
 			      container[f] = res;
 			  }
-			  if (is_searchable(_enc_fields, f)) {
-			      MylarCrypto.is_consistent(dec_princ.keys.mk_key, container[f], container[search_field_name(f)],
-					function(res) {
-					    // TODO: if (!res)
-						//throw new Error(
-						//    "search encryption not consistent for "
-						//	+ f + " content " + container[f]);
-					    cb();
-					});
-			      return;
-			  } 
+			  //todo: searchable consistency check
 		      } else {
 			   console.log("no dec princ");
 		      }
@@ -260,12 +250,16 @@ _check_macs = function(immutable, id, container, cb) {
 	}
     });
 
+    if (!to_check.length) {
+	cb && cb();
+	return;
+    }
+    
     // check macs
     var each_cb = _.after(to_check.length, cb);
 
     _.each(to_check, function(el){
 	Principal._lookupByID(container[el.princ], function(princ){
-	    console.log("checking against tag " + el.ring);
 	    var dec = princ.sym_decrypt(el.mac, el.ring);
 	    if (dec != " ") {
 		throw new Error("invalid mac");
