@@ -211,7 +211,7 @@ _check_immutable = function(_enc_fields, annot) {
     });
 }
 
-_add_macs = function(immutable, container, cb) {
+function add_macs(immutable, container, cb) {
 
     if (!immutable || immutable == {}) {
 	cb && cb();
@@ -254,6 +254,14 @@ _add_macs = function(immutable, container, cb) {
 }
 
 function encrypt_row(_enc_fields, _signed_fields, container, callback) {
+
+    /* r is the set of fields in this row that we need to encrypt or sign */
+    var r = enc_fields(_enc_fields, _signed_fields, container);
+    
+    if (r.length == 0) {
+        callback();
+        return;
+    }
 
     var cb = _.after(r.length, function() {
 	callback();
@@ -331,21 +339,21 @@ function encrypt_row(_enc_fields, _signed_fields, container, callback) {
 // encrypts & signs a document
 // container is a map of key to values
 //_enc_fields is set
-_enc_row_helper = function(_enc_fields, _signed_fields, container, callback) {
+_enc_row_helper = function(_enc_fields, _immutable,  _signed_fields, container, callback) {
 
-    /* r is the set of fields in this row that we need to encrypt or sign */
-    var r = enc_fields(_enc_fields, _signed_fields, container);
-
-    if (r.length == 0) {
-        callback();
-        return;
+    if (!Meteor.isClient || !container) {
+	callback && callback();
+	return;
     }
     
-    // certify immutable sets
-    _add_macs(self._immutable, container,
-	     function(){
-		 encrypt_row(_enc_fields, _signed_fields, container, callback);
-	     });
+    if (!_immutable && (!_enc_fields || !_.keys(_enc_fields).length)) {
+	callback && callback();
+	return;
+    }
+
+    add_macs(_immutable, container, function() {
+	encrypt_row(_enc_fields, _signed_fields, container, callback);
+    });
      
 }
 

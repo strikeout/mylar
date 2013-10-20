@@ -233,8 +233,7 @@ Meteor.Collection.prototype.enc_row = function(container, callback) {
 	return;
     }
 
-    _add_macs(self._immutable, container);
-    _enc_row_helper(self._enc_fields, self._signed_fields, container, callback);
+    _enc_row_helper(self._enc_fields, self._immutable, self._signed_fields, container, callback);
 }
 
 
