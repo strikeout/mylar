@@ -109,7 +109,9 @@ Meteor.Collection = function (name, options) {
         // value meaning "remove it".)
           if (msg.msg === 'replace') {
               var replace = msg.replace;
-              self.dec_msg(replace, function() {
+	      	      console.log("replaced " + JSON.stringify(msg.fields));
+	      console.log("MSG ID " + msg.id);
+	      self.dec_msg(msg.id, replace, function() {
                   if (!replace) {
                       if (doc)
                           self._collection.remove(mongoId);
@@ -122,7 +124,8 @@ Meteor.Collection = function (name, options) {
               });
               return;
           } else if (msg.msg === 'added') {
-              self.dec_msg(msg.fields, function() {
+	      console.log("MSG ID " + msg.id);
+              self.dec_msg(msg.id, msg.fields, function() {
                   var doc = self._collection.findOne({_id: mongoId});
                   if (doc) {
                       throw new Error("Expected not to find a document already present for an add");
@@ -135,6 +138,7 @@ Meteor.Collection = function (name, options) {
 	      }
           self._collection.remove(mongoId);
         } else if (msg.msg === 'changed') {
+	    	      console.log("changed " + JSON.stringify(msg.fields));
           if (!doc)
             throw new Error("Expected to find a document to change");
           if (!_.isEmpty(msg.fields)) {
@@ -152,7 +156,8 @@ Meteor.Collection = function (name, options) {
             });
 	      //modifier.$set maps keys to values for fields that are newly added to doc in "changed" 
 	      // meteor-enc:
-              self.dec_msg(modifier.$set, function() {
+	      console.log("MSG ID " + msg.id);
+              self.dec_msg(msg.id, modifier.$set, function() {
                   self._collection.update(mongoId, modifier);
               });
           }
@@ -240,7 +245,7 @@ function fields_for_dec(enc_fields, signed_fields, container) {
 }
 
 // container is an object with key (field name), value (enc field value)
-Meteor.Collection.prototype.dec_msg = function(container, callback) {
+Meteor.Collection.prototype.dec_msg = function(id, container, callback) {
     var debug = false;
     var self = this;
 
@@ -267,7 +272,7 @@ Meteor.Collection.prototype.dec_msg = function(container, callback) {
 	    });
 	};
 
-        _dec_fields(self._enc_fields, self._signed_fields, container, r, callback2);
+        _dec_fields(self._enc_fields, self._signed_fields, id, container, r, callback2);
     } else {
         callback && callback();
     }

@@ -816,10 +816,10 @@ if (Meteor.isClient) {
     };
 
     // requires keys.decrypt to be set
-    Principal.prototype.sym_decrypt = function (ct) {
+    Principal.prototype.sym_decrypt = function (ct, adata) {
 	var self = this;
 	if (self.keys.sym_key) {
-	    return crypto.sym_decrypt(self.keys.sym_key, ct);
+	    return crypto.sym_decrypt(self.keys.sym_key, ct, adata);
 	}
 	throw new Error("sym_key must be set for sym_decrypt");
     };

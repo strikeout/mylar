@@ -88,7 +88,7 @@ lookup_princ_func = function(f, container) {
   fields -- set of field names that are encrypted or signed,
   decrypt their values in container
 */
-_dec_fields = function(_enc_fields, _signed_fields, container, fields, callback) {
+_dec_fields = function(_enc_fields, _signed_fields, id, container, fields, callback) {
     
     var cb = _.after(fields.length, function() {
         callback();
@@ -113,7 +113,9 @@ _dec_fields = function(_enc_fields, _signed_fields, container, fields, callback)
 
 		      console.log("dec princ is " + dec_princ.id);
 		      if (dec_princ) {
-			  var res  = JSON.parse(dec_princ.sym_decrypt(container[enc_field_name(f)]));
+			  var auth_data = get_adata(_enc_fields, f, _.extend(container, {_id: id}));
+			  var res  = JSON.parse(dec_princ.sym_decrypt(
+			      container[enc_field_name(f)], auth_data);
 			  if (ENC_DEBUG) {
 			      if (JSON.stringify(res) != JSON.stringify(container[f])) {
 				  throw new Error ("inconsistency in the value decrypted and plaintext");
@@ -171,8 +173,29 @@ function insert_in_enc_index(ciph){
     });
 }
 
+function has_auth(_enc_fields, f) {
+    return _enc_fields && _enc_fields[f]
+	&& _enc_fields[f].auth
+	&& _enc_fields[f].auth.length;
+}
 
+function get_adata(_enc_fields, f, container) {
+    var adata = {};
+    if (has_auth(_enc_fields, f)) {
+	lst = _enc_fields[f].auth;
+	adata = {};
+	_.each(lst, function(el){
+	    var val = container[el];
+	    if (!val) {
+		throw new Error("doc must contain fields in auth list of " + f +
+				" but it only contains " + JSON.stringify(container));
+	    }
+	    adata[el] = val;
+	});
+    }
 
+    return JSON.stringify(adata);
+}
 
 // encrypts & signs a document
 // container is a map of key to values
@@ -208,24 +231,13 @@ _enc_row_helper = function(_enc_fields, _signed_fields, container, callback) {
 		     // encrypt value
 		     if (enc_princ) {
 
-			 adata = {};
-			 if (has_auth(_enc_fields, f)) {
-			     lst = _enc_fields[f].auth;
-			     adata = {};
-			     _.each(lst, function(el){
-				 var val = container[el];
-				 if (!val) {
-				     throw new Error("doc must contain fields in auth list of " + f +
-						     " but it only contains " + JSON.stringify(container));
-				 }
-				 adata[el] = val;
-			     });
-			 }
+			 container[enc_field_name(f)] = enc_princ.sym_encrypt(
+			     JSON.stringify(container[f]),
+			     get_adata(_enc_fields, f, container));
 
-			 container[enc_field_name(f)] = enc_princ.sym_encrypt(JSON.stringify(container[f]),
-									      JSON.stringify(adata));
 			 if (sign_princ) {
-			     container[sig_field_name(f)] = sign_princ.sign(JSON.stringify(container[enc_field_name(f)]));
+			     container[sig_field_name(f)] = sign_princ.sign(
+				 JSON.stringify(container[enc_field_name(f)]));
 			 }
 
 			 var done_encrypt = function() {
