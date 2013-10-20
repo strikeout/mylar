@@ -216,7 +216,14 @@ Meteor.Collection = function (name, options) {
 
 Meteor.Collection.prototype._encrypted_fields = function(lst) {
     this._enc_fields = _process_enc_fields(this._enc_fields, lst);
-} 
+}
+
+Meteor.Collection.prototype._immutable = function(annot) {
+    if (!this._enc_fields)
+	throw new Error("must declare enc_fields before immutable annotation");
+
+    this._immutable = annot;
+}
 
 // encrypts & signs a document
 // container is a map of key to values 
