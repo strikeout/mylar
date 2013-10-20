@@ -1,5 +1,8 @@
 {
   "dependencies": {
+    "stream-buffers": {
+      "version": "0.2.3"
+    },
     "simplesmtp": {
       "version": "0.1.25",
       "dependencies": {
@@ -18,9 +21,6 @@
           "version": "0.1.9"
         }
       }
-    },
-    "stream-buffers": {
-      "version": "0.2.3"
     }
   }
 }

@@ -46,7 +46,7 @@ SCRIPT_DIR=$(pwd -P)
 #fi
 
 # removed crypto_ext temporarily
-for D in crypto_mk crypto_server; do
+for D in enc_modules/crypto_mk enc_modules/crypto_server; do
   echo "Building $D"
   ( cd $D && make )
 done

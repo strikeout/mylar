@@ -1,5 +1,8 @@
 {
   "dependencies": {
+    "websocket": {
+      "version": "1.0.7"
+    },
     "sockjs": {
       "version": "0.3.4",
       "dependencies": {
@@ -10,9 +13,6 @@
           "version": "0.4.0"
         }
       }
-    },
-    "websocket": {
-      "version": "1.0.7"
     }
   }
 }
