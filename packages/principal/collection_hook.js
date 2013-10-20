@@ -115,7 +115,7 @@ _dec_fields = function(_enc_fields, _signed_fields, id, container, fields, callb
 		      if (dec_princ) {
 			  var auth_data = get_adata(_enc_fields, f, _.extend(container, {_id: id}));
 			  var res  = JSON.parse(dec_princ.sym_decrypt(
-			      container[enc_field_name(f)], auth_data);
+			      container[enc_field_name(f)], auth_data));
 			  if (ENC_DEBUG) {
 			      if (JSON.stringify(res) != JSON.stringify(container[f])) {
 				  throw new Error ("inconsistency in the value decrypted and plaintext");
