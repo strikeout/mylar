@@ -67,7 +67,7 @@ Meteor.Collection = function (name, options) {
   self._decrypt_cb = [];   // callbacks for running decryptions
     self._enc_fields = {};
     self._signed_fields = {};
-    
+    self._im_rings = {};
   if (name && self._connection.registerStore) {
     // OK, we're going to be a slave, replicating some remote
     // database, except possibly with some temporary divergence while
@@ -220,7 +220,7 @@ Meteor.Collection.prototype._encrypted_fields = function(lst) {
 
 Meteor.Collection.prototype._immutable = function(annot) {
   
-    this._immutable = annot;
+    this._im_rings = annot;
 }
 
 // encrypts & signs a document
@@ -228,12 +228,17 @@ Meteor.Collection.prototype._immutable = function(annot) {
 Meteor.Collection.prototype.enc_row = function(container, callback) {
     var self = this;
 
-    if (!self._enc_fields || !_.keys(self._enc_fields).length || !Meteor.isClient || !container) {
-	callback();
+    if (!Meteor.isClient || !container) {
+	callback && callback();
 	return;
     }
 
-    _enc_row_helper(self._enc_fields, self._immutable, self._signed_fields, container, callback);
+    if (_.isEmpty(self._im_rings) && _.isEmpty(self._enc_fields)) {
+	callback && callback();
+	return;
+    }
+
+    _enc_row_helper(self._enc_fields, self._im_rings, self._signed_fields, container, callback);
 }
 
 
@@ -254,34 +259,43 @@ Meteor.Collection.prototype.dec_msg = function(id, container, callback) {
     var debug = false;
     var self = this;
 
-    if (!self._enc_fields || !_.keys(self._enc_fields).length || !Meteor.isClient || !container) {
+    if (!Meteor.isClient || !container) {
+	callback && callback();
+	return;
+    }
+    if (_.isEmpty(self._im_rings) && _.isEmpty(self._enc_fields)) {
 	callback();
 	return;
     }
 
-    var r = fields_for_dec(self._enc_fields, self._signed_fields, container);
-    if (debug) console.log("dec: r is " + JSON.stringify(r));
-    
-    if (r.length > 0) {
-	startTime("DECMSG");
-	var callback_q = [];
-	self._decrypt_cb.push(callback_q);
-	callback2 = function () {
-	    endTime("DECMSG");
-	    if (callback) {
-		callback();
-	    }
-	    self._decrypt_cb = _.without(self._decrypt_cb, callback_q);
-	    _.each(callback_q, function (f) {
-		f();
-	    });
-	};
+    // check macs
+    _check_macs(self._im_rings,  id, container, function(){
+	var r = fields_for_dec(self._enc_fields, self._signed_fields, container);
+	if (debug) console.log("dec: r is " + JSON.stringify(r));
+	
+	if (r.length > 0) {
+	    startTime("DECMSG");
+	    var callback_q = [];
+	    self._decrypt_cb.push(callback_q);
+	    callback2 = function () {
+		endTime("DECMSG");
+		if (callback) {
+		    callback();
+		}
+		self._decrypt_cb = _.without(self._decrypt_cb, callback_q);
+		_.each(callback_q, function (f) {
+		    f();
+		});
+	    };
+	    
+            _dec_fields(self._enc_fields, self._signed_fields, id, container, r, callback2);
+	} else {
+            callback && callback();
+	}
 
-        _dec_fields(self._enc_fields, self._signed_fields, id, container, r, callback2);
-    } else {
-        callback && callback();
-    }
+    });
 
+  
 }
 
 _.extend(Meteor.Collection.prototype, {
@@ -341,7 +355,7 @@ Meteor.Collection._rewriteSelector = function (selector) {
   _.each(selector, function (value, key) {
     if (value instanceof RegExp) {
       // XXX should also do this translation at lower levels (eg if the outer
-      // level is $and/$or/$nor, or if there's an $elemMatch)
+      // level is $and/$or/$nor, or if there's an $elematch)
       ret[key] = {$regex: value.source};
       var regexOptions = '';
       // JS RegExp objects support 'i', 'm', and 'g'. Mongo regex $options

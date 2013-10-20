@@ -26,7 +26,7 @@
      token: the actual cryptographic token
 */
 
-var debug = true;
+var debug = false;
 var crypto = base_crypto;
 
 
@@ -624,6 +624,7 @@ if (Meteor.isClient) {
 	    if (err) {
 		throw new Error("could not find princ with id " + id);
 	    }
+	    console.log("looking for id " + id);
 	    var p = new Principal(princ_info["type"], princ_info["name"], _get_keys(id));
 	    
 	    p._load_secret_keys(function(p){

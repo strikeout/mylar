@@ -32,6 +32,7 @@ rand_field_name = function(f) {
 
 
 // returns a list of keys that show up in both a and b
+// b must be map
 var intersect = function(a, b) {
     r = [];
 
@@ -211,6 +212,92 @@ _check_immutable = function(_enc_fields, annot) {
     });
 }
 
+//returns JSON-ed data from container for lst
+// either all of lst is in container or none
+function get_ring(princ, lst, container) {
+    lst.splice(0, 0, princ);
+    var inters = intersect(lst, container);
+
+    if (inters.length > 0 && inters.length != lst.length) {
+	throw new Error("received doc only contains subset of fields in immutable ring");
+    }
+
+    if (inters.length == 0) {
+	return null;
+    }
+
+    lst.splice(0,1); // remove princ
+    return compute_ring(princ, lst, container);
+}
+
+_check_macs = function(immutable, id, container, cb) {
+
+    if (_.isEmpty(immutable)) {
+	cb && cb();
+	return;
+    }
+
+    if (!container["_id"]) {
+	container = _.extend(container, {_id: id});
+    }
+
+    var macs = container['_macs'];
+    if (!macs) {
+	console.log("container: " + JSON.stringify(container));
+	console.log("immutable: " + JSON.stringify(immutable));
+	throw new Error("collection has immutable, but macs are not in received doc");
+    }
+
+    // determine which macs to check
+    
+    var to_check = [];
+    
+    _.each(immutable, function(lst, princ) {
+	
+	var ring = get_ring(princ, lst, container);
+	if (ring) {
+	    to_check.push({princ: princ, mac: macs[princ], ring: ring});
+	}
+    });
+
+    // check macs
+    var each_cb = _.after(to_check.length, cb);
+
+    _.each(to_check, function(el){
+	Principal._lookupByID(container[el.princ], function(princ){
+	    console.log("checking against tag " + el.ring);
+	    var dec = princ.sym_decrypt(el.mac, el.ring);
+	    if (dec != " ") {
+		throw new Error("invalid mac");
+	    }
+	    each_cb(); 
+	});
+    });
+}
+
+
+/* checks that there are values for
+   princ and all elems in lst in container,
+   and concatenates this data unambiguously */
+function compute_ring(princ, lst, container) {
+    var princ_id = container[princ];
+    if (!princ_id) {
+	console.log(JSON.stringify(container));
+	throw new Error("container does not contain princ " + princ + "in immutable annotation");
+    }
+
+    var res = [princ_id]; //should be a list so that the order of keys is deterministic
+    
+    _.each(lst, function(el){
+	var val = container[el];
+	if (!val)
+	    throw new Error('container does not contain field in immutable ' + el);
+	res.push(val);
+    });
+
+    return JSON.stringify(res);
+}
+
 function add_macs(immutable, container, cb) {
 
     if (!immutable || immutable == {}) {
@@ -234,20 +321,13 @@ function add_macs(immutable, container, cb) {
     
     // all fields in immutable must be in container
     _.each(immutable, function(lst, princ) {
-	var princ_id = container[princ];
-	if (!princ_id)
-	    throw new Error("container does not container princ in immutable annotation");
-	var res = {princ: princ_id};
-	
-	_.each(lst, function(el){
-	    var val = container[el];
-	    if (!val)
-		throw new Error('container does not contain field in immutable ' + el);
-	    res[el] = val;
-	});
 
-	Principal._lookupByID(princ_id, function(p) {
-	    macs[princ] = p.sym_encrypt(" ", JSON.stringify(res));
+	var ring = compute_ring(princ, lst, container);
+
+	Principal._lookupByID(container[princ], function(p) {
+	    //TODO: a shorter mac by hashing?
+	    console.log("enc tag is " + ring);
+	    macs[princ] = p.sym_encrypt(" ", ring);
 	    each_cb();
 	});
     })
@@ -339,19 +419,9 @@ function encrypt_row(_enc_fields, _signed_fields, container, callback) {
 // encrypts & signs a document
 // container is a map of key to values
 //_enc_fields is set
-_enc_row_helper = function(_enc_fields, _immutable,  _signed_fields, container, callback) {
-
-    if (!Meteor.isClient || !container) {
-	callback && callback();
-	return;
-    }
-    
-    if (!_immutable && (!_enc_fields || !_.keys(_enc_fields).length)) {
-	callback && callback();
-	return;
-    }
-
-    add_macs(_immutable, container, function() {
+_enc_row_helper = function(_enc_fields, _im_rings,  _signed_fields, container, callback) {
+  
+    add_macs(_im_rings, container, function() {
 	encrypt_row(_enc_fields, _signed_fields, container, callback);
     });
      
