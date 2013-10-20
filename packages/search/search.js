@@ -120,9 +120,12 @@ function getProj(doc, proj, token) {
 
     var res = {};
     res["_tag"] = token;
+    res["_macs"] = doc['_macs'];
 
     _.each(proj, function(val, field){
-	res[field] = val;
+	if (val == 1) {
+	    res[field] = doc[field];
+	}
     });
 
     return res;

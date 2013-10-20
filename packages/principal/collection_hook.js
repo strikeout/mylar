@@ -207,16 +207,26 @@ _check_immutable = function(_enc_fields, annot) {
 function get_ring(princ, lst, container) {
     lst.splice(0, 0, princ);
     var inters = intersect(lst, container);
+    
+    if (inters.length == 0) {
+	return null;
+    }
+    // degenerate case: docs might be changed at the server
+    // due to benign behavior and subscriptions only send delta
+    // if these deltas only contain the id and none of the fields
+    // that are supposed to not change it is ok
+    if (inters.length == 1 && inters[0] == "_id") {
+	return null;
+    }
 
+    // only partial changes, not allowed
+    // xx: there are cases when this could be ok if sent with a new mac
     if (inters.length > 0 && inters.length != lst.length) {
 	throw new Error("received doc only contains subset of fields in immutable ring");
     }
 
-    if (inters.length == 0) {
-	return null;
-    }
-
     lst.splice(0,1); // remove princ
+    
     return compute_ring(princ, lst, container);
 }
 
@@ -231,13 +241,7 @@ _check_macs = function(immutable, id, container, cb) {
 	container = _.extend(container, {_id: id});
     }
 
-    var macs = container['_macs'];
-    if (!macs) {
-	console.log("container: " + JSON.stringify(container));
-	console.log("immutable: " + JSON.stringify(immutable));
-	throw new Error("collection has immutable, but macs are not in received doc");
-    }
-
+   
     // determine which macs to check
     
     var to_check = [];
@@ -246,7 +250,7 @@ _check_macs = function(immutable, id, container, cb) {
 	
 	var ring = get_ring(princ, lst, container);
 	if (ring) {
-	    to_check.push({princ: princ, mac: macs[princ], ring: ring});
+	    to_check.push({princ: princ, ring: ring});
 	}
     });
 
@@ -254,14 +258,27 @@ _check_macs = function(immutable, id, container, cb) {
 	cb && cb();
 	return;
     }
+     
+    //check macs
     
-    // check macs
+    var macs = container['_macs'];
+    if (!macs) {
+	console.log("container: " + JSON.stringify(container));
+	console.log("immutable: " + JSON.stringify(immutable));
+	throw new Error("collection has immutable, but macs are not in received doc");
+    }
+
     var each_cb = _.after(to_check.length, cb);
 
     _.each(to_check, function(el){
 	Principal._lookupByID(container[el.princ], function(princ){
-	    var dec = princ.sym_decrypt(el.mac, el.ring);
+	    var mac = macs[el.princ];
+	    if (!mac) {
+		throw new Error("mac for princ " + princ + " is missing");
+	    }
+	    var dec = princ.sym_decrypt(mac, el.ring);
 	    if (dec != " ") {
+		console.log("dec is <" + dec + ">");
 		throw new Error("invalid mac");
 	    }
 	    each_cb(); 
