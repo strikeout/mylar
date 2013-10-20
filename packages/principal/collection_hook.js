@@ -207,7 +207,23 @@ _enc_row_helper = function(_enc_fields, _signed_fields, container, callback) {
 
 		     // encrypt value
 		     if (enc_princ) {
-			 container[enc_field_name(f)] = enc_princ.sym_encrypt(JSON.stringify(container[f]));
+
+			 adata = {};
+			 if (has_auth(_enc_fields, f)) {
+			     lst = _enc_fields[f].auth;
+			     adata = {};
+			     _.each(lst, function(el){
+				 var val = container[el];
+				 if (!val) {
+				     throw new Error("doc must contain fields in auth list of " + f +
+						     " but it only contains " + JSON.stringify(container));
+				 }
+				 adata[el] = val;
+			     });
+			 }
+
+			 container[enc_field_name(f)] = enc_princ.sym_encrypt(JSON.stringify(container[f]),
+									      JSON.stringify(adata));
 			 if (sign_princ) {
 			     container[sig_field_name(f)] = sign_princ.sign(JSON.stringify(container[enc_field_name(f)]));
 			 }
@@ -219,7 +235,7 @@ _enc_row_helper = function(_enc_fields, _signed_fields, container, callback) {
 			     cb();
 			 }
 
-			     startTime("mk");
+			 startTime("mk");
 			 if (is_searchable(_enc_fields, f)) {
 
 			     if (debug) console.log("is searchable");

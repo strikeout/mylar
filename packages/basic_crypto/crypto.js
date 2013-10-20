@@ -64,7 +64,7 @@ base_crypto = (function () {
 	},
 
 	// authenticated encryption
-	sym_encrypt: function(sk, data) {
+	sym_encrypt: function(sk, data, adata) {
 	    if (data === undefined) {
 		console.log('sym_encrypt: undefined', data);
                 return;
@@ -73,13 +73,13 @@ base_crypto = (function () {
             var prp = new sjcl.cipher['aes'](sk);
             var iv = sjcl.random.randomWords(4, 0);
             var pt = sjcl.codec.utf8String.toBits(data);
-            var ct = sjcl.mode['ccm'].encrypt(prp, pt, iv);
+            var ct = sjcl.mode['ccm'].encrypt(prp, pt, iv, adata);
             // Undefined adata/tag; might be useful later?
 
 	    return sjcl.codec.base64.fromBits(iv.concat(ct), 1);
 	},
 
-	sym_decrypt: function(sk, data) {
+	sym_decrypt: function(sk, data, adata) {
 	    if (data === undefined) {
 		console.log('sym_decrypt: undefined', data);
                 return;
@@ -89,7 +89,7 @@ base_crypto = (function () {
             var bits = sjcl.codec.base64.toBits(data);
             var iv = bits.slice(0, 4);
             var ct = bits.slice(4);
-            var pt = sjcl.mode['ccm'].decrypt(prp, ct, iv);
+            var pt = sjcl.mode['ccm'].decrypt(prp, ct, iv, adata);
             return sjcl.codec.utf8String.fromBits(pt);
 	},
 
