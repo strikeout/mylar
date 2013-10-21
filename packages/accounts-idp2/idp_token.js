@@ -1,10 +1,20 @@
 var verify_idp_token;
+var create_account_token;
 var match = window.location.hash.match(/^\#\/verify-idp-token\/(.*)$/);
+
+var match_token = window.location.hash.match(/^\#\/login-with-token\/(.*)$/);
+
 
 if (match) {
   window.location.hash = '';
   Accounts._preventAutoLogin = true;
   verify_idp_token = match[1];
+}
+
+// TODO: can use perhaps same token
+if (match_token){
+    window.location.hash = '';
+    Session.set("account_token", match_token[1]);
 }
 
 Meteor.startup(function () {
@@ -36,4 +46,5 @@ Meteor.startup(function () {
       });
     });
   }
+    
 });

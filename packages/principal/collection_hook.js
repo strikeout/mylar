@@ -4,7 +4,7 @@
    The field f contains plaintext and is not sent to the server
    unless ENC_DEBUG is true */
 
-var debug = true;
+var debug = false;
 
 // if true, an unencrypted copy of the fields
 // will be kept for debugging mode
@@ -98,7 +98,6 @@ _dec_fields = function(_enc_fields, _signed_fields, id, container, fields, callb
     _.each(fields, function(f) {
 	async.map([_enc_fields, _signed_fields], lookup_princ_func(f, container),
 		  function(err, results) {
-		      console.log("calling for field " + f);
 		      
 		      if (err) {
 			  throw new Error("could not find princs");
@@ -337,7 +336,6 @@ function add_macs(immutable, container, cb) {
 
 	Principal._lookupByID(container[princ], function(p) {
 	    //TODO: a shorter mac by hashing?
-	    console.log("enc tag is " + ring);
 	    macs[princ] = p.sym_encrypt(" ", ring);
 	    each_cb();
 	});

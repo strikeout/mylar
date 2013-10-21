@@ -18,6 +18,15 @@ Accounts.sendVerificationEmail = function (userId, address) {
   idp_request_cert(address, user._pk);
 };
 
+Accounts.checkedToken = function(email) {
+    var user = Tokens.findOne({email: email});
+
+    if (!user) {
+	return false;
+    }
+    return user.verified;
+}
+
 // Based on the verifyEmail method in accounts-password/password_server.js.
 Meteor.methods({verifyEmailMylar: function (r) {
   if (!idp_verify_msg(r.msg, r.sig))
@@ -58,7 +67,60 @@ Meteor.methods({verifyEmailMylar: function (r) {
   
   this.setUserId(user._id);
   return {token: stampedLoginToken.token, id: user._id};
-}});
+},
+
+createOtherUser: function(email, profile) {
+    var user = Meteor.users.findOne({'emails.address': email});
+
+    if (user) {
+	throw new Meteor.Error(403, "user already has an account");
+    }
+
+    var token = Random.id();
+    
+    Tokens.insert({email: email, token: token, profile: profile, verified: false});
+
+    var origin = Meteor.absoluteUrl('#/login-with-token/');
+    var url = origin + encodeURIComponent(token);
+
+    var text = "Please click on this link to create account:\n\n" + url;
+
+    console.log(text);
+    
+    //TODO: allow customization for these
+    Email.send({
+	from: 'raluca.ada@gmail.com',
+	to: email,
+	subject: 'Welcome to app',
+	text: text,
+    });
+
+},
+
+checkToken: function(token, email) {
+    var user = Tokens.findOne({email: email});
+    if (!user) {
+	throw new Meteor.Error(403, "user not found");
+    }
+
+    if (token != user.token) {
+	throw new Meteor.Error(403, "token " + token + " is not correct for user " + email);
+    }
+
+    Tokens.update({_id: user._id}, {$set: {verified : true}});
+    return user.profile;
+},
+
+userExists: function(email) {
+    var user = Meteor.users.findOne({'emails.address':email});
+
+    if (user)
+	return true;
+    else
+	return false;
+}
+
+});
 
 var onCreateUserHook2;
 Accounts.onCreateUser(function (options, user) {
