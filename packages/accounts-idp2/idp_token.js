@@ -14,8 +14,24 @@ if (match) {
 // TODO: can use perhaps same token
 if (match_token){
     window.location.hash = '';
-    Session.set("account_token", match_token[1]);
+    Session.set("tmp_account_token", match_token[1]);
 }
+
+Deps.autorun(function(){
+    var token = Session.get("tmp_account_token");
+    var ptoken = Session.get("account_token");
+    
+    if (token && !ptoken) {
+	Session.set("account_token", token);
+    }
+    if (Meteor.user() && token) {
+	Session.set("tmp_account_token", null);
+	if (Meteor.user()) {
+	    Meteor.logout();
+	}
+	
+    }
+})
 
 Meteor.startup(function () {
   if (verify_idp_token) {

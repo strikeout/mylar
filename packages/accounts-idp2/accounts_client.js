@@ -91,10 +91,11 @@ Meteor.loginWithPassword = function (selector, password, callback) {
     else
 	email = selector.email;
 
-
     var account_token = Session.get("account_token");
+    Session.set("tmp_account_token", null);
     
     if (account_token) {
+
 	// check if user already has account
 	user_exists(email, function(exists){
 	    if (exists) {
