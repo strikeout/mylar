@@ -26,14 +26,22 @@
      token: the actual cryptographic token
 */
 
-var debug = false;
+var debug = true;
 var crypto = base_crypto;
 
+var active_attacker = true;
 
+set_passive_attacker = function() {
+    active_attacker = false;  
+}
 /******** Use search or not ****/
 
 function use_search(){
     return (typeof MYLAR_USE_SEARCH != "undefined") && MYLAR_USE_SEARCH;
+}
+
+function activeAttacker() {
+    return (typeof != "undefined");
 }
 
 /******* Data structures ****/
@@ -209,8 +217,8 @@ if (Meteor.isServer) {
 	},
 
 	userPK : function(uname) {
-	    return Meteor.users.findOne({username: uname},
-					{fields: {_pk: 1, _pubkey_cert: 1}});
+	    return Meteor.users.findOne({_princ_name: uname},
+				        {fields: {_pk: 1, _pubkey_cert: 1}});
 	},
 
 	/*
@@ -671,6 +679,20 @@ if (Meteor.isClient) {
 	delta = MylarCrypto.delta();
     }
 
+    /* Rewraps the secret keys of this princ using passwrd */
+    Principal.rewrapUser = function(uname, password, cb) {
+
+	Principal.lookupUser(uname, function(userprinc) {
+	    userprinc.load_secret_keys(function(uprinc) {
+		var ukeys = serialize_keys(sp.keys)
+		var wrap_privkeys = sjcl.encrypt(password, ukeys);
+		Meteor.users.update({_id: u._id}, {$set: { _wrap_privkey :wrap_privkeys}});
+		cb && cb();
+	    });
+	});
+
+    }
+    
     // returns a principal for the user with uname and feeds it as input to callback cb
     Principal.lookupUser = function(uname, cb) {
 	startTime("lookupUser");
@@ -685,18 +707,23 @@ if (Meteor.isClient) {
 
 	Meteor.call("userPK", uname, function(err, uinfo) {
 	    if (debug) console.log("userPK answer " + JSON.stringify(uinfo));
-	    if (err || !uinfo || !uinfo._pk || !uinfo._pubkey_cert) {
+
+	    if (err || !uinfo || !uinfo._pk) {
 		console.log("user "+ uname + " " + JSON.stringify(uinfo));
 		throw new Error("user " + uname + " public keys are not available");
 	    }
-	    var keys = uinfo._pk;
-	    var cert = uinfo._pubkey_cert;
 
-	    //verify certificate
-	    var res = idp_verify_msg(format_cert(uname, keys, idp_app_url()),
-				     cert);
-	    if (!res) {
-		throw new Error("server provided invalid pub key certificate!");
+	    var keys = uinfo._pk;
+	    
+	    if (active_attacker) { // check certificate
+		var cert = uinfo._pubkey_cert;
+		
+		//verify certificate
+		var res = idp_verify_msg(format_cert(uname, keys, idp_app_url()),
+					 cert);
+		if (!res) {
+		    throw new Error("server provided invalid pub key certificate!");
+		}
 	    }
 
 	    var princ = new Principal("user", uname, deserialize_keys(keys));

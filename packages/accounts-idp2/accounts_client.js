@@ -47,6 +47,7 @@ Accounts.createUser = function (options, callback) {
 		Principal.set_current_user_keys(ukeys, uname);
 	    
 	    options = _.clone(options);
+	    options._princ_name = uname;
 	    options.wrap_privkeys = sjcl.encrypt(password, ukeys);
 	    options.public_keys = serialize_public(uprinc.keys);
 	    
@@ -57,6 +58,29 @@ Accounts.createUser = function (options, callback) {
 	});
     });
 };
+
+// calls cb with error or undefined, if no error
+Accounts.setUserPassword = function(email, password, cb) {
+    if (!email)
+	throw new Error("need username to set password");
+    if (!password)
+	throw new Error("need nonempty password");
+
+    console.log("compute verifier");
+    var verifier = Meteor._srp.generateVerifier(password);
+    console.log("verifier have");
+    Meteor.call("setSRP", email, verifier, function(error){
+	console.log("back from setsrp");
+	if (error) {
+	    console.log("error");
+	    cb && cb(error);
+	    return;
+	}
+
+	//rewrap principal keys
+	Principal.rewrapUser(email, password, cb);
+    });
+}
 
 
 Accounts.createUserWithToken = function(email, profile, callback) {

@@ -118,14 +118,37 @@ userExists: function(email) {
 	return true;
     else
 	return false;
-}
+},
 
+// Accounts.canChangePassword(user_allowed_to_change, target_user)
+		
+setSRP: function(email, verifier) {
+    console.log("looking for email " + email);
+    var user = Meteor.users.findOne({'emails.address' : email});
+    console.log("I found " + JSON.stringify(user));
+    
+    if (!user)
+	throw new Meteor.Error(403, "User not found");
+
+    console.log("changing password to user " + email);
+    //check that current user is allowed to change password of uname
+    if (Accounts.canChangePassword &&
+	Accounts.canChangePassword(Meteor.user(), user)) {
+	console.log("can change password");
+	Meteor.users.update({_id: user._id}, {
+	    $set: {'services.password.srp': verifier}});
+    } else {
+	var currentUser = Meteor.user().username;
+	throw new Meteor.Error(403, "User " + currentUser + " not allowed to change password");
+    }
+}
 });
 
 var onCreateUserHook2;
 Accounts.onCreateUser(function (options, user) {
     user._pk = options.public_keys;
     user._wrap_privkey = options.wrap_privkeys;
+    user._princ_name = options._princ_name;
     
   if (onCreateUserHook2) {
     return onCreateUserHook2(options, user);

@@ -174,6 +174,7 @@ Accounts.resetPassword = function(token, newPassword, callback) {
     userCallback: callback});
 };
 
+
 // Verifies a user's email address based on a token originally
 // created by Accounts.sendVerificationEmail
 //
