@@ -42,7 +42,9 @@ Accounts.createUser = function (options, callback) {
     Principal.create('user', uname, null, function (uprinc) {
 	createPrincipalCB(uprinc, function () {
 	    var ukeys = serialize_keys(uprinc.keys);
-	    Principal.set_current_user_keys(ukeys, uname);
+
+	    if (!options.suppressLogin)
+		Principal.set_current_user_keys(ukeys, uname);
 	    
 	    options = _.clone(options);
 	    options.wrap_privkeys = sjcl.encrypt(password, ukeys);
