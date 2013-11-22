@@ -29,20 +29,18 @@
 var debug = true;
 var crypto = base_crypto;
 
-var active_attacker = true;
 
-set_passive_attacker = function() {
-    active_attacker = false;  
+// returns true if the attacker is active
+function active_attacker() {
+    return (typeof MYLAR_ACTIVE_ATTACKER != "undefined");
 }
+
 /******** Use search or not ****/
 
 function use_search(){
     return (typeof MYLAR_USE_SEARCH != "undefined") && MYLAR_USE_SEARCH;
 }
 
-function activeAttacker() {
-    return (typeof != "undefined");
-}
 
 /******* Data structures ****/
 
@@ -715,7 +713,11 @@ if (Meteor.isClient) {
 
 	    var keys = uinfo._pk;
 	    
-	    if (active_attacker) { // check certificate
+	    if (active_attacker()) { // check certificate
+
+		if (!uinfo._pubkey_cert) {
+		    throw new Error("missing public key certificate for user " + uname);
+		}
 		var cert = uinfo._pubkey_cert;
 		
 		//verify certificate
