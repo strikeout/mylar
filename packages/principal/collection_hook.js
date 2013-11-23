@@ -121,7 +121,6 @@ _dec_fields = function(_enc_fields, _signed_fields, id, container, fields, callb
 				  throw new Error ("inconsistency in the value decrypted and plaintext");
 			      }
 			  } else {
-			      console.log("f is " + f);
 			      container[f] = res;
 			  }
 			  //todo: searchable consistency check

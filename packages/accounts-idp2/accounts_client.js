@@ -67,16 +67,12 @@ Accounts.setUserPassword = function(email, password, cb) {
 	throw new Error("need nonempty password");
 
     var verifier = Meteor._srp.generateVerifier(password);
-    Meteor.call("setSRP", email, verifier, function(error){
-	if (error) {
-	    console.log("error");
+    Principal.rewrappedKey(email, password, function(wrap){
+	Meteor.call("setSRP", email, verifier, wrap, function(error){
 	    cb && cb(error);
-	    return;
-	}
-
-	//rewrap principal keys
-	Principal.rewrapUser(email, password, cb);
+	});
     });
+
 }
 
 

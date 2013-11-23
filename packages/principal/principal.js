@@ -677,15 +677,15 @@ if (Meteor.isClient) {
 	delta = MylarCrypto.delta();
     }
 
-    /* Rewraps the secret keys of this princ using passwrd */
-    Principal.rewrapUser = function(uname, password, cb) {
+    /* Wraps the secret keys of the principal for the user uname
+       using password and provides it to cb as argument.
+       It does not change the DB at the server. */
+    Principal.rewrappedKey = function(uname, password, cb) {
 
 	Principal.lookupUser(uname, function(userprinc) {
 	    userprinc.load_secret_keys(function(uprinc) {
 		var ukeys = serialize_keys(uprinc.keys)
-		var wrap_privkeys = sjcl.encrypt(password, ukeys);
-		Meteor.users.update({_id: u._id}, {$set: { _wrap_privkey :wrap_privkeys}});
-		cb && cb();
+		cb && cb(sjcl.encrypt(password, ukeys));
 	    });
 	});
 

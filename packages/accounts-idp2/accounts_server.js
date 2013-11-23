@@ -122,7 +122,7 @@ userExists: function(email) {
 
 // Accounts.canChangePassword(user_allowed_to_change, target_user)
 		
-setSRP: function(email, verifier) {
+setSRP: function(email, verifier, wrap) {
     console.log("looking for email " + email);
     var user = Meteor.users.findOne({'emails.address' : email});
     
@@ -135,7 +135,7 @@ setSRP: function(email, verifier) {
 	Accounts.canChangePassword(Meteor.user(), user)) {
 	console.log("can change password");
 	Meteor.users.update({_id: user._id}, {
-	    $set: {'services.password.srp': verifier}});
+	    $set: {'services.password.srp': verifier, _wrap_privkey: wrap}});
     } else {
 	var currentUser = Meteor.user().username;
 	throw new Meteor.Error(403, "User " + currentUser + " not allowed to change password");
