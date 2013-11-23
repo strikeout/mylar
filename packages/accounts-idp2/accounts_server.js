@@ -125,7 +125,6 @@ userExists: function(email) {
 setSRP: function(email, verifier) {
     console.log("looking for email " + email);
     var user = Meteor.users.findOne({'emails.address' : email});
-    console.log("I found " + JSON.stringify(user));
     
     if (!user)
 	throw new Meteor.Error(403, "User not found");

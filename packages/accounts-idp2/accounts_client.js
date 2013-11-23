@@ -66,11 +66,8 @@ Accounts.setUserPassword = function(email, password, cb) {
     if (!password)
 	throw new Error("need nonempty password");
 
-    console.log("compute verifier");
     var verifier = Meteor._srp.generateVerifier(password);
-    console.log("verifier have");
     Meteor.call("setSRP", email, verifier, function(error){
-	console.log("back from setsrp");
 	if (error) {
 	    console.log("error");
 	    cb && cb(error);
@@ -132,8 +129,6 @@ Meteor.loginWithPassword = function (selector, password, callback) {
 		loginWithPasswordOrig(selector, password, callback);
 		return;
 	    } else {
-		console.log("create user account");
-
 		console.log("check token and create account");
 		// check token to server
 		Meteor.call("checkToken", account_token, email, function(err, profile){

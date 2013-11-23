@@ -26,7 +26,7 @@
      token: the actual cryptographic token
 */
 
-var debug = true;
+var debug = false;
 var crypto = base_crypto;
 
 
@@ -682,7 +682,7 @@ if (Meteor.isClient) {
 
 	Principal.lookupUser(uname, function(userprinc) {
 	    userprinc.load_secret_keys(function(uprinc) {
-		var ukeys = serialize_keys(sp.keys)
+		var ukeys = serialize_keys(uprinc.keys)
 		var wrap_privkeys = sjcl.encrypt(password, ukeys);
 		Meteor.users.update({_id: u._id}, {$set: { _wrap_privkey :wrap_privkeys}});
 		cb && cb();
@@ -730,6 +730,7 @@ if (Meteor.isClient) {
 
 	    var princ = new Principal("user", uname, deserialize_keys(keys));
 	    cb2 && cb2(princ);
+	    return;
 	});
     } 
     
