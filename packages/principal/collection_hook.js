@@ -469,7 +469,7 @@ _process_enc_fields = function(_enc_fields, lst) {
 
 // encrypts & signs a document
 // container is a map of key to values 
-Meteor.Collection.intercept_out_func =  function(coll, container, callback) {
+function enc_row(coll, container, callback) {
     if (!Meteor.isClient || !container) {
 	callback && callback();
 	return;
@@ -482,3 +482,18 @@ Meteor.Collection.intercept_out_func =  function(coll, container, callback) {
 
     _enc_row_helper(coll._enc_fields, coll._im_rings, coll._signed_fields, container, callback);
 }
+
+function intercept_init() {
+    throw new Error("write me");
+}
+
+function intercept_in() {
+    throw new Error("write me");
+}
+
+
+Meteor.Collection.intercept = {
+    "init": intercept_init,
+    "in": intercept_in,
+    "out": enc_row,
+};

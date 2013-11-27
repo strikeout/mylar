@@ -3,14 +3,13 @@
 
 
 function intercept_out(collection, container, callback) {
-    if (Meteor.Collection.intercept_out_func) {
-	Meteor.Collection.intercept_out_func(collection, container, callback);
+    if (Meteor.Collection.intercept && Meteor.Collection.intercept.out) {
+	Meteor.Collection.intercept.out(collection, container, callback);
     } else {
 	console.log("NO INTERCEPT FUNC!");
 	callback && callback();
     }
 }
-
 
 Meteor.Collection = function (name, options) {
   var self = this;
