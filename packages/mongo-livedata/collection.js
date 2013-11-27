@@ -84,6 +84,10 @@ Meteor.Collection = function (name, options) {
 
   self._collection = options._driver.open(name);
   self._name = name;
+
+    if (Meteor.Collection.intercept && Meteor.Collection.intercept.init) {
+	Meteor.Collection.intercept.init(self);
+    }
   self._decrypt_cb = [];   // callbacks for running decryptions
     self._enc_fields = {};
     self._signed_fields = {};

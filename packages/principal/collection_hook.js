@@ -547,8 +547,11 @@ function dec_msg(coll, id, container, callback) {
 }
 
 
-function intercept_init() {
-    throw new Error("write me");
+function intercept_init(coll) {
+    coll._decrypt_cb = [];   // callbacks for running decryptions
+    coll._enc_fields = {};
+    coll._signed_fields = {};
+    coll._im_rings = {};
 }
 
 
@@ -558,3 +561,4 @@ Meteor.Collection.intercept = {
     "incoming": dec_msg,
     "out": enc_row,
 };
+
