@@ -1,6 +1,6 @@
 Keys = new Meteor.Collection('keys');
 
-var idp_email = 'nickolai.zeldovich+idp@gmail.com';
+var idp_email = 'raluca.ada+idp@gmail.com';
 var keys = undefined;
 var debug = true;
 

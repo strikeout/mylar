@@ -1,6 +1,7 @@
 var current_pw = null;
 
 function check_is_email (email) {
+    
     return email && email.indexOf('@') != -1;
 }
 
@@ -96,22 +97,30 @@ function user_exists(email, cb) {
 var loginWithPasswordOrig = Meteor.loginWithPassword;
 
 /* Creates an account for a user providing a token.
-   Otherwise, it logs-in an existing user. */
+   Otherwise, it logs-in an existing user.
+   selector must be either an email address
+   or an object with an email field.*/
 Meteor.loginWithPassword = function (selector, password, callback) {
     current_pw = password;
 
-    if (!selector)
-	throw new Error("must specify email");
-    
-    if (typeof selector == "object" && !selector.email)
-	throw new Error("must specify email");
-    
+    if (!selector) {
+	throw new Error("must specify selector");
+    }
+
     var email;
+
     if (typeof selector == "string")
 	email = selector;
-    else
+    else {
+	// must be object
+	
+	if (typeof selector == "object" && !selector.email) {
+	    console.log("selector is " + JSON.stringify(selector));
+	    throw new Error("must specify email");
+	}
 	email = selector.email;
-
+    }
+    
     var account_token = Session.get("account_token");
     Session.set("tmp_account_token", null);
     
@@ -148,7 +157,7 @@ Meteor.loginWithPassword = function (selector, password, callback) {
     } else {
 	// no account token -- user must exist
 
-	console.log("login in user normally");
+	console.log("login in user normally selector " + JSON.stringify(selector) + " password " + password);
 
 	loginWithPasswordOrig(selector, password, callback);
     }

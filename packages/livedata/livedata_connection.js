@@ -1160,12 +1160,14 @@ _.extend(Meteor._LivedataConnection.prototype, {
         if (!subRecord)   // Unsubscribed already?
           return;
 
+	// Meteor-enc   
 	var store = self._getStore(self._stores, subRecord.name);
         if (!store) {
             ready_func();
 	} else {
             store.runWhenDecrypted(ready_func);
 	}
+	//
       });
     });
   },

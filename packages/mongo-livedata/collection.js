@@ -1,6 +1,17 @@
 // connection, if given, is a LivedataClient or LivedataServer
 // XXX presently there is no way to destroy/clean up a Collection
 
+
+function intercept_out(collection, container, callback) {
+    if (Meteor.Collection.intercept_out_func) {
+	Meteor.Collection.intercept_out_func(collection, container, callback);
+    } else {
+	console.log("NO INTERCEPT FUNC!");
+	callback && callback();
+    }
+}
+
+
 Meteor.Collection = function (name, options) {
   var self = this;
   if (! (self instanceof Meteor.Collection))
@@ -206,6 +217,8 @@ Meteor.Collection = function (name, options) {
 	});
 };
 
+
+
 ///
 /// Main collection API
 ///
@@ -219,23 +232,6 @@ Meteor.Collection.prototype._immutable = function(annot) {
     this._im_rings = annot;
 }
 
-// encrypts & signs a document
-// container is a map of key to values 
-Meteor.Collection.prototype.enc_row = function(container, callback) {
-    var self = this;
-
-    if (!Meteor.isClient || !container) {
-	callback && callback();
-	return;
-    }
-
-    if (_.isEmpty(self._im_rings) && _.isEmpty(self._enc_fields)) {
-	callback && callback();
-	return;
-    }
-
-    _enc_row_helper(self._enc_fields, self._im_rings, self._signed_fields, container, callback);
-}
 
 
 function fields_for_dec(enc_fields, signed_fields, container) {
@@ -252,6 +248,7 @@ function fields_for_dec(enc_fields, signed_fields, container) {
 
 // container is an object with key (field name), value (enc field value)
 Meteor.Collection.prototype.dec_msg = function(id, container, callback) {
+
     var debug = false;
     var self = this;
 
@@ -478,7 +475,7 @@ _.each(["insert", "update", "remove"], function (name) {
       } else {
         ret = args[0]._id = self._makeNewID();
       }
-        self.enc_row(args[0], f);
+      intercept_out(self, args[0], f);
     } else {
       args[0] = Meteor.Collection._rewriteSelector(args[0]);
     }
@@ -486,8 +483,7 @@ _.each(["insert", "update", "remove"], function (name) {
       if (name == "update") {
           // Does set have a principal argument necessary for encryption?
           // XXX handle only updates, not push
-          if (args.length > 2) self.enc_row(args[1]['$set'], f)
-          else self.enc_row(args[1]['$set'], f)
+	  intercept_out(self, args[1]['$set'], f);
       } 
 
       if (name == "remove") {

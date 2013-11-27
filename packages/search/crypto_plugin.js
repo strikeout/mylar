@@ -266,4 +266,3 @@ MylarCrypto.match = function(tok, cipher, cb) {
         enc_module.postMessage("match(" + tok + "," + cipher + ")");
 };
 
-setup_crypto();

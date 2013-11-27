@@ -466,3 +466,19 @@ _process_enc_fields = function(_enc_fields, lst) {
 
     return _enc_fields;
 }
+
+// encrypts & signs a document
+// container is a map of key to values 
+Meteor.Collection.intercept_out_func =  function(coll, container, callback) {
+    if (!Meteor.isClient || !container) {
+	callback && callback();
+	return;
+    }
+
+    if (_.isEmpty(coll._im_rings) && _.isEmpty(coll._enc_fields)) {
+	callback && callback();
+	return;
+    }
+
+    _enc_row_helper(coll._enc_fields, coll._im_rings, coll._signed_fields, container, callback);
+}

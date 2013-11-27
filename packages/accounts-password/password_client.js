@@ -15,18 +15,14 @@ Meteor.loginWithPassword = function (selector, password, callback) {
 
     if (typeof selector === 'string') {
 	if (selector.indexOf('@') === -1){
-	    uname = selector;
 	    selector = {username: selector};
 	}
 	else {
-	    uname = selector;
 	    selector = {email: selector};
 	}
     } else {
-	if (selector['username']) {
-	    uname = selector['username'];
-	} else {
-	    throw new Error("cannot login user without some username");
+	if (!selector['username'] && !selector['email']) {
+	    throw new Error("cannot login user without some username or email");
 	}
     }
     
