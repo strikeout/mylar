@@ -222,15 +222,6 @@ Meteor.Collection = function (name, options) {
 /// Main collection API
 ///
 
-Meteor.Collection.prototype._encrypted_fields = function(lst) {
-    this._enc_fields = _process_enc_fields(this._enc_fields, lst);
-}
-
-Meteor.Collection.prototype._immutable = function(annot) {
-  
-    this._im_rings = annot;
-}
-
 
 
 function fields_for_dec(enc_fields, signed_fields, container) {

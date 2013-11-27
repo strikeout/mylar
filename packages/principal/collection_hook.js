@@ -31,6 +31,17 @@ rand_field_name = function(f) {
 }
 
 
+
+Meteor.Collection.prototype._encrypted_fields = function(lst) {
+    this._enc_fields = _process_enc_fields(this._enc_fields, lst);
+}
+
+Meteor.Collection.prototype._immutable = function(annot) {
+  
+    this._im_rings = annot;
+}
+
+
 // returns a list of keys that show up in both a and b
 // b must be map
 var intersect = function(a, b) {
