@@ -494,17 +494,67 @@ function enc_row(coll, container, callback) {
     _enc_row_helper(coll._enc_fields, coll._im_rings, coll._signed_fields, container, callback);
 }
 
+function fields_for_dec(enc_fields, signed_fields, container) {
+    var r = []
+
+    _.each(enc_fields, function(v, f) {
+	if (_.has(container, enc_field_name(f))) {
+	    r.push(f);
+	}
+    });
+
+    return r;
+}
+
+
+// container is an object with key (field name), value (enc field value)
+function dec_msg(coll, id, container, callback) {
+
+    var debug = false;
+
+    if (!Meteor.isClient || !container) {
+	callback && callback();
+	return;
+    }
+    if (_.isEmpty(coll._im_rings) && _.isEmpty(coll._enc_fields)) {
+	callback();
+	return;
+    }
+
+    var callback_q = [];
+    coll._decrypt_cb.push(callback_q);
+    callback2 = function () {
+	if (callback) {
+	    callback();
+	}
+	coll._decrypt_cb = _.without(coll._decrypt_cb, callback_q);
+	_.each(callback_q, function (f) {
+	    f();
+	});
+    };
+
+    // check macs
+    _check_macs(coll._im_rings,  id, container, function(){
+	var r = fields_for_dec(coll._enc_fields, coll._signed_fields, container);
+	
+	if (r.length > 0) {
+            _dec_fields(coll._enc_fields, coll._signed_fields, id, container, r, callback2);
+	} else {
+            callback2();
+	}
+    });
+  
+}
+
+
 function intercept_init() {
     throw new Error("write me");
 }
 
-function intercept_in() {
-    throw new Error("write me");
-}
 
 
 Meteor.Collection.intercept = {
     "init": intercept_init,
-    "in": intercept_in,
+    "incoming": dec_msg,
     "out": enc_row,
 };

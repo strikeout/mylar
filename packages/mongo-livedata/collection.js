@@ -11,6 +11,16 @@ function intercept_out(collection, container, callback) {
     }
 }
 
+
+function intercept_in(collection, id, container, callback) {
+    if (Meteor.Collection.intercept && Meteor.Collection.intercept.incoming) {
+	Meteor.Collection.intercept.incoming(collection, id, container, callback);
+    } else {
+	console.log("NO INTERCEPT FUNC!");
+	callback && callback();
+    }
+}
+
 Meteor.Collection = function (name, options) {
   var self = this;
   if (! (self instanceof Meteor.Collection))
@@ -120,7 +130,7 @@ Meteor.Collection = function (name, options) {
         // value meaning "remove it".)
           if (msg.msg === 'replace') {
               var replace = msg.replace;
-	      self.dec_msg(mongoId, replace, function() {
+	      intercept_in(self, mongoId, replace, function() {
                   if (!replace) {
                       if (doc)
                           self._collection.remove(mongoId);
@@ -133,7 +143,7 @@ Meteor.Collection = function (name, options) {
               });
               return;
           } else if (msg.msg === 'added') {
-              self.dec_msg(mongoId, msg.fields, function() {
+              intercept_in(self, mongoId, msg.fields, function() {
                   var doc = self._collection.findOne({_id: mongoId});
                   if (doc) {
                       throw new Error("Expected not to find a document already present for an add");
@@ -163,7 +173,7 @@ Meteor.Collection = function (name, options) {
             });
 	      //modifier.$set maps keys to values for fields that are newly added to doc in "changed" 
 	      // meteor-enc:
-              self.dec_msg(mongoId, modifier.$set, function() {
+              intercept_in(self, mongoId, modifier.$set, function() {
                   self._collection.update(mongoId, modifier);
               });
           }
@@ -223,58 +233,6 @@ Meteor.Collection = function (name, options) {
 ///
 
 
-
-function fields_for_dec(enc_fields, signed_fields, container) {
-    var r = []
-
-    _.each(enc_fields, function(v, f) {
-	if (_.has(container, enc_field_name(f))) {
-	    r.push(f);
-	}
-    });
-
-    return r;
-}
-
-// container is an object with key (field name), value (enc field value)
-Meteor.Collection.prototype.dec_msg = function(id, container, callback) {
-
-    var debug = false;
-    var self = this;
-
-    if (!Meteor.isClient || !container) {
-	callback && callback();
-	return;
-    }
-    if (_.isEmpty(self._im_rings) && _.isEmpty(self._enc_fields)) {
-	callback();
-	return;
-    }
-
-    var callback_q = [];
-    self._decrypt_cb.push(callback_q);
-    callback2 = function () {
-	if (callback) {
-	    callback();
-	}
-	self._decrypt_cb = _.without(self._decrypt_cb, callback_q);
-	_.each(callback_q, function (f) {
-	    f();
-	});
-    };
-
-    // check macs
-    _check_macs(self._im_rings,  id, container, function(){
-	var r = fields_for_dec(self._enc_fields, self._signed_fields, container);
-	
-	if (r.length > 0) {
-            _dec_fields(self._enc_fields, self._signed_fields, id, container, r, callback2);
-	} else {
-            callback2();
-	}
-    });
-  
-}
 
 _.extend(Meteor.Collection.prototype, {
 
