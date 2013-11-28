@@ -86,12 +86,11 @@ Meteor.Collection = function (name, options) {
   self._name = name;
 
     if (Meteor.Collection.intercept && Meteor.Collection.intercept.init) {
+	console.log("init intercepted");
 	Meteor.Collection.intercept.init(self);
+    } else {
+	console.log("collection init -- NO INTERCEPT defined");
     }
-  self._decrypt_cb = [];   // callbacks for running decryptions
-    self._enc_fields = {};
-    self._signed_fields = {};
-    self._im_rings = {};
   if (name && self._connection.registerStore) {
     // OK, we're going to be a slave, replicating some remote
     // database, except possibly with some temporary divergence while
@@ -192,19 +191,10 @@ Meteor.Collection = function (name, options) {
             self._collection.resumeObservers();
 	},
 
-	// will be run when documents are ready in the local database
-	runWhenDecrypted: function (f) {
-            var ndecrypts = self._decrypt_cb.length;
-            if (ndecrypts == 0) {
-		f();
-            } else {
-		var done = _.after(ndecrypts, f);
-		_.each(self._decrypt_cb, function (q) {
-		    q.push(done);
-		});
-            }
+	getCollection: function() {
+	    return self;
 	},
-
+	
       // Called around method stub invocations to capture the original versions
       // of modified documents.
       saveOriginals: function () {
@@ -231,12 +221,9 @@ Meteor.Collection = function (name, options) {
 };
 
 
-
 ///
 /// Main collection API
 ///
-
-
 
 _.extend(Meteor.Collection.prototype, {
 

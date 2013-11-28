@@ -398,7 +398,7 @@ _.extend(Meteor._LivedataConnection.prototype, {
     // implemented by 'store' into a no-op.
     var store = {};
     _.each(['update', 'beginUpdate', 'endUpdate',
-            'runWhenDecrypted',
+            'getCollection',
             'saveOriginals',
             'retrieveOriginals'], function (method) {
               store[method] = function () {
@@ -1124,16 +1124,30 @@ _.extend(Meteor._LivedataConnection.prototype, {
     });
   },
 
-    _getStore : function(stores, sub) {
-	var store = stores[sub];
+    _getCollection : function(subId) {
+	var self = this;
+	var subRecord = self._subscriptions[subId];
+        if (!subRecord)   // Unsubscribed already?
+            return null;
+
+	var sub = subRecord.name;
+	var store = self._stores[sub];
 	if (!store) {
 	    //try to see if the collection name is in the pub name
 	    var pos = sub.indexOf("++");
 	    if (pos >=0) {
-		return stores[sub.substring(0, pos)];
+		store = self._stores[sub.substring(0, pos)];
 	    }
 	}
-	return store;
+
+	if (!store) {
+	    console.log("no store returned ");
+	    return null;
+	} else {
+	    console.log("returning a store, here is the collection " + store.getCollection().name)
+	    return store.getCollection();
+	}
+   
     },
     
   _process_ready: function (msg, updates) {
@@ -1143,6 +1157,7 @@ _.extend(Meteor._LivedataConnection.prototype, {
     // database. We can use a write fence to implement this.
     _.each(msg.subs, function (subId) {
       self._runWhenAllServerDocsAreFlushed(function () {
+
         ready_func = function() {
           var subRecord = self._subscriptions[subId];
           // Did we already unsubscribe?
@@ -1156,18 +1171,17 @@ _.extend(Meteor._LivedataConnection.prototype, {
           subRecord.readyDeps && subRecord.readyDeps.changed();
         };
 
-        var subRecord = self._subscriptions[subId];
-        if (!subRecord)   // Unsubscribed already?
-          return;
+	  if (Meteor.Collection.intercept && Meteor.Collection.intercept.on_ready
+	      && self._getCollection(subId)) {
+	      var coll = self._getCollection(subId);
+	      if (!coll) {
+		  throw new Error("subscription for no collection");
+	      }
+	      Meteor.Collection.intercept.on_ready(coll, ready_func);
+	  } else {
+	      ready_func();
+	  }
 
-	// Meteor-enc   
-	var store = self._getStore(self._stores, subRecord.name);
-        if (!store) {
-            ready_func();
-	} else {
-            store.runWhenDecrypted(ready_func);
-	}
-	//
       });
     });
   },

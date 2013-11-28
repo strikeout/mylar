@@ -521,6 +521,9 @@ function dec_msg(coll, id, container, callback) {
 	return;
     }
 
+    // Push a queue of callbacks in decrypt_cb
+    // This queue will be given another callback function
+    // to run later (the ready subscription callback)
     var callback_q = [];
     coll._decrypt_cb.push(callback_q);
     callback2 = function () {
@@ -554,11 +557,38 @@ function intercept_init(coll) {
     coll._im_rings = {};
 }
 
+// will be run when documents are ready in the local database
+function runWhenDecrypted(coll, f) {
+    if (!coll._decrypt_cb) {
+	f && f();
+	return;
+    }
+    var ndecrypts = coll._decrypt_cb.length;
+    if (ndecrypts == 0) {
+	f && f();
+	return;
+    } 
+
+    var done = _.after(ndecrypts, f);
+    _.each(coll._decrypt_cb, function (q) {
+	q.push(done);
+    });
+    
+}
 
 
-Meteor.Collection.intercept = {
-    "init": intercept_init,
-    "incoming": dec_msg,
-    "out": enc_row,
+/*
+  init: should be run once for each collection to initialize intercept state
+  incoming: should be run on every document incoming from server
+  out: should be run on every document going to server
+  on_ready: should be run with the ready function for a subscription;
+  when the intercept code finished running, it will call the ready function
+*/
+Meteor.Collection.intercept = 
+{
+    init: intercept_init,
+    incoming: dec_msg,
+    out: enc_row,
+    on_ready: runWhenDecrypted
 };
 
