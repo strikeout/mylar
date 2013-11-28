@@ -1,0 +1,59 @@
+<head>
+  <title>idp</title>
+</head>
+
+<body>
+  {{#if currentUser}}
+  {{>home}}
+  {{else}}
+  {{>loginArea}}
+  {{>createArea}}
+  {{/if}}
+</body>
+
+
+<template name="createArea">
+    <center>
+      <h4> New user account: </h4>
+      <form id="formCreateUser">
+        <input id="username" type="text" placeholder="Username"><br/>
+        <input id="password" type="password" placeholder="Password"><br/>
+        <div id="errorUsernameMsg"></div>
+      </form>
+      <button id="createUserBtn" class="btn btn-success">Create account</button>
+    </center>
+</template>
+
+<template name="loginArea">
+    <div class="modal-header">
+      <center>
+	<h4>Login</h4>
+	</center>
+    </div>
+    <div class="modal-body">
+      <form id="formLoginUser">
+        <center>
+        <input id="usernameLogin" type="text" placeholder="Username"><br/>
+        <input id="passwordLogin" type="password" placeholder="Password"><br/>
+        <div id="loginErroMsg"></div>
+        </center>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <center>
+        <button id="loginBtn" class="btn btn-success">Login</button>
+      </center>
+    </div>
+</template>
+ 
+
+<template name="home">
+   <div class="page-header">
+     <h1>IDP</h1>
+     <center>
+     <h6>Username: <i>{{user.username}}</i></h6>
+     <button id="logoutBtn" class="btn btn-inverse">Log out</button>
+     </center>
+   </div>
+</template>
+

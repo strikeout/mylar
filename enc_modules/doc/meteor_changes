@@ -1,0 +1,17 @@
+Changes Meteor-enc makes to Meteor
+----------------------------------
+
+
+1. mongo-livedata/collection.js:
+- calls to intercept_*,
+
+Meteor-enc makes an assumption on Meteor:
+
+It assumes that the functions update, insert, remove can return without actually performing the tasks they are supposed to, as long as these tasks will be performed before calling the subscription ready callback of the user. This assumption appears because we call an _asynchronous_ intercept function inside insert/update/remove before running the code in insert/update/remove.
+
+If Meteor does not patch collection.js in this way, we should check this assumption holds when porting to newer Meteor versions.
+
+2. livedata/livedata_connection.js
+
+Changed _process_ready: instead of calling ready_func, it calls intercept.on_ready(collection, ready_func)
+

@@ -1,0 +1,37 @@
+Prerequisites: lex, bison, gmp, pbc, libssl-dev
+
+For both libgmp and libpbc, you need to get the relevant source from the internet and then extract them and perform the following:
+
+make distclean
+NACL_GLIBC=1 $NACL_PORT/build_tools/nacl_env.sh ./configure --enable-static --enable-shared=no --host=nacl CFLAGS="-O3" --prefix=$NACL_SDK_ROOT/toolchain/linux_x86_glibc/x86_64-nacl/
+make && make install
+make distclean
+NACL_ARCH=i686 NACL_GLIBC=1 $NACL_PORT/build_tools/nacl_env.sh ./configure --enable-static --enable-shared=no --host=nacl CFLAGS="-O3" --prefix=$NACL_SDK_ROOT/toolchain/linux_x86_glibc/i686-nacl/ 
+make && make install
+cp $NACL_SDK_ROOT/toolchain/linux_x86_glibc/i686-nacl/lib/* $NACL_SDK_ROOT/toolchain/linux_x86_glibc/x86_64-nacl/lib32/
+make distclean
+
+Afterwards, you'll need to run:
+
+export NACL_SDK_ROOT=$HOME/nacl/nacl_sdk/pepper_28/ before doing a meteor build.
+
+For newer versions of ubuntu, 13.10, need pepper_30. Do
+./naclsdk update pepper_30
+and then point NACL_SDK_ROOT to pepper_30's path
+
+Prepare the browser:
+- Enable Native Client in about:flags in your Chrome browser.
+- relaunch the browser
+If you did these two steps correctly, there should be no NaCl-related message in the JS console.
+
+Debugging NaCl Application:
+- Enable Native Client Debugging in about:flags in your Chrome browser.
+- Relaunch the browser.
+- Launch the website with the NaCl plugin in Chrome.
+- Go to the directory containing the NaCl manifest file (meteor-enc/crypto_ext/bin/)
+- Run the NaCl Debugger ($NACL_SDK_ROOT/toolchain/linux_x86_glibc/bin/x86_64-nacl-gdb)
+- Load the IRT for Chrome in the debugger (Type 'nacl-irt /opt/google/chrome/nacl_irt_x86_64.nexe' or 'nacl-irt /opt/google/chrome/nacl_irt_-i386.nexe')
+- Load the Manifest file in the debugger (Type 'nacl-manifest crpyto_ext.nmf')
+- Connect to the running chrome instance (Type 'target remote localhost:4014')
+- Continue execution of the NaCl application (Type 'continue')
+You can then use the standard GDB debugging techniques to debug the application.
