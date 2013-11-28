@@ -4,7 +4,6 @@ Changes Meteor-enc makes to Meteor
 
 1. mongo-livedata/collection.js:
 - calls to intercept_*,
-- defining getCollection and registering it
 
 Meteor-enc makes an assumption on Meteor:
 
@@ -15,7 +14,4 @@ If Meteor does not patch collection.js in this way, we should check this assumpt
 2. livedata/livedata_connection.js
 
 Changed _process_ready: instead of calling ready_func, it calls intercept.on_ready(collection, ready_func)
-
-It needs a way to figure out the collection at this point. I wrote the self._getCollection(subId) function
-but meteor can provide this in any other way. So I also wrote self._getCollection and in collection.js defined  store.collection 
 

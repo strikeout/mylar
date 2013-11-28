@@ -122,6 +122,7 @@ Meteor.Collection = function (name, options) {
       // Apply an update.
       // XXX better specify this interface (not in terms of a wire message)?
       update: function (msg) {
+
         var mongoId = Meteor.idParse(msg.id);
         var doc = self._collection.findOne(mongoId);
 
@@ -191,10 +192,6 @@ Meteor.Collection = function (name, options) {
             self._collection.resumeObservers();
 	},
 
-	getCollection: function() {
-	    return self;
-	},
-	
       // Called around method stub invocations to capture the original versions
       // of modified documents.
       saveOriginals: function () {

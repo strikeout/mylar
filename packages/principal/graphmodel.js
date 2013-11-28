@@ -101,3 +101,10 @@ if (Meteor.isClient) {
     });
 
 }
+
+// subscriptions for which we don't need decryption
+subscriptionsWithNoDec = {
+    "myprinc": true,
+    "meteor.loginServiceConfiguration" : true,
+    "princtype": true
+}

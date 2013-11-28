@@ -398,7 +398,6 @@ _.extend(Meteor._LivedataConnection.prototype, {
     // implemented by 'store' into a no-op.
     var store = {};
     _.each(['update', 'beginUpdate', 'endUpdate',
-            'getCollection',
             'saveOriginals',
             'retrieveOriginals'], function (method) {
               store[method] = function () {
@@ -1123,32 +1122,6 @@ _.extend(Meteor._LivedataConnection.prototype, {
         _.bind(callbackInvoker.dataVisible, callbackInvoker));
     });
   },
-
-    _getCollection : function(subId) {
-	var self = this;
-	var subRecord = self._subscriptions[subId];
-        if (!subRecord)   // Unsubscribed already?
-            return null;
-
-	var sub = subRecord.name;
-	var store = self._stores[sub];
-	if (!store) {
-	    //try to see if the collection name is in the pub name
-	    var pos = sub.indexOf("++");
-	    if (pos >=0) {
-		store = self._stores[sub.substring(0, pos)];
-	    }
-	}
-
-	if (!store) {
-	    console.log("no store returned ");
-	    return null;
-	} else {
-	    console.log("returning a store, here is the collection " + store.getCollection().name)
-	    return store.getCollection();
-	}
-   
-    },
     
   _process_ready: function (msg, updates) {
     var self = this;
@@ -1158,26 +1131,22 @@ _.extend(Meteor._LivedataConnection.prototype, {
     _.each(msg.subs, function (subId) {
       self._runWhenAllServerDocsAreFlushed(function () {
 
-        ready_func = function() {
-          var subRecord = self._subscriptions[subId];
+	  var subRecord = self._subscriptions[subId];
           // Did we already unsubscribe?
           if (!subRecord)
-            return;
+              return;
           // Did we already receive a ready message? (Oops!)
           if (subRecord.ready)
-            return;
-          subRecord.readyCallback && subRecord.readyCallback();
-          subRecord.ready = true;
-          subRecord.readyDeps && subRecord.readyDeps.changed();
-        };
+              return;
 
-	  if (Meteor.Collection.intercept && Meteor.Collection.intercept.on_ready
-	      && self._getCollection(subId)) {
-	      var coll = self._getCollection(subId);
-	      if (!coll) {
-		  throw new Error("subscription for no collection");
-	      }
-	      Meteor.Collection.intercept.on_ready(coll, ready_func);
+          ready_func = function() {
+              subRecord.readyCallback && subRecord.readyCallback();
+              subRecord.ready = true;
+              subRecord.readyDeps && subRecord.readyDeps.changed();
+          };
+
+	  if (Meteor.Collection.intercept && Meteor.Collection.intercept.on_ready) {
+	      Meteor.Collection.intercept.on_ready(subRecord.name, ready_func);
 	  } else {
 	      ready_func();
 	  }

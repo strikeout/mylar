@@ -10,6 +10,8 @@ var debug = false;
 // will be kept for debugging mode
 var ENC_DEBUG = false;
 
+mylar_decrypt_cb = [];
+
 set_enc_debug = function (flag) {
     ENC_DEBUG = flag;
 };
@@ -517,7 +519,7 @@ function dec_msg(coll, id, container, callback) {
 	return;
     }
     if (_.isEmpty(coll._im_rings) && _.isEmpty(coll._enc_fields)) {
-	callback();
+	callback && callback();
 	return;
     }
 
@@ -525,12 +527,12 @@ function dec_msg(coll, id, container, callback) {
     // This queue will be given another callback function
     // to run later (the ready subscription callback)
     var callback_q = [];
-    coll._decrypt_cb.push(callback_q);
+    mylar_decrypt_cb.push(callback_q);
     callback2 = function () {
 	if (callback) {
 	    callback();
 	}
-	coll._decrypt_cb = _.without(coll._decrypt_cb, callback_q);
+	mylar_decrypt_cb = _.without(mylar_decrypt_cb, callback_q);
 	_.each(callback_q, function (f) {
 	    f();
 	});
@@ -551,26 +553,31 @@ function dec_msg(coll, id, container, callback) {
 
 
 function intercept_init(coll) {
-    coll._decrypt_cb = [];   // callbacks for running decryptions
     coll._enc_fields = {};
     coll._signed_fields = {};
     coll._im_rings = {};
 }
 
 // will be run when documents are ready in the local database
-function runWhenDecrypted(coll, f) {
-    if (!coll._decrypt_cb) {
+function runWhenDecrypted(subname, f) {
+
+    if (subscriptionsWithNoDec[subname]) {
 	f && f();
 	return;
     }
-    var ndecrypts = coll._decrypt_cb.length;
+
+    if (!mylar_decrypt_cb) {
+	f && f();
+	return;
+    }
+    var ndecrypts = mylar_decrypt_cb.length;
     if (ndecrypts == 0) {
 	f && f();
 	return;
     } 
 
     var done = _.after(ndecrypts, f);
-    _.each(coll._decrypt_cb, function (q) {
+    _.each(mylar_decrypt_cb, function (q) {
 	q.push(done);
     });
     
