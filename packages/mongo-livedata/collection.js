@@ -420,8 +420,6 @@ _.each(["insert", "update", "remove"], function (name) {
     }
 
       if (name == "update") {
-          // Does set have a principal argument necessary for encryption?
-          // XXX handle only updates, not push
 	  intercept_out(self, args[1]['$set'], f);
       } 
 
