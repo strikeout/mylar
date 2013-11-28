@@ -10,7 +10,7 @@ var debug = false;
 // will be kept for debugging mode
 var ENC_DEBUG = false;
 
-mylar_decrypt_cb = [];
+mylar_decrypt_cb = {};
 
 set_enc_debug = function (flag) {
     ENC_DEBUG = flag;
@@ -527,15 +527,17 @@ function dec_msg(coll, id, container, callback) {
     // This queue will be given another callback function
     // to run later (the ready subscription callback)
     var callback_q = [];
-    mylar_decrypt_cb.push(callback_q);
+    var rid = Random.id();
+    console.log("rid " + rid);
+    mylar_decrypt_cb[rid] = callback_q;
     callback2 = function () {
 	if (callback) {
 	    callback();
 	}
-	mylar_decrypt_cb = _.without(mylar_decrypt_cb, callback_q);
 	_.each(callback_q, function (f) {
 	    f();
 	});
+	delete mylar_decrypt_cb[rid];
     };
 
     // check macs
@@ -570,7 +572,7 @@ function runWhenDecrypted(subname, f) {
 	f && f();
 	return;
     }
-    var ndecrypts = mylar_decrypt_cb.length;
+    var ndecrypts = _.keys(mylar_decrypt_cb).length;
     if (ndecrypts == 0) {
 	f && f();
 	return;
