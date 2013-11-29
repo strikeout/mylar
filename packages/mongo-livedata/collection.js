@@ -1,6 +1,27 @@
 // options.connection, if given, is a LivedataClient or LivedataServer
 // XXX presently there is no way to destroy/clean up a Collection
 
+
+
+function intercept_out(collection, container, callback) {
+    if (Meteor.Collection.intercept && Meteor.Collection.intercept.out) {
+	Meteor.Collection.intercept.out(collection, container, callback);
+    } else {
+	console.log("NO INTERCEPT FUNC!");
+	callback && callback();
+    }
+}
+
+
+function intercept_in(collection, id, container, callback) {
+    if (Meteor.Collection.intercept && Meteor.Collection.intercept.incoming) {
+	Meteor.Collection.intercept.incoming(collection, id, container, callback);
+    } else {
+	console.log("NO INTERCEPT FUNC!");
+	callback && callback();
+    }
+}
+
 Meteor.Collection = function (name, options) {
   var self = this;
   if (! (self instanceof Meteor.Collection))
@@ -72,6 +93,13 @@ Meteor.Collection = function (name, options) {
   self._collection = options._driver.open(name, self._connection);
   self._name = name;
 
+   if (Meteor.Collection.intercept && Meteor.Collection.intercept.init) {
+	console.log("init intercepted");
+	Meteor.Collection.intercept.init(self);
+   } else {
+       console.log("collection init -- NO INTERCEPT defined");
+   }
+    
   if (self._connection && self._connection.registerStore) {
     // OK, we're going to be a slave, replicating some remote
     // database, except possibly with some temporary divergence while
@@ -111,21 +139,28 @@ Meteor.Collection = function (name, options) {
         // value meaning "remove it".)
         if (msg.msg === 'replace') {
           var replace = msg.replace;
-          if (!replace) {
-            if (doc)
-              self._collection.remove(mongoId);
-          } else if (!doc) {
-            self._collection.insert(replace);
-          } else {
-            // XXX check that replace has no $ ops
-            self._collection.update(mongoId, replace);
-          }
+
+	    intercept_in(self, mongoId, replace, function() {
+                  if (!replace) {
+                      if (doc)
+                          self._collection.remove(mongoId);
+                  } else if (!doc) {
+                      self._collection.insert(replace);
+                  } else {
+                      // XXX check that replace has no $ ops
+                      self._collection.update(mongoId, replace);
+                  }
+              });
+	    
           return;
         } else if (msg.msg === 'added') {
-          if (doc) {
-            throw new Error("Expected not to find a document already present for an add");
-          }
-          self._collection.insert(_.extend({_id: mongoId}, msg.fields));
+	      intercept_in(self, mongoId, msg.fields, function() {
+                  if (doc) {
+                      throw new Error("Expected not to find a document already present for an add");
+                  }
+                  self._collection.insert(_.extend({_id: mongoId}, msg.fields));
+              });
+           
         } else if (msg.msg === 'removed') {
           if (!doc)
             throw new Error("Expected to find a document already present for removed");
@@ -146,7 +181,9 @@ Meteor.Collection = function (name, options) {
                 modifier.$set[key] = value;
               }
             });
-            self._collection.update(mongoId, modifier);
+	      intercept_in(self, mongoId, modifier.$set, function() {
+                  self._collection.update(mongoId, modifier);
+              });
           }
         } else {
           throw new Error("I don't know how to deal with this message");
@@ -353,6 +390,79 @@ _.each(["insert", "update", "remove"], function (name) {
     if (args.length && args[args.length - 1] instanceof Function)
       callback = args.pop();
 
+
+      var f = function(){
+	
+	  // On inserts, always return the id that we generated; on all other
+	  // operations, just return the result from the collection.
+	  var chooseReturnValueFromCollectionResult = function (result) {
+	      if (name === "insert")
+		  return insertId;
+	      else
+		  return result;
+	  };
+	  
+	  var wrappedCallback;
+	  if (callback) {
+	      wrappedCallback = function (error, result) {
+		  callback(error, ! error && chooseReturnValueFromCollectionResult(result));
+	      };
+	  }
+	  
+	  if (self._connection && self._connection !== Meteor.server) {
+	      // just remote to another endpoint, propagate return value or
+	      // exception.
+	      
+	      var enclosing = DDP._CurrentInvocation.get();
+	      var alreadyInSimulation = enclosing && enclosing.isSimulation;
+	      
+	      if (Meteor.isClient && !wrappedCallback && ! alreadyInSimulation) {
+		  // Client can't block, so it can't report errors by exception,
+		  // only by callback. If they forget the callback, give them a
+		  // default one that logs the error, so they aren't totally
+		  // baffled if their writes don't work because their database is
+		  // down.
+		  // Don't give a default callback in simulation, because inside stubs we
+		  // want to return the results from the local collection immediately and
+		  // not force a callback.
+		  wrappedCallback = function (err) {
+		      if (err)
+			  Meteor._debug(name + " failed: " + (err.reason || err.stack));
+		  };
+	      }
+	      
+	      if (!alreadyInSimulation && name !== "insert") {
+		  // If we're about to actually send an RPC, we should throw an error if
+		  // this is a non-ID selector, because the mutation methods only allow
+		  // single-ID selectors. (If we don't throw here, we'll see flicker.)
+		  throwIfSelectorIsNotId(args[0], name);
+	      }
+	      
+	      ret = chooseReturnValueFromCollectionResult(
+		  self._connection.apply(self._prefix + name, args, wrappedCallback)
+	      );
+	      
+	  } else {
+	      // it's my collection.  descend into the collection object
+	      // and propagate any exception.
+	      args.push(wrappedCallback);
+	      try {
+		  // If the user provided a callback and the collection implements this
+		  // operation asynchronously, then queryRet will be undefined, and the
+		  // result will be returned through the callback instead.
+		  var queryRet = self._collection[name].apply(self._collection, args);
+		  ret = chooseReturnValueFromCollectionResult(queryRet);
+	      } catch (e) {
+		  if (callback) {
+		      callback(e);
+		      ret = null;
+		      return;
+		  }
+		  throw e;
+	      }
+	  }
+      };
+      
     if (name === "insert") {
       if (!args.length)
         throw new Error("insert requires an argument");
@@ -366,6 +476,7 @@ _.each(["insert", "update", "remove"], function (name) {
       } else {
         insertId = args[0]._id = self._makeNewID();
       }
+      intercept_out(self, args[0], f);
     } else {
       args[0] = Meteor.Collection._rewriteSelector(args[0]);
 
@@ -385,75 +496,13 @@ _.each(["insert", "update", "remove"], function (name) {
             options.insertedId = self._makeNewID();
           }
         }
+	intercept_out(self, args[1]['$set'], f); // not sure here
       }
-    }
+	if (name == "remove") {
+            f();
+	}
 
-    // On inserts, always return the id that we generated; on all other
-    // operations, just return the result from the collection.
-    var chooseReturnValueFromCollectionResult = function (result) {
-      if (name === "insert")
-        return insertId;
-      else
-        return result;
-    };
-
-    var wrappedCallback;
-    if (callback) {
-      wrappedCallback = function (error, result) {
-        callback(error, ! error && chooseReturnValueFromCollectionResult(result));
-      };
-    }
-
-    if (self._connection && self._connection !== Meteor.server) {
-      // just remote to another endpoint, propagate return value or
-      // exception.
-
-      var enclosing = DDP._CurrentInvocation.get();
-      var alreadyInSimulation = enclosing && enclosing.isSimulation;
-
-      if (Meteor.isClient && !wrappedCallback && ! alreadyInSimulation) {
-        // Client can't block, so it can't report errors by exception,
-        // only by callback. If they forget the callback, give them a
-        // default one that logs the error, so they aren't totally
-        // baffled if their writes don't work because their database is
-        // down.
-        // Don't give a default callback in simulation, because inside stubs we
-        // want to return the results from the local collection immediately and
-        // not force a callback.
-        wrappedCallback = function (err) {
-          if (err)
-            Meteor._debug(name + " failed: " + (err.reason || err.stack));
-        };
-      }
-
-      if (!alreadyInSimulation && name !== "insert") {
-        // If we're about to actually send an RPC, we should throw an error if
-        // this is a non-ID selector, because the mutation methods only allow
-        // single-ID selectors. (If we don't throw here, we'll see flicker.)
-        throwIfSelectorIsNotId(args[0], name);
-      }
-
-      ret = chooseReturnValueFromCollectionResult(
-        self._connection.apply(self._prefix + name, args, wrappedCallback)
-      );
-
-    } else {
-      // it's my collection.  descend into the collection object
-      // and propagate any exception.
-      args.push(wrappedCallback);
-      try {
-        // If the user provided a callback and the collection implements this
-        // operation asynchronously, then queryRet will be undefined, and the
-        // result will be returned through the callback instead.
-        var queryRet = self._collection[name].apply(self._collection, args);
-        ret = chooseReturnValueFromCollectionResult(queryRet);
-      } catch (e) {
-        if (callback) {
-          callback(e);
-          return null;
-        }
-        throw e;
-      }
+      
     }
 
     // both sync and async, unless we threw an exception, return ret
