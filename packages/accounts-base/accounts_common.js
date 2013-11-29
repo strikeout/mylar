@@ -55,6 +55,7 @@ Accounts.config = function(options) {
 
   // validate option keys
   var VALID_KEYS = ["sendVerificationEmail", "forbidClientAccountCreation",
+		    "restrictClientAccountCreation",
                     "restrictCreationByEmailDomain", "loginExpirationInDays"];
   _.each(_.keys(options), function (key) {
     if (!_.contains(VALID_KEYS, key)) {

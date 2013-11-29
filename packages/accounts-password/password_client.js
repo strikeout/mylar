@@ -11,11 +11,17 @@ Meteor.loginWithPassword = function (selector, password, callback) {
   var srp = new SRP.Client(password);
   var request = srp.startExchange();
 
-  if (typeof selector === 'string')
+    if (typeof selector === 'string') {
     if (selector.indexOf('@') === -1)
       selector = {username: selector};
     else
       selector = {email: selector};
+    }
+    else {
+	if (!selector['username'] && !selector['email']) {
+	    throw new Error("cannot login user without some username or email");
+	}
+    }
 
   request.user = selector;
 
@@ -58,6 +64,7 @@ Accounts.createUser = function (options, callback) {
   Accounts.callLoginMethod({
     methodName: 'createUser',
     methodArguments: [options],
+    suppressLogin: options.suppressLogin,
     userCallback: callback
   });
 };
