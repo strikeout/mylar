@@ -1183,6 +1183,7 @@ _.extend(Connection.prototype, {
 	      }
 	      
 	  });
+      });
   },
 
   // Ensures that "f" will be called after all documents currently in
