@@ -157,7 +157,7 @@ Accounts.callLoginMethod = function (options) {
 
     // Make the client logged in. (The user data should already be loaded!)
       if (!options.suppressLogin)
-      makeClientLoggedIn(result.id, result.token, result.tokenExpires);
+	  makeClientLoggedIn(result.id, result.token, result.tokenExpires);
     onceUserCallback();
   };
 

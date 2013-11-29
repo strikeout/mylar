@@ -1160,20 +1160,29 @@ _.extend(Connection.prototype, {
     // Process "sub ready" messages. "sub ready" messages don't take effect
     // until all current server documents have been flushed to the local
     // database. We can use a write fence to implement this.
-    _.each(msg.subs, function (subId) {
-      self._runWhenAllServerDocsAreFlushed(function () {
-        var subRecord = self._subscriptions[subId];
-        // Did we already unsubscribe?
-        if (!subRecord)
-          return;
-        // Did we already receive a ready message? (Oops!)
-        if (subRecord.ready)
-          return;
-        subRecord.readyCallback && subRecord.readyCallback();
-        subRecord.ready = true;
-        subRecord.readyDeps && subRecord.readyDeps.changed();
-      });
-    });
+      _.each(msg.subs, function (subId) {
+	  self._runWhenAllServerDocsAreFlushed(function () {
+              var subRecord = self._subscriptions[subId];
+              // Did we already unsubscribe?
+              if (!subRecord)
+		  return;
+              // Did we already receive a ready message? (Oops!)
+              if (subRecord.ready)
+		  return;
+	      
+	      ready_func = function() {
+		  subRecord.readyCallback && subRecord.readyCallback();
+		  subRecord.ready = true;
+		  subRecord.readyDeps && subRecord.readyDeps.changed();
+              };
+	      
+	      if (Meteor.Collection.intercept && Meteor.Collection.intercept.on_ready) {
+		  Meteor.Collection.intercept.on_ready(subRecord.name, ready_func);
+	      } else {
+		  ready_func();
+	      }
+	      
+	  });
   },
 
   // Ensures that "f" will be called after all documents currently in
