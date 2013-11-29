@@ -2,8 +2,11 @@ Changes Meteor-enc makes to Meteor
 ----------------------------------
 
 
-1. mongo-livedata/collection.js:
+1. mongo-livedata
+
+collection.js:
 - calls to intercept_*,
+and the definition of callback f, and where f is called
 
 Meteor-enc makes an assumption on Meteor:
 
@@ -15,3 +18,11 @@ If Meteor does not patch collection.js in this way, we should check this assumpt
 
 Changed _process_ready: instead of calling ready_func, it calls intercept.on_ready(collection, ready_func)
 
+
+3. accounts-base
+
+suppressLogin flag
+
+4. accounts-password
+
+suppressLogin flag
