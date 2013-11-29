@@ -20,5 +20,6 @@ Changed _process_ready: instead of calling ready_func, it calls intercept.on_rea
 
 3. accounts-base
 
+suppressLogin flag
 
 4. accounts-password
