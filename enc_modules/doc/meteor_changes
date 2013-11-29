@@ -6,6 +6,7 @@ Changes Meteor-enc makes to Meteor
 
 collection.js:
 - calls to intercept_*,
+and the definition of callback f, and where f is called
 
 Meteor-enc makes an assumption on Meteor:
 
@@ -23,3 +24,5 @@ Changed _process_ready: instead of calling ready_func, it calls intercept.on_rea
 suppressLogin flag
 
 4. accounts-password
+
+suppressLogin flag
