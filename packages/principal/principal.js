@@ -315,7 +315,6 @@ if (Meteor.isClient) {
     // runs callback cb upon completion on input the new principal
     Principal.create = function(type, name, creator, cb) {
 
-	console.log("a");
 	if (!type || !name || (type != "user" && !creator)) {
 	    throw new Error("cannot create principal with invalid (type, name, creator) : ("
 			    + type + ", " + name + ", " + creator +")");
@@ -331,20 +330,14 @@ if (Meteor.isClient) {
 	    PrincType.insert({type:type, searchable: false});
 	}
 
-	console.log("B");
 	generate_princ_keys(function(keys) {
-	    console.log("C");
 	    var p = new Principal(type, name, keys);
 	    cache_add(p, {'princ': creator});
-	    console.log("d");
 	    Principal._store(p, creator);
-	    console.log("e");
 	    if (creator) {
-		console.log("prefh");
 		Principal.add_access(creator, p, function(){console.log("h");
 							    cb(p);});	
 	    } else {
-		console.log("h2");
 		cb(p);
 	    }
 	});
@@ -460,9 +453,7 @@ generate_princ_keys = function(cb) {
     // runs on_complete on no input
     Principal.add_access = function (princ1, princ2, on_complete) {
 
-	console.log("bef time");
 	startTime("PRINC_ACCESS");
-	console.log("aft time");
 	if (debug) console.log("add_access princ1 " + princ1.name + " to princ2 " + princ2.name);
 	// need to load secret keys for princ2 and then add access to princ1
 	// we do these in reverse order due to callbacks
