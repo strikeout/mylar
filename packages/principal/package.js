@@ -11,11 +11,13 @@ Package.on_use(function (api) {
 
     api.imply(['standard-app-packages', 'timing', 'async']);
     api.add_files(['graphmodel.js', 'certs.js', 'principal.js', 'collection_hook.js'], where);
-    
+
+    // TODO: just export one variable containing all these
     api.export("Principal");
     api.export("PrincAttr");
     api.export("Principals");
     api.export("is_indexable");
     api.export("rand_field_name");
     api.export("search_field_name");
+    api.export("WrappedKeys");
 });

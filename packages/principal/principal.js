@@ -335,7 +335,7 @@ if (Meteor.isClient) {
 	    cache_add(p, {'princ': creator});
 	    Principal._store(p, creator);
 	    if (creator) {
-		Principal.add_access(creator, p, function(){console.log("h");
+		Principal.add_access(creator, p, function(){console.log("hg");
 							    cb(p);});	
 	    } else {
 		cb(p);
