@@ -49,11 +49,13 @@ Meteor.startup(function () {
         return;
       }
 
+	console.log("RUNNING!");
       // Based on Accounts.verifyEmail from accounts-password/password_client.js.
       Accounts.callLoginMethod({
         methodName: 'verifyEmailMylar',
         methodArguments: [r],
         userCallback: function (err) {
+	    console.log("user received response");
           if (err) {
             console.log('verifyEmailMylar:', err);
             return;

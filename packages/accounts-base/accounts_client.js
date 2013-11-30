@@ -91,6 +91,7 @@ Accounts.callLoginMethod = function (options) {
   // that the "reconnect quiesce"-time call to loggedInAndDataReadyCallback
   // will occur before the callback from the resume login call.)
   var onResultReceived = function (err, result) {
+      console.log("RECEIVED RESULT");
     if (err || !result || !result.token) {
       Meteor.connection.onReconnect = null;
     } else {

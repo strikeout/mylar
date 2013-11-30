@@ -7,4 +7,9 @@ Package.on_use(function (api, where) {
 
     api.add_files('timeLog.js', where);
 
+    api.export("logAdd");
+    api.export("startTime");
+    api.export("endTime");
+    api.export("markTime");
+    api.export("markGlobTime");
 });

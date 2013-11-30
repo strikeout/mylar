@@ -29,7 +29,8 @@ Accounts.checkedToken = function(email) {
 
 // Based on the verifyEmail method in accounts-password/password_server.js.
 Meteor.methods({verifyEmailMylar: function (r) {
-  if (!idp_verify_msg(r.msg, r.sig))
+    console.log("CALLING with " + JSON.stringify(r));
+    if (!idp_verify_msg(r.msg, r.sig))
     throw new Meteor.Error(403, "Certificate signature incorrect");
 
   var msgx = JSON.parse(r.msg);
@@ -66,6 +67,7 @@ Meteor.methods({verifyEmailMylar: function (r) {
     console.log("UPDATED");
   
   this.setUserId(user._id);
+    console.log("returning");
   return {token: stampedLoginToken.token, id: user._id};
 },
 
