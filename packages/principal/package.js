@@ -9,7 +9,7 @@ Package.on_use(function (api) {
     api.use(['standard-app-packages', 'accounts-base', 'basic-crypto', 'ejson', 'timing', 'http', 'async'],
 	    where);
 
-    api.imply(['standard-app-packages', 'timing', 'async']);
+    api.imply(['standard-app-packages', 'timing', 'async', 'basic-crypto']);
     api.add_files(['graphmodel.js', 'certs.js', 'principal.js', 'collection_hook.js'], where);
 
     // TODO: just export one variable containing all these

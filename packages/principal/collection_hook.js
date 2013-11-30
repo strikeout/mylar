@@ -322,7 +322,7 @@ function compute_ring(princ, lst, container) {
 
 function add_macs(immutable, container, cb) {
 
-    if (!immutable || immutable == {}) {
+    if (!immutable || _.isEmpty(immutable)) {
 	cb && cb();
 	return;
     }
@@ -331,7 +331,7 @@ function add_macs(immutable, container, cb) {
 	cb && cb();
 	return; // already added macs
     }
-    
+
     var macs = {};
 
     var when_done = function() {
@@ -441,7 +441,7 @@ function encrypt_row(_enc_fields, _signed_fields, container, callback) {
 // container is a map of key to values
 //_enc_fields is set
 _enc_row_helper = function(_enc_fields, _im_rings,  _signed_fields, container, callback) {
-  
+
     add_macs(_im_rings, container, function() {
 	encrypt_row(_enc_fields, _signed_fields, container, callback);
     });
@@ -483,6 +483,7 @@ _process_enc_fields = function(_enc_fields, lst) {
 // encrypts & signs a document
 // container is a map of key to values 
 function enc_row(coll, container, callback) {
+
     if (!Meteor.isClient || !container) {
 	callback && callback();
 	return;
@@ -528,14 +529,12 @@ function dec_msg(coll, id, container, callback) {
     // to run later (the ready subscription callback)
     var callback_q = [];
     var rid = Random.id();
-    console.log("rid " + rid);
     mylar_decrypt_cb[rid] = callback_q;
     callback2 = function () {
 	if (callback) {
 	    callback();
 	}
 	_.each(callback_q, function (f) {
-	    console.log("a new callback to do");
 	    f();
 	});
 	delete mylar_decrypt_cb[rid];

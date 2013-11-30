@@ -392,7 +392,7 @@ _.each(["insert", "update", "remove"], function (name) {
 
 
       var f = function(){
-	
+
 	  // On inserts, always return the id that we generated; on all other
 	  // operations, just return the result from the collection.
 	  var chooseReturnValueFromCollectionResult = function (result) {
