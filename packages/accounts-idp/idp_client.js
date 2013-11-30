@@ -5,7 +5,7 @@ var idp_conn;
 
 function idp_connect() {
   if (!idp_conn)
-    idp_conn = Meteor.connect(idp_url);
+    idp_conn = DDP.connect(idp_url);
 
   return idp_conn;
 }
