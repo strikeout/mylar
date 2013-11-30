@@ -134,7 +134,6 @@ Accounts.callLoginMethod = function (options) {
   // subscription (and all subscriptions, in fact) are guaranteed to be up to
   // date.
   var loggedInAndDataReadyCallback = function (error, result) {
-      console.log("loggedin+data ready");
     // If the login method returns its result but the connection is lost
     // before the data is in the local cache, it'll set an onReconnect (see
     // above). The onReconnect will try to log in using the token, and *it*

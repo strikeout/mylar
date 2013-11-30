@@ -15,5 +15,8 @@ Package.on_use(function(api) {
     api.add_files('accounts_client.js', 'client');
     api.add_files('accounts_server.js', 'server');
 
+    // TODO: export just one variable
     api.export("idp_init");
+    api.export("idp_verify_msg");
+    api.export("idp_app_url");
 });
