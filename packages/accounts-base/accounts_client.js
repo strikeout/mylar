@@ -94,7 +94,6 @@ Accounts.callLoginMethod = function (options) {
   // that the "reconnect quiesce"-time call to loggedInAndDataReadyCallback
   // will occur before the callback from the resume login call.)
   var onResultReceived = function (err, result) {
-      console.log("RECEIVED RESULT " + JSON.stringify(result));
     if (err || !result || !result.token) {
       Meteor.connection.onReconnect = null;
     } else {
@@ -114,7 +113,6 @@ Accounts.callLoginMethod = function (options) {
         if (Accounts._tokenExpiresSoon(result.tokenExpires)) {
           makeClientLoggedOut();
         } else {
-	    console.log("calling resume");
           Accounts.callLoginMethod({
             methodArguments: [{resume: result.token}],
             // Reconnect quiescence ensures that the user doesn't see an
@@ -145,7 +143,6 @@ Accounts.callLoginMethod = function (options) {
     if (reconnected)
       return;
 
-      console.log("continuing");
     // Note that we need to call this even if _suppressLoggingIn is true,
     // because it could be matching a _setLoggingIn(true) from a
     // half-completed pre-reconnect login method.
@@ -165,7 +162,6 @@ Accounts.callLoginMethod = function (options) {
 
     // Make the client logged in. (The user data should already be loaded!)
       if (!options.suppressLogin) {
-	  console.log("make client logged in");
 	  makeClientLoggedIn(result.id, result.token, result.tokenExpires);
       }
     onceUserCallback();
@@ -174,7 +170,6 @@ Accounts.callLoginMethod = function (options) {
     if (!options._suppressLoggingIn) {
 	Accounts._setLoggingIn(true);
     }
-    console.log("apply for method name: " + options.methodName);
   Meteor.apply(
     options.methodName,
     options.methodArguments,
