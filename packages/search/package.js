@@ -15,6 +15,7 @@ Package.on_use(function (api, where) {
 //    api.add_files('crypto_plugin.html', 'client');
     api.add_files('crypto_plugin.js', 'client');
 
+    api.export("MylarCrypto");
         
     if(USE_NACL){
       // What a hack!  Extract source_root via the exception string.
