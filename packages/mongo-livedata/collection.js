@@ -94,10 +94,8 @@ Meteor.Collection = function (name, options) {
   self._name = name;
 
    if (Meteor.Collection.intercept && Meteor.Collection.intercept.init) {
-	console.log("init intercepted");
 	Meteor.Collection.intercept.init(self);
    } else {
-       console.log("collection init -- NO INTERCEPT defined");
    }
     
   if (self._connection && self._connection.registerStore) {
