@@ -7,6 +7,7 @@ Package.on_use(function (api) {
 
     api.add_files(['sjcl.js', 'crypto.js'], where);
 
+    api.export("sjcl");
     api.export("base_crypto");
     api.export("deserialize_keys");
     api.export("serialize_keys");
