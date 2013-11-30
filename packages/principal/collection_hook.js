@@ -531,10 +531,12 @@ function dec_msg(coll, id, container, callback) {
     console.log("rid " + rid);
     mylar_decrypt_cb[rid] = callback_q;
     callback2 = function () {
+	console.log("in dec_msg callback");
 	if (callback) {
 	    callback();
 	}
 	_.each(callback_q, function (f) {
+	    console.log("a new callback to do");
 	    f();
 	});
 	delete mylar_decrypt_cb[rid];

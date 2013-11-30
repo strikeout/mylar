@@ -11,8 +11,6 @@ autoLoginEnabled = true;
 var match;
 match = window.location.hash.match(/^\#\/reset-password\/(.*)$/);
 
-console.log("url matching now!");
-
 if (match) {
   autoLoginEnabled = false;
   Accounts._resetPasswordToken = match[1];
@@ -49,6 +47,6 @@ if (match) {
 
 match = window.location.hash.match(/^\#\/Mylar(.*)\/(.*)$/);
 if (match) {
-    console.log("Mylar intercept!");
+    console.log("Mylar url intercept!");
     autoLoginEnabled = false; // let Mylar intercept from here
 }

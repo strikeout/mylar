@@ -2,10 +2,7 @@ var verify_idp_token;
 var create_account_token;
 var match = window.location.hash.match(/^\#\/Mylar-verify-idp-token\/(.*)$/);
 
-console.log("IDP matching now");
-
 var match_token = window.location.hash.match(/^\#\/Mylar-login-with-token\/(.*)$/);
-
 
 if (match) {
     window.location.hash = '';
@@ -35,7 +32,6 @@ Deps.autorun(function(){
 })
 
 Meteor.startup(function () {
-    console.log("METEOR STARTUP id_Token starting");
     if (verify_idp_token) {
 	var token = decodeURIComponent(verify_idp_token);
 	var u = Principal.user();

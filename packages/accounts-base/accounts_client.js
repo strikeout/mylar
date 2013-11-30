@@ -60,8 +60,6 @@ Meteor.user = function () {
 //
 Accounts.callLoginMethod = function (options) {
 
-    console.log("login method called, options: " + JSON.stringify(options))
-    console.log("autologinenabled is " + autoLoginEnabled);
   options = _.extend({
     methodName: 'login',
     methodArguments: [],
@@ -101,7 +99,6 @@ Accounts.callLoginMethod = function (options) {
         reconnected = true;
         // If our token was updated in storage, use the latest one.
         var storedToken = storedLoginToken();
-	  console.log("storedToken " + storedToken);
         if (storedToken) {
           result = {
             token: storedToken,

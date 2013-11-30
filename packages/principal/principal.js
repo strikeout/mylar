@@ -940,11 +940,6 @@ generate_princ_keys = function(cb) {
 	_processAccessInbox(uprinc, dbprinc);
     }
 
-    Deps.autorun(function(){
-	console.log(Meteor.userId());
-	console.log("hi there");
-    });
-    
     Deps.autorun(processAccessInbox);
     
     Deps.autorun(function(){

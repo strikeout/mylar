@@ -64,10 +64,8 @@ Meteor.methods({verifyEmailMylar: function (r) {
       {$set: {'emails.$.verified': true,
 	      _pubkey_cert : r.sig},
        $push: {'services.resume.loginTokens': stampedLoginToken}});
-    console.log("UPDATED");
   
   this.setUserId(user._id);
-    console.log("returning");
   return {token: stampedLoginToken.token,
 	  tokenExpires: tokenExpires,
 	  id: user._id};
