@@ -18,8 +18,6 @@ Changed _process_ready: instead of calling ready_func, it calls intercept.on_rea
 
 suppressLogin flag
 
-defined Accounts._disableAutoLogin()
-
 Mylar intercept code in url_client.js
 
 Assumptions on Meteor that we make
