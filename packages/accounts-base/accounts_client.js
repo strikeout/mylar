@@ -59,6 +59,9 @@ Meteor.user = function () {
 //                 logged in, or with the error on error.
 //
 Accounts.callLoginMethod = function (options) {
+
+    console.log("login method called, options: " + JSON.stringify(options))
+    console.log("autologinenabled is " + autoLoginEnabled);
   options = _.extend({
     methodName: 'login',
     methodArguments: [],

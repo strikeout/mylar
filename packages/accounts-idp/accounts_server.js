@@ -84,7 +84,7 @@ createOtherUser: function(email, profile) {
     
     Tokens.insert({email: email, token: token, profile: profile, verified: false});
 
-    var origin = Meteor.absoluteUrl('#/login-with-token/');
+    var origin = Meteor.absoluteUrl('#/Mylar-login-with-token/');
     var url = origin + encodeURIComponent(token);
 
     var text = "Please click on this link to create account:\n\n" + url;

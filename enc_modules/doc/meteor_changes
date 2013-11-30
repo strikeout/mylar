@@ -20,6 +20,8 @@ suppressLogin flag
 
 defined Accounts._disableAutoLogin()
 
+Mylar intercept code in url_client.js
+
 Assumptions on Meteor that we make
 ----------------------------------
 

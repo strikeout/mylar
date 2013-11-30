@@ -21,6 +21,7 @@ Accounts._enableAutoLogin = function () {
 };
 
 Accounts._disableAutoLogin = function() {
+    console.log("disablingAutoLogin");
     autoLoginEnabled = false;  
 };
 ///

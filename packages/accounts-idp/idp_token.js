@@ -1,8 +1,10 @@
 var verify_idp_token;
 var create_account_token;
-var match = window.location.hash.match(/^\#\/verify-idp-token\/(.*)$/);
+var match = window.location.hash.match(/^\#\/Mylar-verify-idp-token\/(.*)$/);
 
-var match_token = window.location.hash.match(/^\#\/login-with-token\/(.*)$/);
+console.log("IDP matching now");
+
+var match_token = window.location.hash.match(/^\#\/Mylar-login-with-token\/(.*)$/);
 
 
 if (match) {
@@ -13,6 +15,7 @@ if (match) {
 
 // TODO: can use perhaps same token
 if (match_token){
+    Accounts._disableAutoLogin();
     window.location.hash = '';
     Session.set("tmp_account_token", match_token[1]);
 }

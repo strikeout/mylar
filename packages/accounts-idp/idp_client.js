@@ -24,7 +24,7 @@ idp_init = function(url, pk, debug) {
 };
 
 idp_app_url = function () {
-  return Meteor.absoluteUrl('#/verify-idp-token/');
+  return Meteor.absoluteUrl('#/Mylar-verify-idp-token/');
 };
 
 idp_request_cert = function (email, pubkey) {
@@ -72,6 +72,8 @@ idp_obtain_cert = function (email, pk, sk, token, cb) {
 	
 	cb({ msg: r.msg, sig: r.sig });
     });
+
+    console.log("exiting idp_obtain_cert");
 };
 
 idp_verify_msg = function (msg, sig) {
