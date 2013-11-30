@@ -133,6 +133,7 @@ Accounts.callLoginMethod = function (options) {
   // subscription (and all subscriptions, in fact) are guaranteed to be up to
   // date.
   var loggedInAndDataReadyCallback = function (error, result) {
+      console.log("loggedin+data ready");
     // If the login method returns its result but the connection is lost
     // before the data is in the local cache, it'll set an onReconnect (see
     // above). The onReconnect will try to log in using the token, and *it*
@@ -141,6 +142,7 @@ Accounts.callLoginMethod = function (options) {
     if (reconnected)
       return;
 
+      console.log("continuing");
     // Note that we need to call this even if _suppressLoggingIn is true,
     // because it could be matching a _setLoggingIn(true) from a
     // half-completed pre-reconnect login method.
@@ -166,8 +168,10 @@ Accounts.callLoginMethod = function (options) {
     onceUserCallback();
   };
 
-  if (!options._suppressLoggingIn)
-    Accounts._setLoggingIn(true);
+    if (!options._suppressLoggingIn) {
+	Accounts._setLoggingIn(true);
+    }
+    console.log("apply for method name: " + options.methodName);
   Meteor.apply(
     options.methodName,
     options.methodArguments,

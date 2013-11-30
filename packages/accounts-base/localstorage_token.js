@@ -20,7 +20,9 @@ Accounts._enableAutoLogin = function () {
   pollStoredLoginToken();
 };
 
-
+Accounts._disableAutoLogin = function() {
+    autoLoginEnabled = false;  
+};
 ///
 /// STORING
 ///
