@@ -14,4 +14,8 @@ Package.on_use(function (api) {
     
     api.export("Principal");
     api.export("PrincAttr");
+    api.export("Principals");
+    api.export("is_indexable");
+    api.export("rand_field_name");
+    api.export("search_field_name");
 });
