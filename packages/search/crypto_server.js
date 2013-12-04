@@ -89,7 +89,9 @@ if (Meteor.isClient) { // client must be asynchronous
 		if (!error && res && res.statusCode == 200) {
 		    cb(res.content);
 		} else {
-		    throw new Error("bad result from cryptoserver");
+            if(error)
+                console.error("Crypto server error: " + error.toString());
+		    throw new Error("Bad result from cryptoserver");
 		    //cb();
 		}
 	    });
