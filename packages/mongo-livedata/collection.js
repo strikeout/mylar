@@ -4,20 +4,18 @@
 
 
 function intercept_out(collection, container, callback) {
-    if (Meteor.Collection.intercept && Meteor.Collection.intercept.out) {
+    if (Meteor.isClient && Meteor.Collection.intercept && Meteor.Collection.intercept.out) {
 	Meteor.Collection.intercept.out(collection, container, callback);
     } else {
-	console.log("NO INTERCEPT FUNC!");
 	callback && callback();
     }
 }
 
 
 function intercept_in(collection, id, container, callback) {
-    if (Meteor.Collection.intercept && Meteor.Collection.intercept.incoming) {
+    if (Meteor.isClient && Meteor.Collection.intercept && Meteor.Collection.intercept.incoming) {
 	Meteor.Collection.intercept.incoming(collection, id, container, callback);
     } else {
-	console.log("NO INTERCEPT FUNC!");
 	callback && callback();
     }
 }
@@ -90,7 +88,9 @@ Meteor.Collection = function (name, options) {
     }
   }
 
-  self._collection = options._driver.open(name, self._connection);
+    // creates local collection in the driver,
+    // _collection becomes the minicollection
+  self._collection = options._driver.open(name, self._connection); 
   self._name = name;
 
    if (Meteor.Collection.intercept && Meteor.Collection.intercept.init) {
@@ -389,7 +389,7 @@ _.each(["insert", "update", "remove"], function (name) {
       callback = args.pop();
 
 
-      var f = function(){
+      var f = function(meta){
 
 	  // On inserts, always return the id that we generated; on all other
 	  // operations, just return the result from the collection.
@@ -406,14 +406,23 @@ _.each(["insert", "update", "remove"], function (name) {
 		  callback(error, ! error && chooseReturnValueFromCollectionResult(result));
 	      };
 	  }
-	  
+
+	  console.log("after enc_row, in f");
 	  if (self._connection && self._connection !== Meteor.server) {
+	      //@ENC: take this branch at client
+	      
 	      // just remote to another endpoint, propagate return value or
 	      // exception.
-	      
+
+	      //console.log("for " + self._name
+	//		  + " other server, self._connection._stream keys is "
+	//		  + self._connection._stream.rawUrl);
+
+
 	      var enclosing = DDP._CurrentInvocation.get();
 	      var alreadyInSimulation = enclosing && enclosing.isSimulation;
-	      
+
+	     // console.log("alreadyInSim " + alreadyInSimulation);
 	      if (Meteor.isClient && !wrappedCallback && ! alreadyInSimulation) {
 		  // Client can't block, so it can't report errors by exception,
 		  // only by callback. If they forget the callback, give them a
@@ -437,10 +446,11 @@ _.each(["insert", "update", "remove"], function (name) {
 	      }
 	      
 	      ret = chooseReturnValueFromCollectionResult(
-		  self._connection.apply(self._prefix + name, args, wrappedCallback)
+		  self._connection.apply(self._prefix + name, args, undefined, wrappedCallback, meta)
 	      );
 	      
-	  } else {
+	  } else { // @ENC: go on this branch at server
+	      console.log("my server");
 	      // it's my collection.  descend into the collection object
 	      // and propagate any exception.
 	      args.push(wrappedCallback);
@@ -448,7 +458,10 @@ _.each(["insert", "update", "remove"], function (name) {
 		  // If the user provided a callback and the collection implements this
 		  // operation asynchronously, then queryRet will be undefined, and the
 		  // result will be returned through the callback instead.
+		  console.log("befire queryRet");
 		  var queryRet = self._collection[name].apply(self._collection, args);
+		  console.log("here are the methods of minicollection " +
+			      JSON.stringify(_.keys(self._collection)));
 		  ret = chooseReturnValueFromCollectionResult(queryRet);
 	      } catch (e) {
 		  if (callback) {
@@ -460,6 +473,8 @@ _.each(["insert", "update", "remove"], function (name) {
 	      }
 	  }
       };
+
+    var meta = {'coll': self, 'transform': intercept_out};
       
     if (name === "insert") {
       if (!args.length)
@@ -474,7 +489,7 @@ _.each(["insert", "update", "remove"], function (name) {
       } else {
         insertId = args[0]._id = self._makeNewID();
       }
-      intercept_out(self, args[0], f);
+	meta['doc'] = args[0];
     } else {
       args[0] = Meteor.Collection._rewriteSelector(args[0]);
 
@@ -494,14 +509,17 @@ _.each(["insert", "update", "remove"], function (name) {
             options.insertedId = self._makeNewID();
           }
         }
-	intercept_out(self, args[1]['$set'], f); // not sure here
+	meta['doc'] = args[1]['$set']; // not sure here
       }
-	if (name == "remove") {
+/*	if (name == "remove") {
             f();
 	}
-
+*/
       
     }
+
+      f(meta);
+      
 
     // both sync and async, unless we threw an exception, return ret
     // (new document ID for insert, num affected for update/remove, object with

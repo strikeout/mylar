@@ -448,6 +448,11 @@ LocalCollection.prototype.insert = function (doc, callback) {
   var self = this;
   doc = EJSON.clone(doc);
 
+    if (self.name == "answers") {
+	var ans = JSON.stringify(doc);
+	if (ans.indexOf("you exercise in") >=0)
+	    console.log("mini answers insert " + JSON.stringify(doc));
+    }
   if (!_.has(doc, '_id')) {
     // if you really want to use ObjectIDs, set this global.
     // Meteor.Collection specifies its own ids and does not use this code.
@@ -555,6 +560,12 @@ LocalCollection.prototype.remove = function (selector, callback) {
 // we rollback the whole operation, or what?
 LocalCollection.prototype.update = function (selector, mod, options, callback) {
   var self = this;
+
+    if (self.name == "answers") {
+	var str = JSON.stringify(mod);
+	if (str.indexOf("you exercise in") >=0)
+	    console.log("mini: updating to answers: " + JSON.stringify(selector)+ " " + JSON.stringify(mod));
+    }
   if (! callback && options instanceof Function) {
     callback = options;
     options = null;

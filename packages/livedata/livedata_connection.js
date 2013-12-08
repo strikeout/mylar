@@ -585,7 +585,7 @@ _.extend(Connection.prototype, {
   //                                result is received. the data written by
   //                                the method may not yet be in the cache!
   // @param callback {Optional Function}
-  apply: function (name, args, options, callback) {
+    apply: function (name, args, options, callback, meta) {
     var self = this;
 
     // We were passed 3 arguments. They may be either (name, args, options)
@@ -632,6 +632,7 @@ _.extend(Connection.prototype, {
     var alreadyInSimulation = enclosing && enclosing.isSimulation;
 
     var stub = self._methodHandlers[name];
+   
     if (stub) {
       var setUserId = function(userId) {
         self.setUserId(userId);
@@ -672,6 +673,7 @@ _.extend(Connection.prototype, {
     // rather than going on to do an RPC. If there was no stub,
     // we'll end up returning undefined.
     if (alreadyInSimulation) {
+	console.log("already in simulation");
       if (callback) {
         callback(exception, ret);
         return undefined;
@@ -696,6 +698,8 @@ _.extend(Connection.prototype, {
     // At this point we're definitely doing an RPC, and we're going to
     // return the value of the RPC to the caller.
 
+
+ 
     // If the caller didn't give a callback, decide what to do.
     if (!callback) {
       if (Meteor.isClient) {
@@ -710,46 +714,91 @@ _.extend(Connection.prototype, {
         callback = future.resolver();
       }
     }
-    // Send the RPC. Note that on the client, it is important that the
-    // stub have finished before we send the RPC, so that we know we have
-    // a complete list of which local documents the stub wrote.
-    var methodInvoker = new MethodInvoker({
-      methodId: methodId(),
-      callback: callback,
-      connection: self,
-      onResultReceived: options.onResultReceived,
-      wait: !!options.wait,
-      message: {
-        msg: 'method',
-        method: name,
-        params: args,
-        id: methodId()
-      }
-    });
 
-    if (options.wait) {
-      // It's a wait method! Wait methods go in their own block.
-      self._outstandingMethodBlocks.push(
-        {wait: true, methods: [methodInvoker]});
-    } else {
-      // Not a wait method. Start a new block if the previous block was a wait
-      // block, and add it to the last block of methods.
-      if (_.isEmpty(self._outstandingMethodBlocks) ||
-          _.last(self._outstandingMethodBlocks).wait)
-        self._outstandingMethodBlocks.push({wait: false, methods: []});
-      _.last(self._outstandingMethodBlocks).methods.push(methodInvoker);
+   // Send the RPC. Note that on the client, it is important that the
+   // stub have finished before we send the RPC, so that we know we have
+   // a complete list of which local documents the stub wrote.
+
+    if (meta && Meteor.isClient) {
+
+	meta.transform(meta.coll, meta.doc, function() {
+	    var methodInvoker = new MethodInvoker({
+		methodId: methodId(),
+		callback: callback,
+		connection: self,
+		onResultReceived: options.onResultReceived,
+		wait: !!options.wait,
+		message: {
+		    msg: 'method',
+		    method: name,
+		    params: args,
+		    id: methodId()
+		}
+	    });
+	    
+	    if (options.wait) {
+		// It's a wait method! Wait methods go in their own block.
+		self._outstandingMethodBlocks.push(
+		    {wait: true, methods: [methodInvoker]});
+	    } else {
+		// Not a wait method. Start a new block if the previous block was a wait
+		// block, and add it to the last block of methods.
+		if (_.isEmpty(self._outstandingMethodBlocks) ||
+		    _.last(self._outstandingMethodBlocks).wait)
+		    self._outstandingMethodBlocks.push({wait: false, methods: []});
+		_.last(self._outstandingMethodBlocks).methods.push(methodInvoker);
+	    }
+	    
+	    // If we added it to the first block, send it out now.
+	    if (self._outstandingMethodBlocks.length === 1)
+		methodInvoker.sendMessage();
+	    
+	});
+	return undefined;
+			     
+    } else {	// regular path -- nonMylar
+	var methodInvoker = new MethodInvoker({
+	    methodId: methodId(),
+	    callback: callback,
+	    connection: self,
+	    onResultReceived: options.onResultReceived,
+	    wait: !!options.wait,
+	    message: {
+		msg: 'method',
+		method: name,
+		params: args,
+		id: methodId()
+	    }
+	});
+	
+	if (options.wait) {
+	    // It's a wait method! Wait methods go in their own block.
+	    self._outstandingMethodBlocks.push(
+		{wait: true, methods: [methodInvoker]});
+	} else {
+	    // Not a wait method. Start a new block if the previous block was a wait
+	    // block, and add it to the last block of methods.
+	    if (_.isEmpty(self._outstandingMethodBlocks) ||
+		_.last(self._outstandingMethodBlocks).wait)
+		self._outstandingMethodBlocks.push({wait: false, methods: []});
+	    _.last(self._outstandingMethodBlocks).methods.push(methodInvoker);
+	}
+	
+	// If we added it to the first block, send it out now.
+	if (self._outstandingMethodBlocks.length === 1)
+	    methodInvoker.sendMessage();
+	
+	// If we're using the default callback on the server,
+	// block waiting for the result.
+	if (future) {//@ENC: runs on server only
+	    return future.wait();
+	}
+	
+	return undefined;
+	
     }
-
-    // If we added it to the first block, send it out now.
-    if (self._outstandingMethodBlocks.length === 1)
-      methodInvoker.sendMessage();
-
-    // If we're using the default callback on the server,
-    // block waiting for the result.
-    if (future) {
-      return future.wait();
-    }
-    return undefined;
+	
+      
   },
 
   // Before calling a method stub, prepare all stores to track changes and allow

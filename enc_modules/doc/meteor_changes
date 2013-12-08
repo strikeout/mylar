@@ -29,7 +29,7 @@ It assumes that the functions update, insert, remove can return without actually
 
 If Meteor does not patch collection.js in this way, we should check this assumption holds when porting to newer Meteor versions.
 
-2. Our accounts-idp: a large part of this package makes assumptions on the internals of Accounts in Meteor, for example:
+2. Our accounts-idp: a large part of this package makes assumptions on the internals of Accounts in Meteor and should be rewritten, for example:
 
 - uses Accounts.callLoginMethod with arguments we supply and we assume these arguments are still valid for Meteor
 

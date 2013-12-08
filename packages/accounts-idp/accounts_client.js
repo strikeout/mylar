@@ -37,9 +37,6 @@ Accounts.createUser = function (options, callback) {
     var password = options.password;
     current_pw = password;
 
-    console.log(options);
-    
-    console.log("create user options" +JSON.stringify(options)); 
     Principal.create('user', uname, null, function (uprinc) {
 	createPrincipalCB(uprinc, function () {
 	    var ukeys = serialize_keys(uprinc.keys);
