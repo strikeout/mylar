@@ -52,7 +52,7 @@ for D in enc_modules/crypto_mk enc_modules/crypto_server; do
 done
 
 
-if ps aux | grep "crypto_server" > /dev/null
+if pidof crypto_server
 then
     echo "Crypto server already running"
 else

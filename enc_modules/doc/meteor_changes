@@ -2,7 +2,8 @@ We make few changes to Meteor, but we do assume that Meteor works in certain way
 
 Changes Meteor-enc makes to Meteor
 ----------------------------------
-
+0. meteor
+- start crypto-server on server startup
 
 1. mongo-livedata
 
