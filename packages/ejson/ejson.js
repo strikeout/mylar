@@ -1,4 +1,6 @@
-EJSON = {}; // Global!
+EJSON = {};
+EJSONTest = {};
+
 var customTypes = {};
 // Add a custom type, using a method of your choice to get to and
 // from a basic JSON-able representation.  The factory argument
@@ -9,10 +11,15 @@ var customTypes = {};
 // - A toJSONValue() method, so that Meteor can serialize it
 // - a typeName() method, to show how to look it up in our type table.
 // It is okay if these methods are monkey-patched on.
+//
 EJSON.addType = function (name, factory) {
   if (_.has(customTypes, name))
     throw new Error("Type " + name + " already present");
   customTypes[name] = factory;
+};
+
+var isInfOrNan = function (obj) {
+  return _.isNaN(obj) || obj === Infinity || obj === -Infinity;
 };
 
 var builtinConverters = [
@@ -30,6 +37,26 @@ var builtinConverters = [
       return new Date(obj.$date);
     }
   },
+  { // NaN, Inf, -Inf. (These are the only objects with typeof !== 'object'
+    // which we match.)
+    matchJSONValue: function (obj) {
+      return _.has(obj, '$InfNaN') && _.size(obj) === 1;
+    },
+    matchObject: isInfOrNan,
+    toJSONValue: function (obj) {
+      var sign;
+      if (_.isNaN(obj))
+        sign = 0;
+      else if (obj === Infinity)
+        sign = 1;
+      else
+        sign = -1;
+      return {$InfNaN: sign};
+    },
+    fromJSONValue: function (obj) {
+      return obj.$InfNaN/0;
+    }
+  },
   { // Binary
     matchJSONValue: function (obj) {
       return _.has(obj, '$binary') && _.size(obj) === 1;
@@ -39,10 +66,10 @@ var builtinConverters = [
         || (obj && _.has(obj, '$Uint8ArrayPolyfill'));
     },
     toJSONValue: function (obj) {
-      return {$binary: EJSON._base64Encode(obj)};
+      return {$binary: base64Encode(obj)};
     },
     fromJSONValue: function (obj) {
-      return EJSON._base64Decode(obj.$binary);
+      return base64Decode(obj.$binary);
     }
   },
   { // Escaping one level
@@ -98,17 +125,26 @@ EJSON._isCustomType = function (obj) {
 };
 
 
-//for both arrays and objects, in-place modification.
+// for both arrays and objects, in-place modification.
 var adjustTypesToJSONValue =
 EJSON._adjustTypesToJSONValue = function (obj) {
+  // Is it an atom that we need to adjust?
   if (obj === null)
     return null;
   var maybeChanged = toJSONValueHelper(obj);
   if (maybeChanged !== undefined)
     return maybeChanged;
+
+  // Other atoms are unchanged.
+  if (typeof obj !== 'object')
+    return obj;
+
+  // Iterate over array or object structure.
   _.each(obj, function (value, key) {
-    if (typeof value !== 'object' && value !== undefined)
+    if (typeof value !== 'object' && value !== undefined &&
+        !isInfOrNan(value))
       return; // continue
+
     var changed = toJSONValueHelper(value);
     if (changed) {
       obj[key] = changed;
@@ -144,9 +180,10 @@ EJSON.toJSONValue = function (item) {
   return item;
 };
 
-//for both arrays and objects. Tries its best to just
+// for both arrays and objects. Tries its best to just
 // use the object you hand it, but may return something
 // different if the object you hand it itself needs changing.
+//
 var adjustTypesFromJSONValue =
 EJSON._adjustTypesFromJSONValue = function (obj) {
   if (obj === null)
@@ -154,6 +191,11 @@ EJSON._adjustTypesFromJSONValue = function (obj) {
   var maybeChanged = fromJSONValueHelper(obj);
   if (maybeChanged !== obj)
     return maybeChanged;
+
+  // Other atoms are unchanged.
+  if (typeof obj !== 'object')
+    return obj;
+
   _.each(obj, function (value, key) {
     if (typeof value === 'object') {
       var changed = fromJSONValueHelper(value);
@@ -202,17 +244,24 @@ EJSON.fromJSONValue = function (item) {
   }
 };
 
-EJSON.stringify = function (item) {
-  return JSON.stringify(EJSON.toJSONValue(item));
+EJSON.stringify = function (item, options) {
+  var json = EJSON.toJSONValue(item);
+  if (options && (options.canonical || options.indent)) {
+    return EJSON._canonicalStringify(json, options);
+  } else {
+    return JSON.stringify(json);
+  }
 };
 
 EJSON.parse = function (item) {
+  if (typeof item !== 'string')
+    throw new Error("EJSON.parse argument should be a string");
   return EJSON.fromJSONValue(JSON.parse(item));
 };
 
 EJSON.isBinary = function (obj) {
-  return (typeof Uint8Array !== 'undefined' && obj instanceof Uint8Array) ||
-    (obj && obj.$Uint8ArrayPolyfill);
+  return !!((typeof Uint8Array !== 'undefined' && obj instanceof Uint8Array) ||
+    (obj && obj.$Uint8ArrayPolyfill));
 };
 
 EJSON.equals = function (a, b, options) {
@@ -220,6 +269,9 @@ EJSON.equals = function (a, b, options) {
   var keyOrderSensitive = !!(options && options.keyOrderSensitive);
   if (a === b)
     return true;
+  if (_.isNaN(a) && _.isNaN(b))
+    return true; // This differs from the IEEE spec for NaN equality, b/c we don't want
+                 // anything ever with a NaN to be poisoned from becoming equal to anything.
   if (!a || !b) // if either one is falsy, they'd have to be === to be equal
     return false;
   if (!(typeof a === 'object' && typeof b === 'object'))
@@ -301,6 +353,7 @@ EJSON.clone = function (v) {
     }
     return ret;
   }
+  // XXX: Use something better than underscore's isArray
   if (_.isArray(v) || _.isArguments(v)) {
     // For some reason, _.map doesn't work in this context on Opera (weird test
     // failures).

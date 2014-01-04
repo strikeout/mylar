@@ -16,6 +16,8 @@ var DICE = ['PCHOAS', 'OATTOW', 'LRYTTE', 'VTHRWE',
             'MTOICU', 'AFPKFS', 'XLDERI', 'ENSIEU',
             'YLDEVR', 'ZNRNHL', 'NMIQHU', 'OBBAOJ'];
 
+var DICTIONARY = null;
+
 // board is an array of length 16, in row-major order.  ADJACENCIES
 // lists the board positions adjacent to each board position.
 var ADJACENCIES = [
@@ -100,9 +102,12 @@ Meteor.methods({
     var word = Words.findOne(word_id);
     var game = Games.findOne(word.game_id);
 
-    // client and server can both check: must be at least three chars
-    // long, not already used, and possible to make on the board.
-    if (word.length < 3
+    // client and server can both check that the game has time remaining, and
+    // that the word is at least three chars, isn't already used, and is
+    // possible to make on the board.
+    if (game.clock === 0
+        || !word.word
+        || word.word.length < 3
         || Words.find({game_id: word.game_id, word: word.word}).count() > 1
         || paths_for_word(game.board, word.word).length === 0) {
       Words.update(word._id, {$set: {score: 0, state: 'bad'}});
@@ -111,11 +116,11 @@ Meteor.methods({
 
     // now only on the server, check against dictionary and score it.
     if (Meteor.isServer) {
-      if (DICTIONARY.indexOf(word.word.toLowerCase()) === -1) {
-        Words.update(word._id, {$set: {score: 0, state: 'bad'}});
-      } else {
+      if (_.has(DICTIONARY, word.word.toLowerCase())) {
         var score = Math.pow(2, word.word.length - 3);
         Words.update(word._id, {$set: {score: score, state: 'good'}});
+      } else {
+        Words.update(word._id, {$set: {score: 0, state: 'bad'}});
       }
     }
   }
@@ -123,6 +128,14 @@ Meteor.methods({
 
 
 if (Meteor.isServer) {
+  DICTIONARY = {};
+  _.each(Assets.getText("enable2k.txt").split("\n"), function (line) {
+    // Skip blanks and comment lines
+    if (line && line.indexOf("//") !== 0) {
+      DICTIONARY[line] = true;
+    }
+  });
+
   // publish all the non-idle players.
   Meteor.publish('players', function () {
     return Players.find({idle: false});
@@ -143,4 +156,3 @@ if (Meteor.isServer) {
                              {player_id: player_id}]});
   });
 }
-

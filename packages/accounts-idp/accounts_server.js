@@ -29,7 +29,8 @@ Accounts.checkedToken = function(email) {
 
 // Based on the verifyEmail method in accounts-password/password_server.js.
 Meteor.methods({verifyEmailMylar: function (r) {
-  if (!idp_verify_msg(r.msg, r.sig))
+    console.log("CALLING server verifyMylarEmail with " + JSON.stringify(r));
+    if (!idp_verify_msg(r.msg, r.sig))
     throw new Meteor.Error(403, "Certificate signature incorrect");
 
   var msgx = JSON.parse(r.msg);
@@ -51,7 +52,7 @@ Meteor.methods({verifyEmailMylar: function (r) {
 
   // Log the user in with a new login token.
   var stampedLoginToken = Accounts._generateStampedLoginToken();
-
+  var tokenExpires = Accounts._tokenExpiration(stampedLoginToken.when);
   // By including the address in the query, we can use 'emails.$' in the
   // modifier to get a reference to the specific object in the emails
   // array. See
@@ -63,10 +64,11 @@ Meteor.methods({verifyEmailMylar: function (r) {
       {$set: {'emails.$.verified': true,
 	      _pubkey_cert : r.sig},
        $push: {'services.resume.loginTokens': stampedLoginToken}});
-    console.log("UPDATED");
   
   this.setUserId(user._id);
-  return {token: stampedLoginToken.token, id: user._id};
+  return {token: stampedLoginToken.token,
+	  tokenExpires: tokenExpires,
+	  id: user._id};
 },
 
 createOtherUser: function(email, profile) {
@@ -80,7 +82,7 @@ createOtherUser: function(email, profile) {
     
     Tokens.insert({email: email, token: token, profile: profile, verified: false});
 
-    var origin = Meteor.absoluteUrl('#/login-with-token/');
+    var origin = Meteor.absoluteUrl('#/Mylar-login-with-token/');
     var url = origin + encodeURIComponent(token);
 
     var text = "Please click on this link to create account:\n\n" + url;

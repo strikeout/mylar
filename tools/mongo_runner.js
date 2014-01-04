@@ -1,6 +1,5 @@
 var fs = require("fs");
 var path = require("path");
-var child_process = require('child_process');
 
 var files = require('./files.js');
 
@@ -15,6 +14,7 @@ var _ = require('underscore');
  */
 var find_mongo_pids = function (app_dir, port, callback) {
   // 'ps ax' should be standard across all MacOS and Linux.
+  var child_process = require('child_process');
   child_process.exec('ps ax',
     function (error, stdout, stderr) {
       if (error) {
@@ -157,21 +157,33 @@ exports.launch_mongo = function (app_dir, port, launch_callback, on_exit_callbac
       return;
     }
 
+    var child_process = require('child_process');
     var proc = child_process.spawn(mongod_path, [
       '--bind_ip', '127.0.0.1',
       '--smallfiles',
+      '--nohttpinterface',
       '--port', port,
       '--dbpath', data_path
     ]);
+    var callOnExit = function (code, signal) {
+      on_exit_callback(code, signal, stderrOutput);
+    };
     handle.stop = function (callback) {
       var tries = 0;
       var exited = false;
-      proc.removeListener('exit', on_exit_callback);
+      proc.removeListener('exit', callOnExit);
       proc.kill('SIGINT');
       callback && callback(err);
     };
 
-    proc.on('exit', on_exit_callback);
+    var stderrOutput = '';
+
+    proc.stderr.setEncoding('utf8');
+    proc.stderr.on('data', function (data) {
+      stderrOutput += data;
+    });
+
+    proc.on('exit', callOnExit);
 
     proc.stdout.setEncoding('utf8');
     proc.stdout.on('data', function (data) {

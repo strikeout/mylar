@@ -8,22 +8,34 @@
 // @param password {String}
 // @param callback {Function(error|undefined)}
 Meteor.loginWithPassword = function (selector, password, callback) {
-  var srp = new Meteor._srp.Client(password);
+  var srp = new SRP.Client(password);
   var request = srp.startExchange();
 
-    var uname;
-
     if (typeof selector === 'string') {
-	if (selector.indexOf('@') === -1){
-	    selector = {username: selector};
-	}
-	else {
-	    selector = {email: selector};
-	}
-    } else {
+    if (selector.indexOf('@') === -1)
+      selector = {username: selector};
+    else
+      selector = {email: selector};
+    }
+    else {
 	if (!selector['username'] && !selector['email']) {
 	    throw new Error("cannot login user without some username or email");
 	}
+    }
+
+  request.user = selector;
+
+  // Normally, we only set Meteor.loggingIn() to true within
+  // Accounts.callLoginMethod, but we'd also like it to be true during the
+  // password exchange. So we set it to true here, and clear it on error; in
+  // the non-error case, it gets cleared by callLoginMethod.
+  Accounts._setLoggingIn(true);
+  Meteor.apply('beginPasswordExchange', [request], function (error, result) {
+    if (error || !result) {
+      Accounts._setLoggingIn(false);
+      error = error || new Error("No result from call to beginPasswordExchange");
+      callback && callback(error);
+      return;
     }
     
     request.user = selector;
@@ -60,27 +72,19 @@ Meteor.loginWithPassword = function (selector, password, callback) {
 Accounts.createUser = function (options, callback) {
     options = _.clone(options); // we'll be modifying options
 
-    var uname = options.username;
-    var pwd = options.password;
+  if (!options.password)
+    throw new Error("Must set options.password");
+  var verifier = SRP.generateVerifier(options.password);
+  // strip old password, replacing with the verifier object
+  delete options.password;
+  options.srp = verifier;
 
-    if (!pwd)
-	throw new Error("Must set options.password");
-    
-    if (!uname) {
-	throw new Error("Meteor-enc needs username when creating account");
-    }
-
-    var verifier = Meteor._srp.generateVerifier(options.password);
-    // strip old password, replacing with the verifier object
-    delete options.password;
-    options.srp = verifier;
-
-    Accounts.callLoginMethod({
-	methodName: 'createUser',
-	methodArguments: [options],
-	suppressLogin: options.suppressLogin,
-	userCallback: callback
-    }); 
+  Accounts.callLoginMethod({
+    methodName: 'createUser',
+    methodArguments: [options],
+    suppressLogin: options.suppressLogin,
+    userCallback: callback
+  });
 };
 
 
@@ -98,7 +102,7 @@ Accounts.changePassword = function (oldPassword, newPassword, callback) {
     return;
   }
 
-  var verifier = Meteor._srp.generateVerifier(newPassword);
+  var verifier = SRP.generateVerifier(newPassword);
 
   if (!oldPassword) {
     Meteor.apply('changePassword', [{srp: verifier}], function (error, result) {
@@ -110,7 +114,7 @@ Accounts.changePassword = function (oldPassword, newPassword, callback) {
       }
     });
   } else { // oldPassword
-    var srp = new Meteor._srp.Client(oldPassword);
+    var srp = new SRP.Client(oldPassword);
     var request = srp.startExchange();
     request.user = {id: Meteor.user()._id};
     Meteor.apply('beginPasswordExchange', [request], function (error, result) {
@@ -163,7 +167,7 @@ Accounts.resetPassword = function(token, newPassword, callback) {
   if (!newPassword)
     throw new Error("Need to pass newPassword");
 
-  var verifier = Meteor._srp.generateVerifier(newPassword);
+  var verifier = SRP.generateVerifier(newPassword);
   Accounts.callLoginMethod({
     methodName: 'resetPassword',
     methodArguments: [token, verifier],

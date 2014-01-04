@@ -41,7 +41,7 @@ elif [ "$METEOR_WAREHOUSE_DIR" ]; then
     INSTALLED_METEOR=t
     export METEOR_TEST_NO_SPRINGBOARD=t
     if [ -z "$TEST_RELEASE" ]; then
-        TEST_RELEASE="0.6.0-alpha3"
+        TEST_RELEASE="0.6.5-rc12"
     fi
 
     METEOR="$METEOR --release=$TEST_RELEASE" # some random non-official release
@@ -124,7 +124,7 @@ tar tvzf foo.tar.gz >>$OUTPUT
 cd .. # we're now back to $DIR
 echo "... run"
 
-MONGOMARK='--bind_ip 127.0.0.1 --smallfiles --port 9102'
+MONGOMARK='--bind_ip 127.0.0.1 --smallfiles --nohttpinterface --port 9102'
 # kill any old test meteor
 # there is probably a better way to do this, but it is at least portable across macos and linux
 # (the || true is needed on linux, whose xargs will invoke kill even with no args)
@@ -179,12 +179,17 @@ mkdir -p "$TEST_TMPDIR/local-packages/die-now/"
 cat > "$TEST_TMPDIR/local-packages/die-now/package.js" <<EOF
 Package.on_test(function (api) {
   api.use('deps'); // try to use a core package
-  console.log("Dying");
-  process.exit(0);
+  api.add_files(['die-now.js'], 'server');
 });
 EOF
+cat > "$TEST_TMPDIR/local-packages/die-now/die-now.js" <<EOF
+if (Meteor.isServer) {
+  console.log("Dying");
+  process.exit(0);
+}
+EOF
 
-$METEOR test-packages -p $PORT $TEST_TMPDIR/local-packages/die-now | grep Dying >> $OUTPUT 2>&1
+$METEOR test-packages --once -p $PORT $TEST_TMPDIR/local-packages/die-now | grep Dying >> $OUTPUT 2>&1
 # since the server process was killed via 'process.exit', mongo is still running.
 ps ax | grep -e "$MONGOMARK" | grep -v grep | awk '{print $1}' | xargs kill || true
 sleep 2 # make sure mongo is dead
@@ -239,6 +244,7 @@ if (Meteor.isServer) {
 EOF
 
 $METEOR -p $PORT --settings='settings.json' --once >> $OUTPUT
+rm settings.js
 
 
 # prepare die.js so that we have a server that loads packages and dies
@@ -252,8 +258,6 @@ echo "... local-package-sets -- new package"
 
 mkdir -p "$TEST_TMPDIR/local-packages/a-package-named-bar/"
 cat > "$TEST_TMPDIR/local-packages/a-package-named-bar/package.js" <<EOF
-console.log("loaded a-package-named-bar");
-
 Npm.depends({gcd: '0.0.0'});
 
 Package.on_use(function(api) {
@@ -262,6 +266,8 @@ Package.on_use(function(api) {
 EOF
 
 cat > "$TEST_TMPDIR/local-packages/a-package-named-bar/call_gcd.js" <<EOF
+console.log("loaded a-package-named-bar");
+
 var gcd = Npm.require('gcd');
 console.log("gcd(4,6)=" + gcd(4,6));
 EOF

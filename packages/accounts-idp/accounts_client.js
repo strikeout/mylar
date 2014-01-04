@@ -37,9 +37,6 @@ Accounts.createUser = function (options, callback) {
     var password = options.password;
     current_pw = password;
 
-    console.log(options);
-    
-    console.log("create user options" +JSON.stringify(options)); 
     Principal.create('user', uname, null, function (uprinc) {
 	createPrincipalCB(uprinc, function () {
 	    var ukeys = serialize_keys(uprinc.keys);
@@ -67,7 +64,7 @@ Accounts.setUserPassword = function(email, password, cb) {
     if (!password)
 	throw new Error("need nonempty password");
 
-    var verifier = Meteor._srp.generateVerifier(password);
+    var verifier = SRP.generateVerifier(password);
     Principal.rewrappedKey(email, password, function(wrap){
 	Meteor.call("setSRP", email, verifier, wrap, function(error){
 	    cb && cb(error);

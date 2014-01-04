@@ -30,6 +30,7 @@ var debug = false;
 var crypto = base_crypto;
 
 
+
 // returns true if the attacker is active
 function active_attacker() {
     return (typeof MYLAR_ACTIVE_ATTACKER != "undefined");
@@ -139,6 +140,7 @@ pretty = function(princ) {
 }
 
 /*****************************************************/
+
 
 if (Meteor.isServer) {
     
@@ -283,25 +285,6 @@ if (Meteor.isServer) {
 }
 
 
-// generates keys: standard crypto + multi-key
-generate_princ_keys = function(cb) {
-    keys = crypto.generate_keys();
-    if (use_search()) {
-	var done_cb = function (key) {
-            keys['mk_key'] = key;
-            cb(keys);
-	}
-	if (Meteor.isClient) {
-            MylarCrypto.keygen(done_cb);
-	} else {
-            var key = crypto_server.keygen();
-            done_cb(key);
-	}
-    } else {
-	cb(keys);
-    }
-};
-
 
 /***** Client ***************/
 
@@ -352,7 +335,8 @@ if (Meteor.isClient) {
 	    cache_add(p, {'princ': creator});
 	    Principal._store(p, creator);
 	    if (creator) {
-		Principal.add_access(creator, p, function(){cb(p);});	
+		Principal.add_access(creator, p, function(){console.log("hg");
+							    cb(p);});	
 	    } else {
 		cb(p);
 	    }
@@ -396,6 +380,29 @@ if (Meteor.isClient) {
     Principal.get_static = function(type, name, keys) {
 	return new Principal(type, name, deserialize_keys(keys));
     }
+
+
+
+// generates keys: standard crypto + multi-key
+generate_princ_keys = function(cb) {
+    keys = crypto.generate_keys();
+    if (use_search()) {
+	var done_cb = function (key) {
+            keys['mk_key'] = key;
+            cb(keys);
+	}
+	if (Meteor.isClient) {
+            MylarCrypto.keygen(done_cb);
+	} else {
+            var key = crypto_server.keygen();
+            done_cb(key);
+	}
+    } else {
+	cb(keys);
+    }
+};
+
+
 
     /*
       Loads its secret keys if current user has access to it.
@@ -552,6 +559,7 @@ if (Meteor.isClient) {
 	
 	return new Certificate(princ, self.id, sig);
     };
+
     
     // returns true if it has all secret keys
     // throws exception if it only has a subset of the secret keys
@@ -630,7 +638,6 @@ if (Meteor.isClient) {
 	    if (err) {
 		throw new Error("could not find princ with id " + id);
 	    }
-	    console.log("looking for id " + id);
 	    var p = new Principal(princ_info["type"], princ_info["name"], _get_keys(id));
 	    
 	    p._load_secret_keys(function(p){
@@ -690,7 +697,8 @@ if (Meteor.isClient) {
 	});
 
     }
-    
+
+      
     // returns a principal for the user with uname and feeds it as input to callback cb
     Principal.lookupUser = function(uname, cb) {
 	startTime("lookupUser");
@@ -930,7 +938,7 @@ if (Meteor.isClient) {
 	var dbprinc = Principals.findOne({_id : uprinc.id});
 	_processAccessInbox(uprinc, dbprinc);
     }
-    
+
     Deps.autorun(processAccessInbox);
     
     Deps.autorun(function(){
@@ -939,6 +947,7 @@ if (Meteor.isClient) {
 	}
     });
 }
+
 
 /* Algorithm for switching access from public key to private key.
 

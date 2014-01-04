@@ -35,8 +35,7 @@ var sub_name = function(coll, pub) {
 if (Meteor.isClient) {
 
     
-  
-    
+     
 Meteor.Collection.prototype.search = function(pubname, wordmap, princ, filter_args, callback) {
     var self = this;
 
@@ -103,7 +102,7 @@ Deps.autorun(function(){
 			     var self = this;
 			     var cb = search_cb;
 			     if (cb) {
-				 search_tag = tag;
+				 Session.set("search_tag", tag);
 				 cb(search_collec.find({_tag: tag}));
 			     }
 			 });

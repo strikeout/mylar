@@ -1,3 +1,0 @@
-'use strict'
-
-@__COFFEESCRIPT_TEST_GLOBAL2 = 456

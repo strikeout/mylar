@@ -1,11 +1,9 @@
-
-
-/*global*/ SeededRandom = function(seed) { // seed may be a string or any type
+SeededRandom = function(seed) { // seed may be a string or any type
   if (! (this instanceof SeededRandom))
     return new SeededRandom(seed);
 
   seed = seed || "seed";
-  this.gen = new Random._Alea(seed); // from random.js
+  this.gen = Random.create(seed)._Alea; // from random.js
 };
 SeededRandom.prototype.next = function() {
   return this.gen();
