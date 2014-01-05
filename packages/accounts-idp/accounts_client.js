@@ -5,14 +5,14 @@ function check_is_email (email) {
     return email && email.indexOf('@') != -1;
 }
 
-Meteor.autorun(function () {
-  var u = Meteor.user();
-  if (u && u._wrap_privkey && current_pw) {
-      var keys = sjcl.decrypt(current_pw, u._wrap_privkey);
-    // XXX is it a problem to use the username from Meteor.user()?
-    Principal.set_current_user_keys(keys, u.username);
-  }
-});
+function create_user_princ(uname) {
+    var u = Meteor.user();
+    if (u && u._wrap_privkey && current_pw) {
+	var keys = sjcl.decrypt(current_pw, u._wrap_privkey);
+	Principal.set_current_user_keys(keys, uname);
+    }  
+}
+
 
 var createPrincipalCB = function (uprinc, cb) {
   cb();
@@ -97,7 +97,7 @@ var loginWithPasswordOrig = Meteor.loginWithPassword;
    Otherwise, it logs-in an existing user.
    selector must be either an email address
    or an object with an email field.*/
-Meteor.loginWithPassword = function (selector, password, callback) {
+Meteor.loginWithPassword = function (selector, password, cb) {
     current_pw = password;
 
     if (!selector) {
@@ -117,6 +117,14 @@ Meteor.loginWithPassword = function (selector, password, callback) {
 	}
 	email = selector.email;
     }
+
+
+    // prepare callback: when done with login, set user principal
+    // before calling user callback
+    callback = function(err) {
+	create_user_princ(email);
+	cb && cb(err);
+    }    
     
     var account_token = Session.get("account_token");
     Session.set("tmp_account_token", null);

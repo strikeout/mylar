@@ -658,14 +658,13 @@ generate_princ_keys = function(cb) {
 	    username == current_user.name)
             return current_user;
 
-	var pkeys = deserialize_keys(localStorage['user_princ_keys']);
-
+	var pkeys = localStorage['user_princ_keys'];
 
 	if (!pkeys || !username) {
 	    return undefined;
 	}
 
-        current_user = new Principal('user', username, pkeys);
+        current_user = new Principal('user', username, deserialize_keys(pkeys));
         return current_user;
     }
 
@@ -678,6 +677,7 @@ generate_princ_keys = function(cb) {
     {
 	delete localStorage['user_princ_keys'];
 	delete localStorage['user_princ_name'];
+	current_user = undefined;
     }
     
     // p1.allowSearch(p2) : p1 can now search on data encrypted for p2
@@ -940,8 +940,10 @@ generate_princ_keys = function(cb) {
 	// some user is logged in
 	if (debug) console.log("run PROCESS ACCESS INBOX: ");
 	var uprinc = Principal.user();
-	var dbprinc = Principals.findOne({_id : uprinc.id});
-	_processAccessInbox(uprinc, dbprinc);
+	if (uprinc) {
+	    var dbprinc = Principals.findOne({_id : uprinc.id});
+	    _processAccessInbox(uprinc, dbprinc);
+	}
     }
 
     Deps.autorun(processAccessInbox);
