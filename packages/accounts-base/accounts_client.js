@@ -25,11 +25,10 @@ Meteor.loggingIn = function () {
 
 // This calls userId, which is reactive.
 Meteor.user = function () {
-    var userId = Meteor.userId();
-    if (!userId)
-	return null;
-    
-    return Meteor.users.findOne(userId);
+  var userId = Meteor.userId();
+  if (!userId)
+    return null;
+  return Meteor.users.findOne(userId);
 };
 
 ///

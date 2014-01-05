@@ -1,7 +1,12 @@
 {
   "dependencies": {
-    "stream-buffers": {
-      "version": "0.2.3"
+    "mailcomposer": {
+      "version": "0.1.15",
+      "dependencies": {
+        "mimelib-noiconv": {
+          "version": "0.1.9"
+        }
+      }
     },
     "simplesmtp": {
       "version": "0.3.10",

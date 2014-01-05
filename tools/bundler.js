@@ -155,7 +155,6 @@
 // somewhere (decoupling target type from architecture) but it can
 // wait until later.
 
-
 var path = require('path');
 var files = require(path.join(__dirname, 'files.js'));
 var packages = require(path.join(__dirname, 'packages.js'));
@@ -799,7 +798,6 @@ _.extend(ClientTarget.prototype, {
           f(file, type);
         });
       });
-      //self.signatures[hash] = signature; 
     };
 
     // Reserve all file names from the manifest, so that interleaved

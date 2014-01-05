@@ -283,12 +283,6 @@ var startServer = function (options) {
     var proc = child_process.spawn(programPath, [], {env: env});
   }
 
-
-    // start crypto server
-    var cs_path = env['CRYPTO_SERVER']
-    cryptos_process = spawn(cs_path);
-    
-    
   // XXX deal with test server logging differently?!
 
   var Log = unipackage.load({
@@ -442,9 +436,6 @@ exports.run = function (context, options) {
 
   if (options.once) {
     Status.shouldRestart = false;
-  }
-  if(enc_port){
-    var rootUrl = process.env.ROOT_URL || ('http://localhost:' + outer_port)
   }
 
   var bundleOpts = {

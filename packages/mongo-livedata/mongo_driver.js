@@ -109,12 +109,11 @@ MongoConnection = function (url) {
   if (!(/[\?&]native_?[pP]arser=/.test(url))) {
     options.db.native_parser = false;
   }
-    
+
   MongoDB.connect(url, options, function(err, db) {
     if (err)
       throw err;
     self.db = db;
-       
 
     Fiber(function () {
       // drain queue of pending callbacks

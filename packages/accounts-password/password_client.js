@@ -37,40 +37,22 @@ Meteor.loginWithPassword = function (selector, password, callback) {
       callback && callback(error);
       return;
     }
-    
-    request.user = selector;
-    
-    // Normally, we only set Meteor.loggingIn() to true within
-    // Accounts.callLoginMethod, but we'd also like it to be true during the
-    // password exchange. So we set it to true here, and clear it on error; in
-    // the non-error case, it gets cleared by callLoginMethod.
-    Accounts._setLoggingIn(true);
-    Meteor.apply('beginPasswordExchange', [request], function (error, result) {
-	if (error || !result) {
-	    Accounts._setLoggingIn(false);
-	    error = error || new Error("No result from call to beginPasswordExchange");
-	    callback && callback(error);
-	    return;
-	}
-	
-	var response = srp.respondToChallenge(result);
-	
 
-	Accounts.callLoginMethod({
-	    methodArguments: [{srp: response}],
-	    validateResult: function (result) {
-		if (!srp.verifyConfirmation({HAMK: result.HAMK}))
-		    throw new Error("Server is cheating!");
-	    },
-	    userCallback: callback});
-	
-    });
-    
+    var response = srp.respondToChallenge(result);
+    Accounts.callLoginMethod({
+      methodArguments: [{srp: response}],
+      validateResult: function (result) {
+        if (!srp.verifyConfirmation({HAMK: result.HAMK}))
+          throw new Error("Server is cheating!");
+      },
+      userCallback: callback});
+  });
 };
+
 
 // Attempt to log in as a new user.
 Accounts.createUser = function (options, callback) {
-    options = _.clone(options); // we'll be modifying options
+  options = _.clone(options); // we'll be modifying options
 
   if (!options.password)
     throw new Error("Must set options.password");
@@ -173,7 +155,6 @@ Accounts.resetPassword = function(token, newPassword, callback) {
     methodArguments: [token, verifier],
     userCallback: callback});
 };
-
 
 // Verifies a user's email address based on a token originally
 // created by Accounts.sendVerificationEmail

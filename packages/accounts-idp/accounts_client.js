@@ -160,3 +160,10 @@ Meteor.loginWithPassword = function (selector, password, callback) {
     }
 
  };
+
+/*
+var logoutOrig = Meteor.logout;
+
+Meteor.logout = function(){
+    Principal.delete_current_user_keys();
+}*/

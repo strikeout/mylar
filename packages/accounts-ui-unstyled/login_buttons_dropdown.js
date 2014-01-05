@@ -400,15 +400,6 @@ var signup = function () {
       options.email = email;
   }
 
-
-  var username = trimmedElementValueById('login-username');
-  if (username !== null) {
-    if (!Accounts._loginButtons.validateUsername(username))
-      return;
-    else
-      options.username = username;
-  }
-
   // notably not trimmed. a password could (?) start or end with a space
   var password = elementValueById('login-password');
   if (!validatePassword(password))
@@ -419,7 +410,6 @@ var signup = function () {
   if (!matchPasswordAgainIfPresent())
     return;
 
-  console.log("uname " + options.username);
   Accounts.createUser(options, function (error) {
     if (error) {
       loginButtonsSession.errorMessage(error.reason || "Unknown error");

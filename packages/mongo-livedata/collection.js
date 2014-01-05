@@ -132,9 +132,6 @@ Meteor.Collection = function (name, options) {
         var mongoId = LocalCollection._idParse(msg.id);
         var doc = self._collection.findOne(mongoId);
 
-	//console.log("id " + mongoId);
-        //console.log("msg: " + JSON.stringify(msg) );
-	//console.log("doc: " + JSON.stringify(doc));
         // Is this a "replace the whole doc" message coming from the quiescence
         // of method writes to an object? (Note that 'undefined' is a valid
         // value meaning "remove it".)
@@ -177,9 +174,9 @@ Meteor.Collection = function (name, options) {
                   modifier.$unset = {};
                 modifier.$unset[key] = 1;
               } else {
-                  if (!modifier.$set)
-                      modifier.$set = {};
-                  modifier.$set[key] = value;
+                if (!modifier.$set)
+                  modifier.$set = {};
+                modifier.$set[key] = value;
               }
             });
 	      intercept_in(self, mongoId, modifier.$set, function() {
@@ -187,15 +184,15 @@ Meteor.Collection = function (name, options) {
               });
           }
         } else {
-            throw new Error("I don't know how to deal with this message");
+          throw new Error("I don't know how to deal with this message");
         }
-	  
+
       },
-	
-	// Called at the end of a batch of updates.
-	endUpdate: function () {
-            self._collection.resumeObservers();
-	},
+
+      // Called at the end of a batch of updates.
+      endUpdate: function () {
+        self._collection.resumeObservers();
+      },
 
       // Called around method stub invocations to capture the original versions
       // of modified documents.
@@ -222,10 +219,10 @@ Meteor.Collection = function (name, options) {
   }
 };
 
-
 ///
 /// Main collection API
 ///
+
 
 _.extend(Meteor.Collection.prototype, {
 

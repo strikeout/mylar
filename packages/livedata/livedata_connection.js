@@ -396,8 +396,7 @@ _.extend(Connection.prototype, {
     // Wrap the input object in an object which makes any store method not
     // implemented by 'store' into a no-op.
     var store = {};
-    _.each(['update', 'beginUpdate', 'endUpdate',
-            'saveOriginals',
+    _.each(['update', 'beginUpdate', 'endUpdate', 'saveOriginals',
             'retrieveOriginals'], function (method) {
               store[method] = function () {
                 return (wrappedStore[method]
@@ -1204,7 +1203,7 @@ _.extend(Connection.prototype, {
         _.bind(callbackInvoker.dataVisible, callbackInvoker));
     });
   },
-    
+
   _process_ready: function (msg, updates) {
     var self = this;
     // Process "sub ready" messages. "sub ready" messages don't take effect

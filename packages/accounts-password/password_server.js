@@ -208,7 +208,6 @@ Accounts.setPassword = function (userId, newPassword) {
 };
 
 
-
 ///
 /// RESETTING VIA EMAIL
 ///
@@ -501,12 +500,6 @@ Meteor.methods({createUser: function (options) {
   if (Accounts._options.forbidClientAccountCreation)
     throw new Meteor.Error(403, "Signups forbidden");
 
-    var restrictClient = Accounts._options.restrictClientAccountCreation;
-    if (restrictClient && (!restrictClient(this.userId) &&
-			   !Accounts.checkedToken(options.email)))
-	throw new Meteor.Error(403, "Signup forbidden");
-
-    
   // Create user. result contains id and token.
   var result = createUser(options);
   // safety belt. createUser is supposed to throw on error. send 500 error
@@ -517,7 +510,7 @@ Meteor.methods({createUser: function (options) {
   // If `Accounts._options.sendVerificationEmail` is set, register
   // a token to verify the user's primary email, and send it to
   // that address.
-  if (options.email && Accounts._options.sendVerificationEmail) 
+  if (options.email && Accounts._options.sendVerificationEmail)
     Accounts.sendVerificationEmail(result.id, options.email);
 
   // client gets logged in as the new user afterwards.
