@@ -674,6 +674,11 @@ generate_princ_keys = function(cb) {
         localStorage['user_princ_name'] = username;
         current_user = undefined;
     }
+    Principal.delete_current_user_keys = function()
+    {
+	delete localStorage['user_princ_keys'];
+	delete localStorage['user_princ_name'];
+    }
     
     // p1.allowSearch(p2) : p1 can now search on data encrypted for p2
     // since p2 can see p2's data, if p1 searches for a word that matches a word in p2's document

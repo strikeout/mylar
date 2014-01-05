@@ -161,9 +161,10 @@ Meteor.loginWithPassword = function (selector, password, callback) {
 
  };
 
-/*
+
 var logoutOrig = Meteor.logout;
 
-Meteor.logout = function(){
+Meteor.logout = function(cb){
     Principal.delete_current_user_keys();
-}*/
+    logoutOrig(cb);
+}
