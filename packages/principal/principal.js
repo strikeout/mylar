@@ -653,6 +653,10 @@ generate_princ_keys = function(cb) {
     // returns the principal corresponding to the current user
     Principal.user = function () {
         var username = localStorage['user_princ_name'];
+
+	if (!username) {
+	    return undefined;
+	}
 	
         if (current_user !== undefined &&
 	    username == current_user.name)
@@ -660,7 +664,7 @@ generate_princ_keys = function(cb) {
 
 	var pkeys = localStorage['user_princ_keys'];
 
-	if (!pkeys || !username) {
+	if (!pkeys) {
 	    return undefined;
 	}
 
@@ -949,8 +953,12 @@ generate_princ_keys = function(cb) {
     Deps.autorun(processAccessInbox);
     
     Deps.autorun(function(){
-	if (Meteor.user()) {
-    	    Meteor.subscribe("myprinc", Principal.user().id);
+	if (!Meteor.user()) {
+	    return;
+	}
+	var uprinc = Principal.user();
+	if (uprinc) {
+    	    Meteor.subscribe("myprinc", uprinc.id);
 	}
     });
 }

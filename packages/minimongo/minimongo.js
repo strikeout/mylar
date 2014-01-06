@@ -456,6 +456,7 @@ LocalCollection.prototype.insert = function (doc, callback) {
   }
   var id = LocalCollection._idStringify(doc._id);
 
+
   if (_.has(self.docs, id))
     throw MinimongoError("Duplicate _id '" + doc._id + "'");
 

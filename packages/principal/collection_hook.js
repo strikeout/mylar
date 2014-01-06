@@ -135,6 +135,7 @@ _dec_fields = function(_enc_fields, _signed_fields, id, container, fields, callb
 			      }
 			  } else {
 			      container[f] = res;
+			      if (debug) console.log("setting f to " + res);
 			  }
 			  //todo: searchable consistency check
 		      } else {
@@ -530,7 +531,7 @@ function dec_msg(coll, id, container, callback) {
     var callback_q = [];
     var rid = Random.id();
     mylar_decrypt_cb[rid] = callback_q;
-    callback2 = function () {
+    var callback2 = function () {
 	if (callback) {
 	    callback();
 	}

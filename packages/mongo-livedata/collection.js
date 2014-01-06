@@ -138,17 +138,19 @@ Meteor.Collection = function (name, options) {
         if (msg.msg === 'replace') {
           var replace = msg.replace;
 
-	    intercept_in(self, mongoId, replace, function() {
-                  if (!replace) {
-                      if (doc)
-                          self._collection.remove(mongoId);
-                  } else if (!doc) {
-                      self._collection.insert(replace);
-                  } else {
-                      // XXX check that replace has no $ ops
-                      self._collection.update(mongoId, replace);
-                  }
-              });
+	    if (!replace) {
+		if (doc)
+                    self._collection.remove(mongoId);
+	    } else {
+		intercept_in(self, mongoId, replace, function() {
+		    if (!doc) {
+			self._collection.insert(replace);
+                    } else {
+			// XXX check that replace has no $ ops
+			self._collection.update(mongoId, replace);
+                    }
+		});
+	    }
 	    
           return;
         } else if (msg.msg === 'added') {
