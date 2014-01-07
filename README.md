@@ -1,88 +1,72 @@
-# Meteor
+# Mylar
 
-Meteor is an ultra-simple environment for building modern web
-applications.
+Mylar is a platform for building web applications that protects data confidentiality against attackers who fully compromise the servers.
 
-With Meteor you write apps:
+Mylar is built on Meteor, a purely Javascript web application framework:
+http://docs.meteor.com/
 
-* in pure Javascript
-* that send data over the wire, rather than HTML
-* using your choice of popular open-source libraries
+## Demo
 
-Documentation is available at http://docs.meteor.com/
+Download the EncChat app:
+git clone git@g.csail.mit.edu:EncChat
 
-## Quick Start
+cd EncChat
+/path/to/mylar/meteor 
 
-Install Meteor:
+Open a browser and visit localhost:3000. Have fun with the application!
 
-    curl https://install.meteor.com | /bin/sh
+The app is secured against passive adversaries (adversaries who read all data at the server, but do not actively change information).
 
-Create a project:
+## Examine
 
-    meteor create try-meteor
+Check that messages are encrypted in the mongo database.
+EncChat$ /path/to/mylar/meteor mongo
 
-Run it:
+You should see a field "message_enc" that contains the encryption of the message. There should be no field "message", which before contained the unencrypted data. 
 
-    cd try-meteor
-    meteor
+## Cleanup
 
-Deploy it to the world, for free:
+If you want to reset the application, do:
+EncChat$ /path/to/mylar meteor reset
 
-    meteor deploy try-meteor.meteor.com
+## Enable search
 
-## Slow Start (for developers)
+To enable search, you need two things:
 
-If you want to run on the bleeding edge, or help develop Meteor, you
-can run Meteor directly from a git checkout.
+1. Install the search plugin
+[instructions todo]
 
-    git clone git://github.com/meteor/meteor.git
-    cd meteor
+2. add the search package to the application
+EncChat$ /path/to/mylar add search
 
-If you're the sort of person who likes to build everything from scratch,
-you can build all the Meteor dependencies (node.js, npm, mongodb, etc)
-with the provided script. If you do not run this script, Meteor will
-automatically download pre-compiled binaries when you first run it.
 
-    # OPTIONAL
-    ./scripts/generate-dev-bundle.sh
+## Active adversary
+[documentation coming up]
 
-Now you can run meteor directly from the checkout (if you did not
-build the dependency bundle above, this will take a few moments to
-download a pre-build version).
 
-    ./meteor --help
+## Develop a new app
 
-From your checkout, you can read the docs locally. The `/docs` directory is a
-meteor application, so simply change into the `/docs` directory and launch
-the app:
+Follow the steps:
 
-    cd docs/
-    ../meteor
+1. Write a regular Meteor application. Meteor is very easy and fun to learn! https://www.meteor.com/ has great tutorials and documentation.
 
-You'll then be able to read the docs locally in your browser at
-`http://localhost:3000/`
+2. Secure it with Mylar:
 
-Note that if you run Meteor from a git checkout, you cannot pin apps to specific
-Meteor releases or run using different Meteor releases using `--release`.
+First, read the Mylar paper and make sure you understand the section "Building a Mylar application".
 
-## Uninstalling Meteor
+2.a. in model.js, annotate which fields are sensitive and should be encrypted
+    For example, to encrypt the field "message" of the collection "Messages", do:
+    Messages._encrypted_fields({ 'message' : {princ: 'roomprinc', princtype: 'room',
+					  attr: 'SEARCHABLE'}});
+    Only the principal for the room will have access to the message. 
 
-Aside from a short launcher shell script, Meteor installs itself inside your
-home directory. To uninstall Meteor, run:
+2.b. Indicate access control annotations. Each user has a principal Principal.user() automatically created. Based on the access control desired, create principals, give principals access to other principals using "add_access", and find principals with "lookup" or "lookupUser". For example, to invite the user "invitee", to a room with principal "room_princ", do:
 
-    rm -rf ~/.meteor/
-    sudo rm /usr/local/bin/meteor
+Principal.lookupUser(invitee, function(princ){
+     Principal.add_access(princ, room_princ, function () {
+		[..]
+     }
+}
 
-## Developer Resources
 
-Building an application with Meteor?
-
-* Announcement list: sign up at http://www.meteor.com/
-* Ask a question: http://stackoverflow.com/questions/tagged/meteor
-* Meteor help and discussion mailing list: https://groups.google.com/group/meteor-talk
-* IRC: `#meteor` on `irc.freenode.net`
-
-Interested in contributing to Meteor?
-
-* Core framework design mailing list: https://groups.google.com/group/meteor-core
-* Contribution guidelines: https://github.com/meteor/meteor/tree/devel/Contributing.md
+					  

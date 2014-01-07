@@ -48,7 +48,7 @@ Accounts.createUser = function (options, callback) {
 	    options._princ_name = uname;
 	    options.wrap_privkeys = sjcl.encrypt(password, ukeys);
 	    options.public_keys = serialize_public(uprinc.keys);
-	    
+
 	    createUserOrig(options, function(err) {
 		callback(err, uprinc);
 	    });
@@ -134,7 +134,6 @@ Meteor.loginWithPassword = function (selector, password, cb) {
 	// check if user already has account
 	user_exists(email, function(exists){
 	    if (exists) {
-		console.log("user already exists so normal login");
 		// user already has account and is just logging in normally
 		loginWithPasswordOrig(selector, password, callback);
 		return;
@@ -161,8 +160,6 @@ Meteor.loginWithPassword = function (selector, password, cb) {
 	});
     } else {
 	// no account token -- user must exist
-
-	console.log("login in user normally selector " + JSON.stringify(selector) + " password " + password);
 
 	loginWithPasswordOrig(selector, password, callback);
     }

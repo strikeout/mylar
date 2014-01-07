@@ -32,7 +32,7 @@ var crypto = base_crypto;
 
 
 // returns true if the attacker is active
-function active_attacker() {
+active_attacker = function() {
     return (typeof MYLAR_ACTIVE_ATTACKER != "undefined");
 }
 

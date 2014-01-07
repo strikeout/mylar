@@ -481,6 +481,7 @@ var createUser = function (options) {
     options.srp = SRP.generateVerifier(options.password);
   }
 
+
   var user = {services: {}};
   if (options.srp)
     user.services.password = {srp: options.srp}; // XXX validate verifier
@@ -506,12 +507,12 @@ Meteor.methods({createUser: function (options) {
   // instead of sending a verification email with empty userid.
   if (!result.id)
     throw new Error("createUser failed to insert new user");
-
   // If `Accounts._options.sendVerificationEmail` is set, register
   // a token to verify the user's primary email, and send it to
   // that address.
-  if (options.email && Accounts._options.sendVerificationEmail)
-    Accounts.sendVerificationEmail(result.id, options.email);
+    if (options.email && Accounts._options.sendVerificationEmail) 
+	Accounts.sendVerificationEmail(result.id, options.email);
+
 
   // client gets logged in as the new user afterwards.
     if (!options.suppressLogin) {
