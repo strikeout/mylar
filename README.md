@@ -34,14 +34,14 @@ EncChat$ /path/to/mylar meteor reset
 To enable search, you need two things:
 
 1. Install the search plugin
-[instructions todo]
+[instructions coming soon]
 
 2. add the search package to the application
 EncChat$ /path/to/mylar add search
 
 
 ## Active adversary
-[documentation coming up]
+[documentation coming soon]
 
 
 ## Develop a new app
