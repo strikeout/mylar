@@ -8,7 +8,7 @@ http://docs.meteor.com/
 ## Demo
 
 Download the EncChat app:
-git clone git@g.csail.mit.edu:EncChat
+git clone git://g.csail.mit.edu/EncChat
 
 cd EncChat
 /path/to/mylar/meteor 
