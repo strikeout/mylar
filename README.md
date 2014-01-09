@@ -5,6 +5,14 @@ Mylar is a platform for building web applications that protects data confidentia
 Mylar is built on Meteor, a purely Javascript web application framework:
 http://docs.meteor.com/
 
+## Building
+You'll need the following libraries to build Mylar:
+
+- libreadline
+- libgmp
+- libpbc
+- libcrypto++9
+
 ## Demo
 
 Download the EncChat app:
@@ -34,7 +42,10 @@ EncChat$ /path/to/mylar meteor reset
 To enable search, you need two things:
 
 1. Install the search plugin
-[instructions coming soon]
+In order to use the search plugin, you'll need to build it for your system using the FireBreath framework for Firefox.
+You should navigate to enc_modules/crypto_fire and follow the README there in order to set it up.
+In addition, there is a binary that works on some systems in the enc_modules/crypto_fire/Binaries/ folder, which you should copy to:
+$(HOME)/.mozilla/plugins/, creating the plugins folder if necessary.
 
 2. add the search package to the application
 EncChat$ /path/to/mylar add search
