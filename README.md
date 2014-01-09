@@ -21,7 +21,7 @@ git clone git://g.csail.mit.edu/EncChat
 cd EncChat
 /path/to/mylar/meteor 
 
-Open a browser and visit localhost:3000. Have fun with the application!
+Open a browser and visit localhost:3000 or from a different machine than the server, visit http://<machine-ip>:3000. Have fun with the application!
 
 The app is secured against passive adversaries (adversaries who read all data at the server, but do not actively change information).
 
@@ -29,8 +29,11 @@ The app is secured against passive adversaries (adversaries who read all data at
 
 Check that messages are encrypted in the mongo database.
 EncChat$ /path/to/mylar/meteor mongo
+> db.messages.findOne()
 
-You should see a field "message_enc" that contains the encryption of the message. There should be no field "message", which before contained the unencrypted data. 
+You should see a field "message_enc" that contains the encryption of the message. There should be no field "message", which before contained the unencrypted data. You can also see "roomprinc", which is the principal for the room that the message is encrypted for.
+
+
 
 ## Cleanup
 
