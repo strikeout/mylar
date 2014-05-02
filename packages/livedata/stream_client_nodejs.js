@@ -9,40 +9,21 @@
 // We don't do any heartbeating. (The logic that did this in sockjs was removed,
 // because it used a built-in sockjs mechanism. We could do it with WebSocket
 // ping frames or with DDP-level messages.)
-LivedataTest.ClientStream = function (endpoint) {
+LivedataTest.ClientStream = function (endpoint, options) {
   var self = this;
+  options = options || {};
 
-  // WebSocket-Node https://github.com/Worlize/WebSocket-Node
-  // Chosen because it can run without native components. It has a
-  // somewhat idiosyncratic API. We may want to use 'ws' instead in the
-  // future.
-  //
-  // Since server-to-server DDP is still an experimental feature, we only
-  // require the module if we actually create a server-to-server
-  // connection. This is a minor efficiency improvement, but moreover: while
-  // 'websocket' doesn't require native components, it tries to use some
-  // optional native components and prints a warning if it can't load
-  // them. Since native components in packages don't work when transferred to
-  // other architectures yet, this means that require('websocket') prints a
-  // spammy log message when deployed to another architecture. Delaying the
-  // require means you only get the log message if you're actually using the
-  // feature.
-  self.client = new (Npm.require('websocket').client)();
+  self.options = _.extend({
+    retry: true
+  }, options);
+
+  self.client = null;  // created in _launchConnection
   self.endpoint = endpoint;
-  self.currentConnection = null;
 
-  self.client.on('connect', function (connection) {
-    return self._onConnect(connection);
-  });
-
-  self.client.on('connectFailed', function (error) {
-    // XXX: Make this do something better than make the tests hang if it does not work.
-    return self._lostConnection();
-  });
+  self.headers = self.options.headers || {};
 
   self._initCommon();
 
-  self.expectingWelcome = false;
   //// Kickoff!
   self._launchConnection();
 };
@@ -55,7 +36,7 @@ _.extend(LivedataTest.ClientStream.prototype, {
   send: function (data) {
     var self = this;
     if (self.currentStatus.connected) {
-      self.currentConnection.send(data);
+      self.client.send(data);
     }
   },
 
@@ -65,68 +46,37 @@ _.extend(LivedataTest.ClientStream.prototype, {
     self.endpoint = url;
   },
 
-  _onConnect: function (connection) {
+  _onConnect: function (client) {
     var self = this;
+
+    if (client !== self.client) {
+      // This connection is not from the last call to _launchConnection.
+      // But _launchConnection calls _cleanup which closes previous connections.
+      // It's our belief that this stifles future 'open' events, but maybe
+      // we are wrong?
+      throw new Error("Got open from inactive client");
+    }
 
     if (self._forcedToDisconnect) {
       // We were asked to disconnect between trying to open the connection and
       // actually opening it. Let's just pretend this never happened.
-      connection.close();
+      self.client.close();
+      self.client = null;
       return;
     }
 
     if (self.currentStatus.connected) {
-      // We already have a connection. It must have been the case that
-      // we started two parallel connection attempts (because we
-      // wanted to 'reconnect now' on a hanging connection and we had
-      // no way to cancel the connection attempt.) Just ignore/close
-      // the latecomer.
-      connection.close();
-      return;
+      // We already have a connection. It must have been the case that we
+      // started two parallel connection attempts (because we wanted to
+      // 'reconnect now' on a hanging connection and we had no way to cancel the
+      // connection attempt.) But this shouldn't happen (similarly to the client
+      // !== self.client check above).
+      throw new Error("Two parallel connections?");
     }
 
-    if (self.connectionTimer) {
-      clearTimeout(self.connectionTimer);
-      self.connectionTimer = null;
-    }
-
-    connection.on('error', function (error) {
-      if (self.currentConnection !== this)
-        return;
-
-      Meteor._debug("stream error", error.toString(),
-                    (new Date()).toDateString());
-      self._lostConnection();
-    });
-
-    connection.on('close', function () {
-      if (self.currentConnection !== this)
-        return;
-
-      self._lostConnection();
-    });
-
-    self.expectingWelcome = true;
-    connection.on('message', function (message) {
-      if (self.currentConnection !== this)
-        return; // old connection still emitting messages
-
-      if (self.expectingWelcome) {
-        // Discard the first message that comes across the
-        // connection. It is the hot code push version identifier and
-        // is not actually part of DDP.
-        self.expectingWelcome = false;
-        return;
-      }
-
-      if (message.type === "utf8") // ignore binary frames
-        _.each(self.eventCallbacks.message, function (callback) {
-          callback(message.utf8Data);
-        });
-    });
+    self._clearConnectionTimer();
 
     // update status
-    self.currentConnection = connection;
     self.currentStatus.status = "connected";
     self.currentStatus.connected = true;
     self.currentStatus.retryCount = 0;
@@ -141,10 +91,13 @@ _.extend(LivedataTest.ClientStream.prototype, {
     var self = this;
 
     self._clearConnectionTimer();
-    if (self.currentConnection) {
-      self.currentConnection.close();
-      self.currentConnection = null;
+    if (self.client) {
+      var client = self.client;
+      self.client = null;
+      client.close();
     }
+
+    _.each(self.eventCallbacks.disconnect, function (callback) { callback(); });
   },
 
   _clearConnectionTimer: function () {
@@ -160,22 +113,63 @@ _.extend(LivedataTest.ClientStream.prototype, {
     var self = this;
     self._cleanup(); // cleanup the old socket, if there was one.
 
-    // launch a connect attempt. we have no way to track it. we either
-    // get an _onConnect event, or we don't.
+    // Since server-to-server DDP is still an experimental feature, we only
+    // require the module if we actually create a server-to-server
+    // connection.
+    var FayeWebSocket = Npm.require('faye-websocket');
 
-    // XXX: set up a timeout on this.
+    // We would like to specify 'ddp' as the subprotocol here. The npm module we
+    // used to use as a client would fail the handshake if we ask for a
+    // subprotocol and the server doesn't send one back (and sockjs doesn't).
+    // Faye doesn't have that behavior; it's unclear from reading RFC 6455 if
+    // Faye is erroneous or not.  So for now, we don't specify protocols.
+    var client = self.client = new FayeWebSocket.Client(
+      toWebsocketUrl(self.endpoint),
+      [/*no subprotocols*/],
+      {headers: self.headers}
+    );
 
-    // we would like to specify 'ddp' as the protocol here, but
-    // unfortunately WebSocket-Node fails the handshake if we ask for
-    // a protocol and the server doesn't send one back (and sockjs
-    // doesn't). also, related: I guess we have to accept that
-    // 'stream' is ddp-specific
-    self.client.connect(toWebsocketUrl(self.endpoint));
-
-    if (self.connectionTimer)
-      clearTimeout(self.connectionTimer);
-    self.connectionTimer = setTimeout(
+    self._clearConnectionTimer();
+    self.connectionTimer = Meteor.setTimeout(
       _.bind(self._lostConnection, self),
       self.CONNECT_TIMEOUT);
+
+    self.client.on('open', Meteor.bindEnvironment(function () {
+      return self._onConnect(client);
+    }, "stream connect callback"));
+
+    var clientOnIfCurrent = function (event, description, f) {
+      self.client.on(event, Meteor.bindEnvironment(function () {
+        // Ignore events from any connection we've already cleaned up.
+        if (client !== self.client)
+          return;
+        f.apply(this, arguments);
+      }, description));
+    };
+
+    clientOnIfCurrent('error', 'stream error callback', function (error) {
+      if (!self.options._dontPrintErrors)
+        Meteor._debug("stream error", error.message);
+
+      // XXX: Make this do something better than make the tests hang if it does
+      // not work.
+      self._lostConnection();
+    });
+
+
+    clientOnIfCurrent('close', 'stream close callback', function () {
+      self._lostConnection();
+    });
+
+
+    clientOnIfCurrent('message', 'stream message callback', function (message) {
+      // Ignore binary frames, where message.data is a Buffer
+      if (typeof message.data !== "string")
+        return;
+
+      _.each(self.eventCallbacks.message, function (callback) {
+        callback(message.data);
+      });
+    });
   }
 });

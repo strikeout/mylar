@@ -1,11 +1,4 @@
-// unique id for this instantiation of the server. If this changes
-// between client reconnects, the client will reload. You can set the
-// environment variable "SERVER_ID" to control this. For example, if
-// you want to only force a reload on major changes, you can use a
-// custom serverId which you only change when something worth pushing
-// to clients immediately happens.
-__meteor_runtime_config__.serverId =
-  process.env.SERVER_ID ? process.env.SERVER_ID : Random.id();
+var url = Npm.require('url');
 
 var pathPrefix = __meteor_runtime_config__.ROOT_URL_PATH_PREFIX ||  "";
 
@@ -30,7 +23,7 @@ StreamServer = function () {
     log: function() {},
     // this is the default, but we code it explicitly because we depend
     // on it in stream_client:HEARTBEAT_TIMEOUT
-    heartbeat_delay: 25000,
+    heartbeat_delay: 45000,
     // The default disconnect_delay is 5 seconds, but if the server ends up CPU
     // bound for that much time, SockJS might not notice that the user has
     // reconnected because the timer (of disconnect_delay ms) can fire before
@@ -55,12 +48,36 @@ StreamServer = function () {
   if (!Package.webapp) {
     throw new Error("Cannot create a DDP server without the webapp package");
   }
+  // Install the sockjs handlers, but we want to keep around our own particular
+  // request handler that adjusts idle timeouts while we have an outstanding
+  // request.  This compensates for the fact that sockjs removes all listeners
+  // for "request" to add its own.
+  Package.webapp.WebApp.httpServer.removeListener('request', Package.webapp.WebApp._timeoutAdjustmentRequestCallback);
   self.server.installHandlers(Package.webapp.WebApp.httpServer);
+  Package.webapp.WebApp.httpServer.addListener('request', Package.webapp.WebApp._timeoutAdjustmentRequestCallback);
+
+  Package.webapp.WebApp.httpServer.on('meteor-closing', function () {
+    _.each(self.open_sockets, function (socket) {
+      socket.end();
+    });
+  });
 
   // Support the /websocket endpoint
   self._redirectWebsocketEndpoint();
 
   self.server.on('connection', function (socket) {
+
+    if (Package.webapp.WebAppInternals.usingDdpProxy) {
+      // If we are behind a DDP proxy, immediately close any sockjs connections
+      // that are not using websockets; the proxy will terminate sockjs for us,
+      // so we don't expect to be handling any other transports.
+      if (socket.protocol !== "websocket" &&
+          socket.protocol !== "websocket-raw") {
+        socket.close();
+        return;
+      }
+    }
+
     socket.send = function (data) {
       socket.write(data);
     };
@@ -69,10 +86,12 @@ StreamServer = function () {
     });
     self.open_sockets.push(socket);
 
-
-    // Send a welcome message with the serverId. Client uses this to
-    // reload if needed.
-    socket.send(JSON.stringify({server_id: __meteor_runtime_config__.serverId}));
+    // XXX COMPAT WITH 0.6.6. Send the old style welcome message, which
+    // will force old clients to reload. Remove this once we're not
+    // concerned about people upgrading from a pre-0.7.0 release. Also,
+    // remove the clause in the client that ignores the welcome message
+    // (livedata_connection.js)
+    socket.send(JSON.stringify({server_id: "0"}));
 
     // call all our callbacks when we get a new socket. they will do the
     // work of setting up handlers and such for specific messages.
@@ -120,9 +139,13 @@ _.extend(StreamServer.prototype, {
         // Store arguments for use within the closure below
         var args = arguments;
 
-        if (request.url === pathPrefix + '/websocket' ||
-            request.url === pathPrefix + '/websocket/') {
-          request.url = self.prefix + '/websocket';
+        // Rewrite /websocket and /websocket/ urls to /sockjs/websocket while
+        // preserving query string.
+        var parsedUrl = url.parse(request.url);
+        if (parsedUrl.pathname === pathPrefix + '/websocket' ||
+            parsedUrl.pathname === pathPrefix + '/websocket/') {
+          parsedUrl.pathname = self.prefix + '/websocket';
+          request.url = url.format(parsedUrl);
         }
         _.each(oldHttpServerListeners, function(oldListener) {
           oldListener.apply(httpServer, args);

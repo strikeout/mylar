@@ -4,7 +4,7 @@ var querystring = Npm.require("querystring");
 // An OAuth1 wrapper around http calls which helps get tokens and
 // takes care of HTTP headers
 //
-// @param config {Object} 
+// @param config {Object}
 //   - consumerKey (String): oauth consumer key
 //   - secret (String): oauth consumer secret
 // @param urls {Object}
@@ -48,14 +48,11 @@ OAuth1Binding.prototype.prepareAccessToken = function(query, requestTokenSecret)
     self.accessTokenSecret = requestTokenSecret;
 
   var headers = self._buildHeader({
-    oauth_token: query.oauth_token
+    oauth_token: query.oauth_token,
+    oauth_verifier: query.oauth_verifier
   });
 
-  var params = {
-    oauth_verifier: query.oauth_verifier
-  };
-
-  var response = self._call('POST', self._urls.accessToken, headers, params);
+  var response = self._call('POST', self._urls.accessToken, headers);
   var tokens = querystring.parse(response.content);
 
   self.accessToken = tokens.oauth_token;
@@ -88,7 +85,7 @@ OAuth1Binding.prototype._buildHeader = function(headers) {
   var self = this;
   return _.extend({
     oauth_consumer_key: self._config.consumerKey,
-    oauth_nonce: Random.id().replace(/\W/g, ''),
+    oauth_nonce: Random.secret().replace(/\W/g, ''),
     oauth_signature_method: 'HMAC-SHA1',
     oauth_timestamp: (new Date().valueOf()/1000).toFixed().toString(),
     oauth_version: '1.0'
@@ -109,7 +106,9 @@ OAuth1Binding.prototype._getSignature = function(method, url, rawHeaders, access
     self._encodeString(parameters)
   ].join('&');
 
-  var signingKey = self._encodeString(self._config.secret) + '&';
+  var secret = OAuth.openSecret(self._config.secret);
+
+  var signingKey = self._encodeString(secret) + '&';
   if (accessTokenSecret)
     signingKey += self._encodeString(accessTokenSecret);
 

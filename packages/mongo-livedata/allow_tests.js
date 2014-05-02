@@ -50,7 +50,7 @@ if (Meteor.isServer) {
     // totally locked down collection
     var lockedDownCollection = defineCollection(
       "collection-locked-down", false /*insecure*/);
-    // resticted collection with same allowed modifications, both with and
+    // restricted collection with same allowed modifications, both with and
     // without the `insecure` package
     var restrictedCollectionDefaultSecure = defineCollection(
       "collection-restrictedDefaultSecure", false /*insecure*/);
@@ -70,6 +70,10 @@ if (Meteor.isServer) {
       "withTransform", false, function (doc) {
         return doc.a;
       });
+    var restrictedCollectionForInvalidTransformTest = defineCollection(
+      "collection-restrictedForInvalidTransform", false /*insecure*/);
+    var restrictedCollectionForClientIdTest = defineCollection(
+      "collection-restrictedForClientIdTest", false /*insecure*/);
 
     if (needToConfigure) {
       restrictedCollectionWithTransform.allow({
@@ -82,6 +86,24 @@ if (Meteor.isServer) {
         remove: function (userId, doc) {
           return doc.bar === "bar";
         }
+      });
+      restrictedCollectionWithTransform.allow({
+        // transform: null means that doc here is the top level, not the 'a'
+        // element.
+        transform: null,
+        insert: function (userId, doc) {
+          return !!doc.topLevelField;
+        }
+      });
+      restrictedCollectionForInvalidTransformTest.allow({
+        // transform must return an object which is not a mongo id
+        transform: function (doc) { return doc._id; },
+        insert: function () { return true; }
+      });
+      restrictedCollectionForClientIdTest.allow({
+        // This test just requires the collection to trigger the restricted
+        // case.
+        insert: function () { return true; }
       });
 
       // two calls to allow to verify that either validator is sufficient.
@@ -117,7 +139,8 @@ if (Meteor.isServer) {
         }
       }, {
         insert: function(userId, doc) {
-          return doc.cantInsert2;
+          // Don't allow explicit ID to be set by the client.
+          return _.has(doc, '_id');
         },
         update: function(userId, doc, fields, modifier) {
           return -1 !== _.indexOf(fields, 'verySecret');
@@ -225,7 +248,7 @@ if (Meteor.isClient) {
     // totally locked down collection
     var lockedDownCollection = defineCollection("collection-locked-down");
 
-    // resticted collection with same allowed modifications, both with and
+    // restricted collection with same allowed modifications, both with and
     // without the `insecure` package
     var restrictedCollectionDefaultSecure = defineCollection(
       "collection-restrictedDefaultSecure");
@@ -245,7 +268,10 @@ if (Meteor.isClient) {
       "withTransform", function (doc) {
         return doc.a;
       });
-
+    var restrictedCollectionForInvalidTransformTest = defineCollection(
+      "collection-restrictedForInvalidTransform");
+    var restrictedCollectionForClientIdTest = defineCollection(
+      "collection-restrictedForClientIdTest");
 
     // test that if allow is called once then the collection is
     // restricted, and that other mutations aren't allowed
@@ -332,10 +358,17 @@ if (Meteor.isClient) {
           }, expect(function (e, res) {
             test.isTrue(e);
           }));
+          restrictedCollectionWithTransform.insert({
+            a: {foo: "bar"},
+            topLevelField: true
+          }, expect(function (e, res) {
+            test.isFalse(e);
+            test.isTrue(res);
+          }));
         },
         function (test, expect) {
           test.equal(
-            restrictedCollectionWithTransform.findOne({"a.bar": "bar"}),
+            _.omit(restrictedCollectionWithTransform.findOne({"a.bar": "bar"}), '_id'),
             {foo: "foo", bar: "bar", baz: "baz"});
           restrictedCollectionWithTransform.remove(item1, expect(function (e, res) {
             test.isFalse(e);
@@ -406,6 +439,7 @@ if (Meteor.isClient) {
             {$set: {updated: true}},
             expect(function (err, res) {
               test.isFalse(err);
+              test.equal(res, 1);
               test.equal(collection.find({updated: true}).count(), 1);
             }));
         },
@@ -416,6 +450,7 @@ if (Meteor.isClient) {
             {$set: {updated: true}},
             expect(function (err, res) {
               test.isFalse(err);
+              test.equal(res, 1);
               test.equal(collection.find({updated: true}).count(), 2);
             }));
         },
@@ -535,7 +570,7 @@ if (Meteor.isClient) {
           // insert with one allow and other deny. denied.
           function (test, expect) {
             collection.insert(
-              {canInsert: true, cantInsert2: true},
+              {canInsert: true, _id: Random.id()},
               expect(function (err, res) {
                 test.equal(err.error, 403);
                 test.equal(collection.find().count(), 0);
@@ -588,6 +623,7 @@ if (Meteor.isClient) {
               canUpdateId, {$set: {"dotted.field": 1}},
               expect(function (err, res) {
                 test.isFalse(err);
+                test.equal(res, 1);
                 test.equal(collection.findOne(canUpdateId).dotted.field, 1);
               }));
           },
@@ -607,6 +643,7 @@ if (Meteor.isClient) {
               {$set: {updated: true}},
               expect(function (err, res) {
                 test.isFalse(err);
+                test.equal(res, 0);
                 // nothing has changed
                 test.equal(collection.find().count(), 3);
                 test.equal(collection.find({updated: true}).count(), 0);
@@ -655,6 +692,7 @@ if (Meteor.isClient) {
               {$set: {updated: true}},
               expect(function (err, res) {
                 test.isFalse(err);
+                test.equal(res, 1);
                 test.equal(collection.find({updated: true}).count(), 1);
               }));
           },
@@ -686,6 +724,7 @@ if (Meteor.isClient) {
               {$set: {cantRemove: false, canUpdate2: true}},
               expect(function (err, res) {
                 test.isFalse(err);
+                test.equal(res, 1);
                 test.equal(collection.find({cantRemove: true}).count(), 0);
               }));
           },
@@ -695,7 +734,19 @@ if (Meteor.isClient) {
             collection.remove(canRemoveId,
                               expect(function (err, res) {
               test.isFalse(err);
+              test.equal(res, 1);
               // successfully removed
+              test.equal(collection.find().count(), 2);
+            }));
+          },
+
+          // try to remove a doc that doesn't exist. see we remove no docs.
+          function (test, expect) {
+            collection.remove('some-random-id-that-never-matches',
+                              expect(function (err, res) {
+              test.isFalse(err);
+              test.equal(res, 0);
+              // nothing removed
               test.equal(collection.find().count(), 2);
             }));
           },
@@ -711,6 +762,25 @@ if (Meteor.isClient) {
           }
         ]);
       });
+    testAsyncMulti(
+      "collection - allow/deny transform must return object, " + idGeneration,
+      [function (test, expect) {
+        restrictedCollectionForInvalidTransformTest.insert({}, expect(function (err, res) {
+          test.isTrue(err);
+        }));
+      }]);
+    testAsyncMulti(
+      "collection - restricted collection allows client-side id, " + idGeneration,
+      [function (test, expect) {
+        var self = this;
+        self.id = Random.id();
+        restrictedCollectionForClientIdTest.insert({_id: self.id}, expect(function (err, res) {
+          test.isFalse(err);
+          test.equal(res, self.id);
+          test.equal(restrictedCollectionForClientIdTest.findOne(self.id),
+                     {_id: self.id});
+        }));
+      }]);
   });  // end idGeneration loop
 }  // end if isClient
 

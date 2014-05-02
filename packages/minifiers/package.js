@@ -4,12 +4,24 @@ Package.describe({
 });
 
 Npm.depends({
-  "clean-css": "1.1.2",
-  // Fork of 2.4.0 fixing https://github.com/mishoo/UglifyJS2/pull/308
-  "uglify-js": "https://github.com/meteor/UglifyJS2/tarball/bb0a762d12d2ecd058b9d7b57f16b4c289378d9c"
+  "uglify-js": "2.4.7",
+  "css-parse": "https://github.com/reworkcss/css-parse/tarball/aa7e23285375ca621dd20250bac0266c6d8683a5",
+  "css-stringify": "https://github.com/reworkcss/css-stringify/tarball/a7fe6de82e055d41d1c5923ec2ccef06f2a45efa"
 });
 
 Package.on_use(function (api) {
-  api.export(['CleanCSSProcess', 'UglifyJSMinify']);
-  api.add_files('minifiers.js', 'server');
+  api.use('underscore', 'server');
+  api.export(['CssTools', 'UglifyJSMinify']);
+  api.add_files(['minification.js', 'minifiers.js'], 'server');
+});
+
+Package.on_test(function (api) {
+  api.use('minifiers', 'server');
+  api.use('tinytest');
+
+  api.add_files([
+    'beautify-tests.js',
+    'minifiers-tests.js',
+    'urlrewriting-tests.js'
+  ], 'server');
 });

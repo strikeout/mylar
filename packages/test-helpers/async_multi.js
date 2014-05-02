@@ -116,11 +116,14 @@ testAsyncMulti = function (name, funcs) {
   Tinytest.addAsync(name, function (test, onComplete) {
     var remaining = _.clone(funcs);
     var context = {};
+    var i = 0;
 
     var runNext = function () {
       var func = remaining.shift();
-      if (!func)
+      if (!func) {
+        delete test.extraDetails.asyncBlock;
         onComplete();
+      }
       else {
         var em = new ExpectationManager(test, function () {
           Meteor.clearTimeout(timer);
@@ -135,6 +138,7 @@ testAsyncMulti = function (name, funcs) {
           return;
         }, timeout);
 
+        test.extraDetails.asyncBlock = i++;
         try {
           func.apply(context, [test, _.bind(em.expect, em)]);
         } catch (exception) {
@@ -152,21 +156,35 @@ testAsyncMulti = function (name, funcs) {
   });
 };
 
-pollUntil = function (expect, f, timeout, step, noFail) {
-  noFail = noFail || false;
+// Call `fn` periodically until it returns true.  If it does, call
+// `success`.  If it doesn't before the timeout, call `failed`.
+simplePoll = function (fn, success, failed, timeout, step) {
+  timeout = timeout || 10000;
   step = step || 100;
-  var expectation = expect(true);
   var start = (new Date()).valueOf();
   var helper = function () {
-    if (f()) {
-      expectation(true);
+    if (fn()) {
+      success();
       return;
     }
     if (start + timeout < (new Date()).valueOf()) {
-      expectation(noFail);
+      failed();
       return;
     }
     Meteor.setTimeout(helper, step);
   };
   helper();
+};
+
+pollUntil = function (expect, f, timeout, step, noFail) {
+  noFail = noFail || false;
+  step = step || 100;
+  var expectation = expect(true);
+  simplePoll(
+    f,
+    function () { expectation(true) },
+    function () { expectation(noFail) },
+    timeout,
+    step
+  );
 };

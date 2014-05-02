@@ -37,10 +37,12 @@ var cspSrcs;
 var cachedCsp; // Avoid constructing the header out of cspSrcs when possible.
 
 // CSP keywords have to be single-quoted.
-var unsafeInline = "'unsafe-inline'";
-var unsafeEval = "'unsafe-eval'";
-var selfKeyword = "'self'";
-var noneKeyword = "'none'";
+var keywords = {
+  unsafeInline: "'unsafe-inline'",
+  unsafeEval: "'unsafe-eval'",
+  self: "'self'",
+  none: "'none'"
+};
 
 BrowserPolicy.content = {};
 
@@ -52,7 +54,7 @@ var parseCsp = function (csp) {
       policy = policy.substring(0, policy.length - 1);
     var srcs = policy.split(" ");
     var directive = srcs[0];
-    if (_.indexOf(srcs, noneKeyword) !== -1)
+    if (_.indexOf(srcs, keywords.none) !== -1)
       cspSrcs[directive] = null;
     else
       cspSrcs[directive] = srcs.slice(1);
@@ -81,6 +83,38 @@ var prepareForCspDirective = function (directive) {
     cspSrcs[directive] = _.clone(cspSrcs["default-src"]);
 };
 
+// Add `src` to the list of allowed sources for `directive`, with the
+// following modifications if `src` is an origin:
+// - If `src` does not have a protocol specified, then add both
+//   http://<src> and https://<src>. This is to mask differing
+//   cross-browser behavior; some browsers interpret an origin without a
+//   protocol as http://<src> and some interpret it as both http://<src>
+//   and https://<src>
+// - Trim trailing slashes from `src`, since some browsers interpret
+//   "foo.com/" as "foo.com" and some don't.
+var addSourceForDirective = function (directive, src) {
+  if (_.contains(_.values(keywords), src)) {
+    cspSrcs[directive].push(src);
+  } else {
+    src = src.toLowerCase();
+
+    // Trim trailing slashes.
+    src = src.replace(/\/+$/, '');
+
+    var toAdd = [];
+    // If there is no protocol, add both http:// and https://.
+    if (! /^([a-z0-9.+-]+:)/.test(src)) {
+      toAdd.push("http://" + src);
+      toAdd.push("https://" + src);
+    } else {
+      toAdd.push(src);
+    }
+    _.each(toAdd, function (s) {
+      cspSrcs[directive].push(s);
+    });
+  }
+};
+
 var setDefaultPolicy = function () {
   // By default, unsafe inline scripts and styles are allowed, since we expect
   // many apps will use them for analytics, etc. Unsafe eval is disallowed, and
@@ -92,6 +126,11 @@ var setDefaultPolicy = function () {
                                   "connect-src *; " +
                                   "img-src data: 'self'; " +
                                   "style-src 'self' 'unsafe-inline';");
+};
+
+var setWebAppInlineScripts = function (value) {
+  if (! BrowserPolicy._runningTest())
+    WebAppInternals.setInlineScriptsAllowed(value);
 };
 
 _.extend(BrowserPolicy.content, {
@@ -106,7 +145,7 @@ _.extend(BrowserPolicy.content, {
     var header = _.map(cspSrcs, function (srcs, directive) {
       srcs = srcs || [];
       if (_.isEmpty(srcs))
-        srcs = [noneKeyword];
+        srcs = [keywords.none];
       var directiveCsp = _.uniq(srcs).join(" ");
       return directive + " " + directiveCsp + ";";
     });
@@ -123,6 +162,9 @@ _.extend(BrowserPolicy.content, {
   setPolicy: function (csp) {
     cachedCsp = null;
     parseCsp(csp);
+    setWebAppInlineScripts(
+      BrowserPolicy.content._keywordAllowed("script-src", keywords.unsafeInline)
+    );
   },
 
   _keywordAllowed: function (directive, keyword) {
@@ -130,50 +172,38 @@ _.extend(BrowserPolicy.content, {
             _.indexOf(cspSrcs[directive], keyword) !== -1);
   },
 
-  // Used by webapp to determine whether we need an extra round trip for
-  // __meteor_runtime_config__.  If we're in a test run, we should always return
-  // true, since CSP headers are never sent on tests -- unless the
-  // _calledFromTests flag is set, in which case a test is testing what
-  // inlineScriptsAllowed() would return if we weren't in a test. Wphew.
-  // XXX maybe this test interface could be cleaned up
-  inlineScriptsAllowed: function (_calledFromTests) {
-    if (BrowserPolicy._runningTest() && ! _calledFromTests)
-      return true;
-
-    return BrowserPolicy.content._keywordAllowed("script-src",
-                                                 unsafeInline);
-  },
-
   // Helpers for creating content security policies
 
   allowInlineScripts: function () {
     prepareForCspDirective("script-src");
-    cspSrcs["script-src"].push(unsafeInline);
+    cspSrcs["script-src"].push(keywords.unsafeInline);
+    setWebAppInlineScripts(true);
   },
   disallowInlineScripts: function () {
     prepareForCspDirective("script-src");
-    removeCspSrc("script-src", unsafeInline);
+    removeCspSrc("script-src", keywords.unsafeInline);
+    setWebAppInlineScripts(false);
   },
   allowEval: function () {
     prepareForCspDirective("script-src");
-    cspSrcs["script-src"].push(unsafeEval);
+    cspSrcs["script-src"].push(keywords.unsafeEval);
   },
   disallowEval: function () {
     prepareForCspDirective("script-src");
-    removeCspSrc("script-src", unsafeEval);
+    removeCspSrc("script-src", keywords.unsafeEval);
   },
   allowInlineStyles: function () {
     prepareForCspDirective("style-src");
-    cspSrcs["style-src"].push(unsafeInline);
+    cspSrcs["style-src"].push(keywords.unsafeInline);
   },
   disallowInlineStyles: function () {
     prepareForCspDirective("style-src");
-    removeCspSrc("style-src", unsafeInline);
+    removeCspSrc("style-src", keywords.unsafeInline);
   },
 
   // Functions for setting defaults
   allowSameOriginForAll: function () {
-    BrowserPolicy.content.allowOriginForAll(selfKeyword);
+    BrowserPolicy.content.allowOriginForAll(keywords.self);
   },
   allowDataUrlForAll: function () {
     BrowserPolicy.content.allowOriginForAll("data:");
@@ -181,7 +211,7 @@ _.extend(BrowserPolicy.content, {
   allowOriginForAll: function (origin) {
     prepareForCspDirective("default-src");
     _.each(_.keys(cspSrcs), function (directive) {
-      cspSrcs[directive].push(origin);
+      addSourceForDirective(directive, origin);
     });
   },
   disallowAll: function () {
@@ -189,13 +219,14 @@ _.extend(BrowserPolicy.content, {
     cspSrcs = {
       "default-src": []
     };
+    setWebAppInlineScripts(false);
   }
 });
 
 // allow<Resource>Origin, allow<Resource>Data, allow<Resource>self, and
 // disallow<Resource> methods for each type of resource.
 _.each(["script", "object", "img", "media",
-        "font", "connect", "style"],
+        "font", "connect", "style", "frame"],
        function (resource) {
          var directive = resource + "-src";
          var methodResource;
@@ -210,21 +241,30 @@ _.each(["script", "object", "img", "media",
          var allowDataMethodName = "allow" + methodResource + "DataUrl";
          var allowSelfMethodName = "allow" + methodResource + "SameOrigin";
 
-         BrowserPolicy.content[allowMethodName] = function (src) {
-           prepareForCspDirective(directive);
-           cspSrcs[directive].push(src);
-         };
-         BrowserPolicy.content[disallowMethodName] = function () {
+         var disallow = function () {
            cachedCsp = null;
            cspSrcs[directive] = [];
          };
+
+         BrowserPolicy.content[allowMethodName] = function (src) {
+           prepareForCspDirective(directive);
+           addSourceForDirective(directive, src);
+         };
+         if (resource === "script") {
+           BrowserPolicy.content[disallowMethodName] = function () {
+             disallow();
+             setWebAppInlineScripts(false);
+           };
+         } else {
+           BrowserPolicy.content[disallowMethodName] = disallow;
+         }
          BrowserPolicy.content[allowDataMethodName] = function () {
            prepareForCspDirective(directive);
            cspSrcs[directive].push("data:");
          };
          BrowserPolicy.content[allowSelfMethodName] = function () {
            prepareForCspDirective(directive);
-           cspSrcs[directive].push(selfKeyword);
+           cspSrcs[directive].push(keywords.self);
          };
        });
 

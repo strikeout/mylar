@@ -1,5 +1,13 @@
 Accounts._noConnectionCloseDelayForTest = true;
 
+if (Meteor.isServer) {
+  Meteor.methods({
+    getUserId: function () {
+      return this.userId;
+    }
+  });
+}
+
 if (Meteor.isClient) (function () {
 
   // XXX note, only one test can do login/logout things at once! for
@@ -20,25 +28,25 @@ if (Meteor.isClient) (function () {
     });
   };
   var waitForLoggedOutStep = function (test, expect) {
-    var done = expect();
-    var count = 100;
-    var interval = Meteor.setInterval(function () {
-      if (Meteor.userId() === null) {
-        Meteor.clearInterval(interval);
-        test.ok({message: "user is logged out"});
-        done();
-      }
-
-      count -= 1;
-      if (count === 0) {
-        Meteor.clearInterval(interval);
-        test.fail({message: "user did not log out in time"});
-        done();
-      }
-    }, 100);
+    pollUntil(expect, function () {
+      return Meteor.userId() === null;
+    }, 10 * 1000, 100);
   };
-
-
+  var invalidateLoginsStep = function (test, expect) {
+    Meteor.call("testInvalidateLogins", 'fail', expect(function (error) {
+      test.isFalse(error);
+    }));
+  };
+  var hideActualLoginErrorStep = function (test, expect) {
+    Meteor.call("testInvalidateLogins", 'hide', expect(function (error) {
+      test.isFalse(error);
+    }));
+  };
+  var validateLoginsStep = function (test, expect) {
+    Meteor.call("testInvalidateLogins", false, expect(function (error) {
+      test.isFalse(error);
+    }));
+  };
 
   testAsyncMulti("passwords - basic login with password", [
     function (test, expect) {
@@ -188,6 +196,56 @@ if (Meteor.isClient) (function () {
     logoutStep
   ]);
 
+  testAsyncMulti("passwords - changing password logs out other clients", [
+    function (test, expect) {
+      this.username = Random.id();
+      this.email = Random.id() + '-intercept@example.com';
+      this.password = 'password';
+      this.password2 = 'password2';
+      Accounts.createUser(
+        { username: this.username, email: this.email, password: this.password },
+        loggedInAs(this.username, test, expect));
+    },
+    // Log in a second connection as this user.
+    function (test, expect) {
+      var self = this;
+
+      self.secondConn = DDP.connect(Meteor.absoluteUrl());
+      self.secondConn.call('login',
+                { user: { username: self.username }, password: self.password },
+                expect(function (err, result) {
+                  test.isFalse(err);
+                  self.secondConn.setUserId(result.id);
+                  test.isTrue(self.secondConn.userId());
+
+                  self.secondConn.onReconnect = function () {
+                    self.secondConn.apply(
+                      'login',
+                      [{ resume: result.token }],
+                      { wait: true },
+                      function (err, result) {
+                        self.secondConn.setUserId(result && result.id || null);
+                      }
+                    );
+                  };
+                }));
+    },
+    function (test, expect) {
+      var self = this;
+      Accounts.changePassword(self.password, self.password2, expect(function (err) {
+        test.isFalse(err);
+      }));
+    },
+    // Now that we've changed the password, wait until the second
+    // connection gets logged out.
+    function (test, expect) {
+      var self = this;
+      pollUntil(expect, function () {
+        return self.secondConn.userId() === null;
+      }, 10 * 1000, 100);
+    }
+  ]);
+
 
   testAsyncMulti("passwords - new user hooks", [
     function (test, expect) {
@@ -251,7 +309,7 @@ if (Meteor.isClient) (function () {
     function(test, expect) {
       var self = this;
       var clientUser = Meteor.user();
-      Meteor.call('testMeteorUser', expect(function (err, result) {
+      Accounts.connection.call('testMeteorUser', expect(function (err, result) {
         test.equal(result._id, clientUser._id);
         test.equal(result.username, clientUser.username);
         test.equal(result.username, self.username);
@@ -261,7 +319,7 @@ if (Meteor.isClient) (function () {
     },
     function(test, expect) {
       // Test that even with no published fields, we still have a document.
-      Meteor.call('clearUsernameAndProfile', expect(function() {
+      Accounts.connection.call('clearUsernameAndProfile', expect(function() {
         test.isTrue(Meteor.userId());
         var user = Meteor.user();
         test.equal(user, {_id: Meteor.userId()});
@@ -271,7 +329,8 @@ if (Meteor.isClient) (function () {
     function(test, expect) {
       var clientUser = Meteor.user();
       test.equal(clientUser, null);
-      Meteor.call('testMeteorUser', expect(function (err, result) {
+      test.equal(Meteor.userId(), null);
+      Accounts.connection.call('testMeteorUser', expect(function (err, result) {
         test.equal(err, undefined);
         test.equal(result, null);
       }));
@@ -358,7 +417,23 @@ if (Meteor.isClient) (function () {
         loggedInAs(this.username, test, expect));
     },
 
-    function(test, expect) {
+    function (test, expect) {
+      // we can't login with an invalid token
+      var expectLoginError = expect(function (err) {
+        test.isTrue(err);
+      });
+      Meteor.loginWithToken('invalid', expectLoginError);
+    },
+
+    function (test, expect) {
+      // we can login with a valid token
+      var expectLoginOK = expect(function (err) {
+        test.isFalse(err);
+      });
+      Meteor.loginWithToken(Accounts._storedLoginToken(), expectLoginOK);
+    },
+
+    function (test, expect) {
       // test logging out invalidates our token
       var expectLoginError = expect(function (err) {
         test.isTrue(err);
@@ -370,7 +445,8 @@ if (Meteor.isClient) (function () {
       });
     },
 
-    function(test, expect) {
+    function (test, expect) {
+      var self = this;
       // Test that login tokens get expired. We should get logged out when a
       // token expires, and not be able to log in again with the same token.
       var expectNoError = expect(function (err) {
@@ -378,10 +454,10 @@ if (Meteor.isClient) (function () {
       });
 
       Meteor.loginWithPassword(this.username, this.password, function (error) {
-        var token = Accounts._storedLoginToken();
-        test.isTrue(token);
+        self.token = Accounts._storedLoginToken();
+        test.isTrue(self.token);
         expectNoError(error);
-        Meteor.call("expireTokens");
+        Accounts.connection.call("expireTokens");
       });
     },
     waitForLoggedOutStep,
@@ -390,67 +466,272 @@ if (Meteor.isClient) (function () {
       test.isFalse(token);
     },
     function (test, expect) {
+      // Test that once expireTokens is finished, we can't login again with our
+      // previous token.
+      Meteor.loginWithToken(this.token, expect(function (err, result) {
+        test.isTrue(err);
+        test.equal(Meteor.userId(), null);
+      }));
+    },
+    logoutStep,
+    function (test, expect) {
       var self = this;
-
-      // copied from livedata/client_convenience.js
-      var ddpUrl = '/';
-      if (typeof __meteor_runtime_config__ !== "undefined") {
-        if (__meteor_runtime_config__.DDP_DEFAULT_CONNECTION_URL)
-          ddpUrl = __meteor_runtime_config__.DDP_DEFAULT_CONNECTION_URL;
-      }
-      // XXX can we get the url from the existing connection somehow
-      // instead?
-
-      // Test that Meteor.logoutOtherClients logs out a second authenticated
-      // connection while leaving Meteor.connection logged in.
+      // Test that Meteor.logoutOtherClients logs out a second
+      // authentcated connection while leaving Accounts.connection
+      // logged in.
+      var secondConn = DDP.connect(Meteor.absoluteUrl());
       var token;
-      var userId;
-      self.secondConn = DDP.connect(ddpUrl);
 
+      var expectSecondConnLoggedOut = expect(function (err, result) {
+        test.isTrue(err);
+      });
 
-      var expectNoError = expect(function (err) {
+      var expectAccountsConnLoggedIn = expect(function (err, result) {
         test.isFalse(err);
       });
+
+      var expectSecondConnLoggedIn = expect(function (err, result) {
+        test.equal(result.token, token);
+        test.isFalse(err);
+        Meteor.logoutOtherClients(function (err) {
+          test.isFalse(err);
+          secondConn.call('login', { resume: token },
+                          expectSecondConnLoggedOut);
+          Accounts.connection.call('login', {
+            resume: Accounts._storedLoginToken()
+          }, expectAccountsConnLoggedIn);
+        });
+      });
+
+      Meteor.loginWithPassword(
+        self.username,
+        self.password,
+        expect(function (err) {
+          test.isFalse(err);
+          token = Accounts._storedLoginToken();
+          test.isTrue(token);
+          secondConn.call('login', { resume: token },
+                          expectSecondConnLoggedIn);
+        })
+      );
+    },
+    logoutStep,
+
+    // The tests below this point are for the deprecated
+    // `logoutOtherClients` method.
+
+    function (test, expect) {
+      var self = this;
+
+      // Test that Meteor.logoutOtherClients logs out a second authenticated
+      // connection while leaving Accounts.connection logged in.
+      var token;
+      self.secondConn = DDP.connect(Meteor.absoluteUrl());
+
       var expectLoginError = expect(function (err) {
         test.isTrue(err);
       });
-      var expectLoggedIn = expect(function () {
-        test.equal(userId, Meteor.userId());
+      var expectValidToken = expect(function (err, result) {
+        test.isFalse(err);
+        test.isTrue(result);
+        self.tokenFromLogoutOthers = result.token;
       });
       var expectSecondConnLoggedIn = expect(function (err, result) {
         test.equal(result.token, token);
         test.isFalse(err);
+        // This test will fail if an unrelated reconnect triggers before the
+        // connection is logged out. In general our tests aren't resilient to
+        // mid-test reconnects.
         self.secondConn.onReconnect = function () {
           self.secondConn.call("login", { resume: token }, expectLoginError);
         };
-        Meteor.call("logoutOtherClients", expectLoggedIn);
+        Accounts.connection.call("logoutOtherClients", expectValidToken);
       });
 
-      Meteor.loginWithPassword(this.username, this.password, function (err) {
-        expectNoError(err);
+      Meteor.loginWithPassword(this.username, this.password, expect(function (err) {
+        test.isFalse(err);
         token = Accounts._storedLoginToken();
+        self.beforeLogoutOthersToken = token;
         test.isTrue(token);
-        userId = Meteor.userId();
         self.secondConn.call("login", { resume: token },
                              expectSecondConnLoggedIn);
-      });
+      }));
     },
+    // Test that logoutOtherClients logged out Accounts.connection and that the
+    // previous token is no longer valid.
     waitForLoggedOutStep,
     function (test, expect) {
+      var self = this;
       var token = Accounts._storedLoginToken();
       test.isFalse(token);
       this.secondConn.close();
+      Meteor.loginWithToken(
+        self.beforeLogoutOthersToken,
+        expect(function (err) {
+          test.isTrue(err);
+          test.isFalse(Meteor.userId());
+        })
+      );
     },
+    // Test that logoutOtherClients returned a new token that we can use to
+    // log in.
+    function (test, expect) {
+      var self = this;
+      Meteor.loginWithToken(
+        self.tokenFromLogoutOthers,
+        expect(function (err) {
+          test.isFalse(err);
+          test.isTrue(Meteor.userId());
+        })
+      );
+    },
+    logoutStep,
+
+
+
     function (test, expect) {
       var self = this;
       // Test that deleting a user logs out that user's connections.
-      Meteor.loginWithPassword(this.username, this.password, function (err) {
+      Meteor.loginWithPassword(this.username, this.password, expect(function (err) {
         test.isFalse(err);
-        Meteor.call("removeUser", self.username);
-      });
+        Accounts.connection.call("removeUser", self.username);
+      }));
     },
     waitForLoggedOutStep
   ]);
+
+  testAsyncMulti("passwords - validateLoginAttempt", [
+    function (test, expect) {
+      this.username = Random.id();
+      this.password = "password";
+
+      Accounts.createUser(
+        {username: this.username, password: this.password},
+        loggedInAs(this.username, test, expect));
+    },
+    logoutStep,
+    invalidateLoginsStep,
+    function (test, expect) {
+      Meteor.loginWithPassword(
+        this.username,
+        this.password,
+        expect(function (error) {
+          test.isTrue(error);
+          test.equal(error.reason, "Login forbidden");
+        })
+      );
+    },
+    validateLoginsStep,
+    function (test, expect) {
+      Meteor.loginWithPassword(
+        "no such user",
+        "some password",
+        expect(function (error) {
+          test.isTrue(error);
+          test.equal(error.reason, 'User not found');
+        })
+      );
+    },
+    hideActualLoginErrorStep,
+    function (test, expect) {
+      Meteor.loginWithPassword(
+        "no such user",
+        "some password",
+        expect(function (error) {
+          test.isTrue(error);
+          test.equal(error.reason, 'hide actual error');
+        })
+      );
+    },
+    validateLoginsStep
+  ]);
+
+  testAsyncMulti("passwords - onLogin hook", [
+    function (test, expect) {
+      Meteor.call("testCaptureLogins", expect(function (error) {
+        test.isFalse(error);
+      }));
+    },
+    function (test, expect) {
+      this.username = Random.id();
+      this.password = "password";
+
+      Accounts.createUser(
+        {username: this.username, password: this.password},
+        loggedInAs(this.username, test, expect));
+    },
+    function (test, expect) {
+      var self = this;
+      Meteor.call("testFetchCapturedLogins", expect(function (error, logins) {
+        test.isFalse(error);
+        test.equal(logins.length, 1);
+        var login = logins[0];
+        test.isTrue(login.successful);
+        var attempt = login.attempt;
+        test.equal(attempt.type, "password");
+        test.isTrue(attempt.allowed);
+        test.equal(attempt.methodName, "createUser");
+        test.equal(attempt.methodArguments[0].username, self.username);
+      }));
+    }
+  ]);
+
+  testAsyncMulti("passwords - onLoginFailed hook", [
+    function (test, expect) {
+      this.username = Random.id();
+      this.password = "password";
+
+      Accounts.createUser(
+        {username: this.username, password: this.password},
+        loggedInAs(this.username, test, expect));
+    },
+    logoutStep,
+    function (test, expect) {
+      Meteor.call("testCaptureLogins", expect(function (error) {
+        test.isFalse(error);
+      }));
+    },
+    function (test, expect) {
+      Meteor.loginWithPassword(this.username, "incorrect", expect(function (error) {
+        test.isTrue(error);
+      }));
+    },
+    function (test, expect) {
+      Meteor.call("testFetchCapturedLogins", expect(function (error, logins) {
+        test.isFalse(error);
+        test.equal(logins.length, 1);
+        var login = logins[0];
+        test.isFalse(login.successful);
+        var attempt = login.attempt;
+        test.equal(attempt.type, "password");
+        test.isFalse(attempt.allowed);
+        test.equal(attempt.error.reason, "Incorrect password");
+      }));
+    },
+    function (test, expect) {
+      Meteor.call("testCaptureLogins", expect(function (error) {
+        test.isFalse(error);
+      }));
+    },
+    function (test, expect) {
+      Meteor.loginWithPassword("no such user", "incorrect", expect(function (error) {
+        test.isTrue(error);
+      }));
+    },
+    function (test, expect) {
+      Meteor.call("testFetchCapturedLogins", expect(function (error, logins) {
+        test.isFalse(error);
+        test.equal(logins.length, 1);
+        var login = logins[0];
+        test.isFalse(login.successful);
+        var attempt = login.attempt;
+        test.equal(attempt.type, "password");
+        test.isFalse(attempt.allowed);
+        test.equal(attempt.error.reason, "User not found");
+      }));
+    }
+  ]);
+
 }) ();
 
 
@@ -468,18 +749,14 @@ if (Meteor.isServer) (function () {
   Tinytest.add(
     'passwords - createUser hooks',
     function (test) {
-      var email = Random.id() + '@example.com';
+      var username = Random.id();
       test.throws(function () {
         // should fail the new user validators
-        Accounts.createUser({email: email, profile: {invalid: true}});
-        });
+        Accounts.createUser({username: username, profile: {invalid: true}});
+      });
 
-      // disable sending emails
-      var oldEmailSend = Email.send;
-      Email.send = function() {};
-      var userId = Accounts.createUser({email: email,
+      var userId = Accounts.createUser({username: username,
                                         testOnCreateUserHook: true});
-      Email.send = oldEmailSend;
 
       test.isTrue(userId);
       var user = Meteor.users.findOne(userId);
@@ -527,4 +804,52 @@ if (Meteor.isServer) (function () {
   });
 
   // XXX would be nice to test Accounts.config({forbidClientAccountCreation: true})
+
+  Tinytest.addAsync(
+    'passwords - login token observes get cleaned up',
+    function (test, onComplete) {
+      var username = Random.id();
+      Accounts.createUser({
+        username: username,
+        password: 'password'
+      });
+
+      makeTestConnection(
+        test,
+        function (clientConn, serverConn) {
+          serverConn.onClose(function () {
+            test.isFalse(Accounts._getUserObserve(serverConn.id));
+            onComplete();
+          });
+          var result = clientConn.call('login', {
+            user: {username: username},
+            password: 'password'
+          });
+          test.isTrue(result);
+          var token = Accounts._getAccountData(serverConn.id, 'loginToken');
+          test.isTrue(token);
+
+          // We poll here, instead of just checking `_getUserObserve`
+          // once, because the login method defers the creation of the
+          // observe, and setting up the observe yields, so we could end
+          // up here before the observe has been set up.
+          simplePoll(
+            function () {
+              return !! Accounts._getUserObserve(serverConn.id);
+            },
+            function () {
+              test.isTrue(Accounts._getUserObserve(serverConn.id));
+              clientConn.disconnect();
+            },
+            function () {
+              test.fail("timed out waiting for user observe for connection " +
+                        serverConn.id);
+              onComplete();
+            }
+          );
+        },
+        onComplete
+      );
+    }
+  );
 }) ();

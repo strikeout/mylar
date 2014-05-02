@@ -1,3 +1,9 @@
+Meteor.methods({
+  getCurrentLoginToken: function () {
+    return Accounts._getLoginToken(this.connection.id);
+  }
+});
+
 // XXX it'd be cool to also test that the right thing happens if options
 // *are* validated, but Accounts._options is global state which makes this hard
 // (impossible?)
@@ -15,7 +21,7 @@ Accounts.validateNewUser(function (user) {
 });
 
 Tinytest.add('accounts - validateNewUser gets passed user with _id', function (test) {
-  var newUserId = Accounts.updateOrCreateUserFromExternalService('foobook', {id: Random.id()}).id;
+  var newUserId = Accounts.updateOrCreateUserFromExternalService('foobook', {id: Random.id()}).userId;
   test.isTrue(newUserId in idsInValidateNewUser);
 });
 
@@ -101,11 +107,11 @@ Tinytest.add('accounts - insertUserDoc username', function (test) {
   };
 
   // user does not already exist. create a user object with fields set.
-  var result = Accounts.insertUserDoc(
+  var userId = Accounts.insertUserDoc(
     {profile: {name: 'Foo Bar'}},
     userIn
   );
-  var userOut = Meteor.users.findOne(result.id);
+  var userOut = Meteor.users.findOne(userId);
 
   test.equal(typeof userOut.createdAt, 'object');
   test.equal(userOut.profile.name, 'Foo Bar');
@@ -120,8 +126,7 @@ Tinytest.add('accounts - insertUserDoc username', function (test) {
   });
 
   // cleanup
-  Meteor.users.remove(result.id);
-
+  Meteor.users.remove(userId);
 });
 
 Tinytest.add('accounts - insertUserDoc email', function (test) {
@@ -134,11 +139,11 @@ Tinytest.add('accounts - insertUserDoc email', function (test) {
   };
 
   // user does not already exist. create a user object with fields set.
-  var result = Accounts.insertUserDoc(
+  var userId = Accounts.insertUserDoc(
     {profile: {name: 'Foo Bar'}},
     userIn
   );
-  var userOut = Meteor.users.findOne(result.id);
+  var userOut = Meteor.users.findOne(userId);
 
   test.equal(typeof userOut.createdAt, 'object');
   test.equal(userOut.profile.name, 'Foo Bar');
@@ -168,36 +173,36 @@ Tinytest.add('accounts - insertUserDoc email', function (test) {
 
 
   // a third email works.
-  var result3 = Accounts.insertUserDoc(
+  var userId3 = Accounts.insertUserDoc(
       {}, {emails: [{address: email3}]}
   );
-  var user3 = Meteor.users.findOne(result3.id);
+  var user3 = Meteor.users.findOne(userId3);
   test.equal(typeof user3.createdAt, 'object');
 
   // cleanup
-  Meteor.users.remove(result.id);
-  Meteor.users.remove(result3.id);
+  Meteor.users.remove(userId);
+  Meteor.users.remove(userId3);
 });
 
 // More token expiration tests are in accounts-password
 Tinytest.addAsync('accounts - expire numeric token', function (test, onComplete) {
   var userIn = { username: Random.id() };
-  var result = Accounts.insertUserDoc({ profile: {
+  var userId = Accounts.insertUserDoc({ profile: {
     name: 'Foo Bar'
   } }, userIn);
   var date = new Date(new Date() - 5000);
-  Meteor.users.update(result.id, {
+  Meteor.users.update(userId, {
     $set: {
       "services.resume.loginTokens": [{
-        token: Random.id(),
+        hashedToken: Random.id(),
         when: date
       }, {
-        token: Random.id(),
+        hashedToken: Random.id(),
         when: +date
       }]
     }
   });
-  var observe = Meteor.users.find(result.id).observe({
+  var observe = Meteor.users.find(userId).observe({
     changed: function (newUser) {
       if (newUser.services && newUser.services.resume &&
           _.isEmpty(newUser.services.resume.loginTokens)) {
@@ -206,5 +211,165 @@ Tinytest.addAsync('accounts - expire numeric token', function (test, onComplete)
       }
     }
   });
-  Accounts._expireTokens(new Date(), result.id);
+  Accounts._expireTokens(new Date(), userId);
 });
+
+
+// Login tokens used to be stored unhashed in the database.  We want
+// to make sure users can still login after upgrading.
+var insertUnhashedLoginToken = function (userId, stampedToken) {
+  Meteor.users.update(
+    userId,
+    {$push: {'services.resume.loginTokens': stampedToken}}
+  );
+};
+
+Tinytest.addAsync('accounts - login token', function (test, onComplete) {
+  // Test that we can login when the database contains a leftover
+  // old style unhashed login token.
+  var userId1 = Accounts.insertUserDoc({}, {username: Random.id()});
+  var stampedToken = Accounts._generateStampedLoginToken();
+  insertUnhashedLoginToken(userId1, stampedToken);
+  var connection = DDP.connect(Meteor.absoluteUrl());
+  connection.call('login', {resume: stampedToken.token});
+  connection.disconnect();
+
+  // Steal the unhashed token from the database and use it to login.
+  // This is a sanity check so that when we *can't* login with a
+  // stolen *hashed* token, we know it's not a problem with the test.
+  var userId2 = Accounts.insertUserDoc({}, {username: Random.id()});
+  insertUnhashedLoginToken(userId2, Accounts._generateStampedLoginToken());
+  var stolenToken = Meteor.users.findOne(userId2).services.resume.loginTokens[0].token;
+  test.isTrue(stolenToken);
+  connection = DDP.connect(Meteor.absoluteUrl());
+  connection.call('login', {resume: stolenToken});
+  connection.disconnect();
+
+  // Now do the same thing, this time with a stolen hashed token.
+  var userId3 = Accounts.insertUserDoc({}, {username: Random.id()});
+  Accounts._insertLoginToken(userId3, Accounts._generateStampedLoginToken());
+  stolenToken = Meteor.users.findOne(userId3).services.resume.loginTokens[0].hashedToken;
+  test.isTrue(stolenToken);
+  connection = DDP.connect(Meteor.absoluteUrl());
+  // evil plan foiled
+  test.throws(
+    function () {
+      connection.call('login', {resume: stolenToken});
+    },
+    /You\'ve been logged out by the server/
+  );
+  connection.disconnect();
+
+  // Old style unhashed tokens are replaced by hashed tokens when
+  // encountered.  This means that after someone logins once, the
+  // old unhashed token is no longer available to be stolen.
+  var userId4 = Accounts.insertUserDoc({}, {username: Random.id()});
+  var stampedToken = Accounts._generateStampedLoginToken();
+  insertUnhashedLoginToken(userId4, stampedToken);
+  connection = DDP.connect(Meteor.absoluteUrl());
+  connection.call('login', {resume: stampedToken.token});
+  connection.disconnect();
+
+  // The token is no longer available to be stolen.
+  stolenToken = Meteor.users.findOne(userId4).services.resume.loginTokens[0].token;
+  test.isFalse(stolenToken);
+
+  // After the upgrade, the client can still login with their original
+  // unhashed login token.
+  connection = DDP.connect(Meteor.absoluteUrl());
+  connection.call('login', {resume: stampedToken.token});
+  connection.disconnect();
+
+  onComplete();
+});
+
+Tinytest.addAsync(
+  'accounts - connection data cleaned up',
+  function (test, onComplete) {
+    makeTestConnection(
+      test,
+      function (clientConn, serverConn) {
+        // onClose callbacks are called in order, so we run after the
+        // close callback in accounts.
+        serverConn.onClose(function () {
+          test.isFalse(Accounts._getAccountData(serverConn.id, 'connection'));
+          onComplete();
+        });
+
+        test.isTrue(Accounts._getAccountData(serverConn.id, 'connection'));
+        serverConn.close();
+      },
+      onComplete
+    );
+  }
+);
+
+Tinytest.add(
+  'accounts - get new token',
+  function (test) {
+    // Test that the `getNewToken` method returns us a valid token, with
+    // the same expiration as our original token.
+    var userId = Accounts.insertUserDoc({}, { username: Random.id() });
+    var stampedToken = Accounts._generateStampedLoginToken();
+    Accounts._insertLoginToken(userId, stampedToken);
+    var conn = DDP.connect(Meteor.absoluteUrl());
+    conn.call('login', { resume: stampedToken.token });
+    test.equal(conn.call('getCurrentLoginToken'),
+               Accounts._hashLoginToken(stampedToken.token));
+
+    var newTokenResult = conn.call('getNewToken');
+    test.equal(newTokenResult.tokenExpires,
+               Accounts._tokenExpiration(stampedToken.when));
+    test.equal(conn.call('getCurrentLoginToken'),
+               Accounts._hashLoginToken(newTokenResult.token));
+    conn.disconnect();
+
+    // A second connection should be able to log in with the new token
+    // we got.
+    var secondConn = DDP.connect(Meteor.absoluteUrl());
+    secondConn.call('login', { resume: newTokenResult.token });
+    secondConn.disconnect();
+  }
+);
+
+Tinytest.addAsync(
+  'accounts - remove other tokens',
+  function (test, onComplete) {
+    // Test that the `removeOtherTokens` method removes all tokens other
+    // than the caller's token, thereby logging out and closing other
+    // connections.
+    var userId = Accounts.insertUserDoc({}, { username: Random.id() });
+    var stampedTokens = [];
+    var conns = [];
+
+    _.times(2, function (i) {
+      stampedTokens.push(Accounts._generateStampedLoginToken());
+      Accounts._insertLoginToken(userId, stampedTokens[i]);
+      var conn = DDP.connect(Meteor.absoluteUrl());
+      conn.call('login', { resume: stampedTokens[i].token });
+      test.equal(conn.call('getCurrentLoginToken'),
+                 Accounts._hashLoginToken(stampedTokens[i].token));
+      conns.push(conn);
+    });
+
+    conns[0].call('removeOtherTokens');
+    simplePoll(
+      function () {
+        var tokens = _.map(conns, function (conn) {
+          return conn.call('getCurrentLoginToken');
+        });
+        return ! tokens[1] &&
+          tokens[0] === Accounts._hashLoginToken(stampedTokens[0].token);
+      },
+      function () { // success
+        _.each(conns, function (conn) {
+          conn.disconnect();
+        });
+        onComplete();
+      },
+      function () { // timed out
+        throw new Error("accounts - remove other tokens timed out");
+      }
+    );
+  }
+);

@@ -68,6 +68,10 @@ _.extend(SessionDocumentView.prototype, {
     // Publish API ignores _id if present in fields
     if (key === "_id")
       return;
+
+    // Don't share state with the data passed in by the user.
+    value = EJSON.clone(value);
+
     if (!_.has(self.dataByKey, key)) {
       self.dataByKey[key] = [{subscriptionHandle: subscriptionHandle,
                               value: value}];
@@ -212,7 +216,7 @@ _.extend(SessionCollectionView.prototype, {
 /* Session                                                                    */
 /******************************************************************************/
 
-var Session = function (server, version, socket) {
+var Session = function (server, version, socket, options) {
   var self = this;
   self.id = Random.id();
 
@@ -222,7 +226,10 @@ var Session = function (server, version, socket) {
   self.initialized = false;
   self.socket = socket;
 
+  // set to null when the session is destroyed. multiple places below
+  // use this to determine if the session is alive or not.
   self.inQueue = [];
+
   self.blocked = false;
   self.workerRunning = false;
 
@@ -231,10 +238,6 @@ var Session = function (server, version, socket) {
   self._universalSubs = [];
 
   self.userId = null;
-
-  // Per-connection scratch area. This is only used internally, but we
-  // should have real and documented API for this sort of thing someday.
-  self.sessionData = {};
 
   self.collectionViews = {};
 
@@ -251,16 +254,64 @@ var Session = function (server, version, socket) {
   // we want to buffer up for when we are done rerunning subscriptions
   self._pendingReady = [];
 
+  // List of callbacks to call when this connection is closed.
+  self._closeCallbacks = [];
+
+
+  // XXX HACK: If a sockjs connection, save off the URL. This is
+  // temporary and will go away in the near future.
+  self._socketUrl = socket.url;
+
+  // Allow tests to disable responding to pings.
+  self._respondToPings = options.respondToPings;
+
+  // This object is the public interface to the session. In the public
+  // API, it is called the `connection` object.  Internally we call it
+  // a `connectionHandle` to avoid ambiguity.
+  self.connectionHandle = {
+    id: self.id,
+    close: function () {
+      self.close();
+    },
+    onClose: function (fn) {
+      var cb = Meteor.bindEnvironment(fn, "connection onClose callback");
+      if (self.inQueue) {
+        self._closeCallbacks.push(cb);
+      } else {
+        // if we're already closed, call the callback.
+        Meteor.defer(cb);
+      }
+    },
+    clientAddress: self._clientAddress(),
+    httpHeaders: self.socket.headers
+  };
+
   socket.send(stringifyDDP({msg: 'connected',
                             session: self.id}));
   // On initial connect, spin up all the universal publishers.
   Fiber(function () {
     self.startUniversalSubs();
   }).run();
+
+  if (version !== 'pre1' && options.heartbeatInterval !== 0) {
+    self.heartbeat = new Heartbeat({
+      heartbeatInterval: options.heartbeatInterval,
+      heartbeatTimeout: options.heartbeatTimeout,
+      onTimeout: function () {
+        self.destroy();
+      },
+      sendPing: function () {
+        self.send({msg: 'ping'});
+      }
+    });
+    self.heartbeat.start();
+  }
+
+  Package.facts && Package.facts.Facts.incrementServerFact(
+    "livedata", "sessions", 1);
 };
 
 _.extend(Session.prototype, {
-
 
   sendReady: function (subscriptionIds) {
     var self = this;
@@ -341,7 +392,6 @@ _.extend(Session.prototype, {
     view.changed(subscriptionHandle, id, fields);
   },
 
-
   startUniversalSubs: function () {
     var self = this;
     // Make a shallow copy of the set of universal handlers and start them. If
@@ -357,20 +407,53 @@ _.extend(Session.prototype, {
   // down. If a socket was attached, close it.
   destroy: function () {
     var self = this;
+
+    // Already destroyed.
+    if (!self.inQueue)
+      return;
+
+    if (self.heartbeat) {
+      self.heartbeat.stop();
+      self.heartbeat = null;
+    }
+
     if (self.socket) {
       self.socket.close();
       self.socket._meteorSession = null;
     }
-    Meteor.defer(function () {
-      // stop callbacks can yield, so we defer this on destroy.
-      // see also _closeAllForTokens and its desire to destroy things in a loop.
-      // that said, sub._isDeactivated() detects that we set inQueue to null and
-      // treats it as semi-deactivated (it will ignore incoming callbacks, etc).
-      self._deactivateAllSubscriptions();
-    });
+
     // Drop the merge box data immediately.
     self.collectionViews = {};
     self.inQueue = null;
+
+    Package.facts && Package.facts.Facts.incrementServerFact(
+      "livedata", "sessions", -1);
+
+    Meteor.defer(function () {
+      // stop callbacks can yield, so we defer this on destroy.
+      // sub._isDeactivated() detects that we set inQueue to null and
+      // treats it as semi-deactivated (it will ignore incoming callbacks, etc).
+      self._deactivateAllSubscriptions();
+
+      // Defer calling the close callbacks, so that the caller closing
+      // the session isn't waiting for all the callbacks to complete.
+      _.each(self._closeCallbacks, function (callback) {
+        callback();
+      });
+    });
+  },
+
+  // Destroy this session and unregister it at the server.
+  close: function () {
+    var self = this;
+
+    // Unconditionally destroy this session, even if it's not
+    // registered at the server.
+    self.destroy();
+
+    // Unregister the session.  This will also call `destroy`, but
+    // that's OK because `destroy` is idempotent.
+    self.server._closeSession(self);
   },
 
   // Send a message (doing nothing if no socket is connected right now.)
@@ -412,6 +495,32 @@ _.extend(Session.prototype, {
     var self = this;
     if (!self.inQueue) // we have been destroyed.
       return;
+
+    // Respond to ping and pong messages immediately without queuing.
+    // If the negotiated DDP version is "pre1" which didn't support
+    // pings, preserve the "pre1" behavior of responding with a "bad
+    // request" for the unknown messages.
+    //
+    // Fibers are needed because heartbeat uses Meteor.setTimeout, which
+    // needs a Fiber. We could actually use regular setTimeout and avoid
+    // these new fibers, but it is easier to just make everything use
+    // Meteor.setTimeout and not think too hard.
+    if (self.version !== 'pre1' && msg_in.msg === 'ping') {
+      if (self._respondToPings)
+        self.send({msg: "pong", id: msg_in.id});
+      if (self.heartbeat)
+        Fiber(function () {
+          self.heartbeat.pingReceived();
+        }).run();
+      return;
+    }
+    if (self.version !== 'pre1' && msg_in.msg === 'pong') {
+      if (self.heartbeat)
+        Fiber(function () {
+          self.heartbeat.pongReceived();
+        }).run();
+      return;
+    }
 
     self.inQueue.push(msg_in);
     if (self.workerRunning)
@@ -486,13 +595,17 @@ _.extend(Session.prototype, {
       var self = this;
 
       // reject malformed messages
-      // XXX should also reject messages with unknown attributes?
+      // For now, we silently ignore unknown attributes,
+      // for forwards compatibility.
       if (typeof (msg.id) !== "string" ||
           typeof (msg.method) !== "string" ||
-          (('params' in msg) && !(msg.params instanceof Array))) {
+          (('params' in msg) && !(msg.params instanceof Array)) ||
+          (('randomSeed' in msg) && (typeof msg.randomSeed !== "string"))) {
         self.sendError("Malformed method invocation", msg);
         return;
       }
+
+      var randomSeed = msg.randomSeed || null;
 
       // set up to mark the method as satisfied once all observers
       // (and subscriptions) have reacted to any writes that were
@@ -523,17 +636,13 @@ _.extend(Session.prototype, {
         self._setUserId(userId);
       };
 
-      var setLoginToken = function (newToken) {
-        self._setLoginToken(newToken);
-      };
-
       var invocation = new MethodInvocation({
         isSimulation: false,
         userId: self.userId,
         setUserId: setUserId,
-        _setLoginToken: setLoginToken,
         unblock: unblock,
-        sessionData: self.sessionData
+        connection: self.connectionHandle,
+        randomSeed: randomSeed
       });
       try {
         var result = DDPServer._CurrentWriteFence.withValue(fence, function () {
@@ -583,19 +692,6 @@ _.extend(Session.prototype, {
         });
       }
     });
-  },
-
-  // XXX This mixes accounts concerns (login tokens) into livedata, which is not
-  // ideal. Eventually we'll have an API that allows accounts to keep track of
-  // which connections are associated with tokens and close them when necessary,
-  // rather than the current state of things where accounts tells livedata which
-  // connections are associated with which tokens, and when to close connections
-  // associated with a given token.
-  _setLoginToken: function (newToken) {
-    var self = this;
-    var oldToken = self.sessionData.loginToken;
-    self.sessionData.loginToken = newToken;
-    self.server._loginTokenChanged(self, newToken, oldToken);
   },
 
   // Sets the current user id in all appropriate contexts and reruns
@@ -707,8 +803,45 @@ _.extend(Session.prototype, {
       sub._deactivate();
     });
     self._universalSubs = [];
-  }
+  },
 
+  // Determine the remote client's IP address, based on the
+  // HTTP_FORWARDED_COUNT environment variable representing how many
+  // proxies the server is behind.
+  _clientAddress: function () {
+    var self = this;
+
+    // For the reported client address for a connection to be correct,
+    // the developer must set the HTTP_FORWARDED_COUNT environment
+    // variable to an integer representing the number of hops they
+    // expect in the `x-forwarded-for` header. E.g., set to "1" if the
+    // server is behind one proxy.
+    //
+    // This could be computed once at startup instead of every time.
+    var httpForwardedCount = parseInt(process.env['HTTP_FORWARDED_COUNT']) || 0;
+
+    if (httpForwardedCount === 0)
+      return self.socket.remoteAddress;
+
+    var forwardedFor = self.socket.headers["x-forwarded-for"];
+    if (! _.isString(forwardedFor))
+      return null;
+    forwardedFor = forwardedFor.trim().split(/\s*,\s*/);
+
+    // Typically the first value in the `x-forwarded-for` header is
+    // the original IP address of the client connecting to the first
+    // proxy.  However, the end user can easily spoof the header, in
+    // which case the first value(s) will be the fake IP address from
+    // the user pretending to be a proxy reporting the original IP
+    // address value.  By counting HTTP_FORWARDED_COUNT back from the
+    // end of the list, we ensure that we get the IP address being
+    // reported by *our* first proxy.
+
+    if (httpForwardedCount < 0 || httpForwardedCount > forwardedFor.length)
+      return null;
+
+    return forwardedFor[forwardedFor.length - httpForwardedCount];
+  }
 });
 
 /******************************************************************************/
@@ -720,6 +853,7 @@ var Subscription = function (
     session, handler, subscriptionId, params, name) {
   var self = this;
   self._session = session; // type is Session
+  self.connection = session.connectionHandle; // public API object
 
   self._handler = handler;
 
@@ -768,10 +902,20 @@ var Subscription = function (
     idStringify: LocalCollection._idStringify,
     idParse: LocalCollection._idParse
   };
+
+  Package.facts && Package.facts.Facts.incrementServerFact(
+    "livedata", "subscriptions", 1);
 };
 
 _.extend(Subscription.prototype, {
   _runHandler: function () {
+    // XXX should we unblock() here? Either before running the publish
+    // function, or before running _publishCursor.
+    //
+    // Right now, each publish function blocks all future publishes and
+    // methods waiting on data from Mongo (or whatever else the function
+    // blocks on). This probably slows page load in common cases.
+
     var self = this;
     try {
       var res = maybeAuditArgumentChecks(
@@ -835,6 +979,12 @@ _.extend(Subscription.prototype, {
         cur._publishCursor(self);
       });
       self.ready();
+    } else if (res) {
+      // truthy values other than cursors or arrays are probably a
+      // user mistake (possible returning a Mongo document via, say,
+      // `coll.findOne()`).
+      self.error(new Error("Publish function can only return a Cursor or "
+                           + "an array of Cursors"));
     }
   },
 
@@ -849,6 +999,8 @@ _.extend(Subscription.prototype, {
       return;
     self._deactivated = true;
     self._callStopCallbacks();
+    Package.facts && Package.facts.Facts.incrementServerFact(
+      "livedata", "subscriptions", -1);
   },
 
   _callStopCallbacks: function () {
@@ -965,8 +1117,27 @@ _.extend(Subscription.prototype, {
 /* Server                                                                     */
 /******************************************************************************/
 
-Server = function () {
+Server = function (options) {
   var self = this;
+
+  // The default heartbeat interval is 30 seconds on the server and 35
+  // seconds on the client.  Since the client doesn't need to send a
+  // ping as long as it is receiving pings, this means that pings
+  // normally go from the server to the client.
+  self.options = _.defaults(options || {}, {
+    heartbeatInterval: 30000,
+    heartbeatTimeout: 15000,
+    // For testing, allow responding to pings to be disabled.
+    respondToPings: true
+  });
+
+  // Map of callbacks to call when a new connection comes in to the
+  // server and completes DDP version negotiation. Use an object instead
+  // of an array so we can safely remove one from the list while
+  // iterating over it.
+  self.onConnectionHook = new Hook({
+    debugPrintExceptions: "onConnection callback"
+  });
 
   self.publish_handlers = {};
   self.universal_publish_handlers = [];
@@ -974,18 +1145,6 @@ Server = function () {
   self.method_handlers = {};
 
   self.sessions = {}; // map from id to session
-
-  // Keeps track of the open connections associated with particular login
-  // tokens. Used for logging out all a user's open connections, expiring login
-  // tokens, etc.
-  // XXX This mixes accounts concerns (login tokens) into livedata, which is not
-  // ideal. Eventually we'll have an API that allows accounts to keep track of
-  // which connections are associated with tokens and close them when necessary,
-  // rather than the current state of things where accounts tells livedata which
-  // connections are associated with which tokens, and when to close connections
-  // associated with a given token.
-  self.sessionsByLoginToken = {};
-
 
   self.stream_server = new StreamServer;
 
@@ -1021,7 +1180,9 @@ Server = function () {
             sendError("Already connected", msg);
             return;
           }
-          self._handleConnect(socket, msg);
+          Fiber(function () {
+            self._handleConnect(socket, msg);
+          }).run();
           return;
         }
 
@@ -1040,7 +1201,7 @@ Server = function () {
     socket.on('close', function () {
       if (socket._meteorSession) {
         Fiber(function () {
-          self._destroySession(socket._meteorSession);
+          socket._meteorSession.close();
         }).run();
       }
     });
@@ -1048,6 +1209,11 @@ Server = function () {
 };
 
 _.extend(Server.prototype, {
+
+  onConnection: function (fn) {
+    var self = this;
+    return self.onConnectionHook.register(fn);
+  },
 
   _handleConnect: function (socket, msg) {
     var self = this;
@@ -1057,8 +1223,13 @@ _.extend(Server.prototype, {
 
     if (msg.version === version) {
       // Creating a new session
-      socket._meteorSession = new Session(self, version, socket);
+      socket._meteorSession = new Session(self, version, socket, self.options);
       self.sessions[socket._meteorSession.id] = socket._meteorSession;
+      self.onConnectionHook.each(function (callback) {
+        if (socket._meteorSession)
+          callback(socket._meteorSession.connectionHandle);
+        return true;
+      });
     } else if (!msg.version) {
       // connect message without a version. This means an old (pre-pre1)
       // client is trying to connect. If we just disconnect the
@@ -1069,7 +1240,7 @@ _.extend(Server.prototype, {
       // drop all future data coming over this connection on the
       // floor. We don't want to confuse things.
       socket.removeAllListeners('data');
-      setTimeout(function () {
+      Meteor.setTimeout(function () {
         socket.send(stringifyDDP({msg: 'failed', version: version}));
         socket.close();
       }, timeout);
@@ -1152,19 +1323,12 @@ _.extend(Server.prototype, {
     }
   },
 
-  _destroySession: function (session) {
+  _closeSession: function (session) {
     var self = this;
-    delete self.sessions[session.id];
-    if (session.sessionData.loginToken) {
-      self.sessionsByLoginToken[session.sessionData.loginToken] = _.without(
-        self.sessionsByLoginToken[session.sessionData.loginToken],
-        session.id
-      );
-      if (_.isEmpty(self.sessionsByLoginToken[session.sessionData.loginToken])) {
-        delete self.sessionsByLoginToken[session.sessionData.loginToken];
-      }
+    if (self.sessions[session.id]) {
+      delete self.sessions[session.id];
+      session.destroy();
     }
-    session.destroy();
   },
 
   methods: function (methods) {
@@ -1202,11 +1366,11 @@ _.extend(Server.prototype, {
       // It's not really necessary to do this, since we immediately
       // run the callback in this fiber before returning, but we do it
       // anyway for regularity.
-      callback = Meteor.bindEnvironment(callback, function (e) {
-        // XXX improve error message (and how we report it)
-        Meteor._debug("Exception while delivering result of invoking '" +
-                      name + "'", e.stack);
-      });
+      // XXX improve error message (and how we report it)
+      callback = Meteor.bindEnvironment(
+        callback,
+        "delivering result of invoking '" + name + "'"
+      );
 
     // Run the handler
     var handler = self.method_handlers[name];
@@ -1221,33 +1385,28 @@ _.extend(Server.prototype, {
       var setUserId = function() {
         throw new Error("Can't call setUserId on a server initiated method call");
       };
-      var setLoginToken = function () {
-        // XXX is this correct?
-        throw new Error("Can't call _setLoginToken on a server " +
-                        "initiated method call");
-      };
+      var connection = null;
       var currentInvocation = DDP._CurrentInvocation.get();
       if (currentInvocation) {
         userId = currentInvocation.userId;
         setUserId = function(userId) {
           currentInvocation.setUserId(userId);
         };
-        setLoginToken = function (newToken) {
-          currentInvocation._setLoginToken(newToken);
-        };
+        connection = currentInvocation.connection;
       }
 
       var invocation = new MethodInvocation({
         isSimulation: false,
         userId: userId,
         setUserId: setUserId,
-        _setLoginToken: setLoginToken,
-        sessionData: self.sessionData
+        connection: connection,
+        randomSeed: makeRpcSeed(currentInvocation, name)
       });
       try {
         var result = DDP._CurrentInvocation.withValue(invocation, function () {
           return maybeAuditArgumentChecks(
-            handler, invocation, args, "internal call to '" + name + "'");
+            handler, invocation, EJSON.clone(args), "internal call to '" +
+              name + "'");
         });
       } catch (e) {
         exception = e;
@@ -1268,40 +1427,13 @@ _.extend(Server.prototype, {
     return result;
   },
 
-  _loginTokenChanged: function (session, newToken, oldToken) {
+  _urlForSession: function (sessionId) {
     var self = this;
-    if (oldToken) {
-      // Remove the session from the list of open sessions for the old token.
-      self.sessionsByLoginToken[oldToken] = _.without(
-        self.sessionsByLoginToken[oldToken],
-        session.id
-      );
-      if (_.isEmpty(self.sessionsByLoginToken[oldToken]))
-        delete self.sessionsByLoginToken[oldToken];
-    }
-    if (newToken) {
-      if (! _.has(self.sessionsByLoginToken, newToken))
-        self.sessionsByLoginToken[newToken] = [];
-      self.sessionsByLoginToken[newToken].push(session.id);
-    }
-  },
-
-  // Close all open sessions associated with any of the tokens in
-  // `tokens`.
-  _closeAllForTokens: function (tokens) {
-    var self = this;
-    _.each(tokens, function (token) {
-      if (_.has(self.sessionsByLoginToken, token)) {
-        // _destroySession modifies sessionsByLoginToken, so we clone it.
-        _.each(EJSON.clone(self.sessionsByLoginToken[token]), function (sessionId) {
-          // Destroy session and remove from self.sessions.
-          var session = self.sessions[sessionId];
-          if (session) {
-            self._destroySession(session);
-          }
-        });
-      }
-    });
+    var session = self.sessions[sessionId];
+    if (session)
+      return session._socketUrl;
+    else
+      return null;
   }
 });
 

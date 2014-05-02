@@ -24,6 +24,19 @@ Meteor.Collection = function (name, options) {
   var self = this;
   if (! (self instanceof Meteor.Collection))
     throw new Error('use "new" to construct a Meteor.Collection');
+
+  if (!name && (name !== null)) {
+    Meteor._debug("Warning: creating anonymous collection. It will not be " +
+                  "saved or synchronized over the network. (Pass null for " +
+                  "the collection name to turn off this warning.)");
+    name = null;
+  }
+
+  if (name !== null && typeof name !== "string") {
+    throw new Error(
+      "First argument to new Meteor.Collection must be a string or null");
+  }
+
   if (options && options.methods) {
     // Backwards compatibility hack with original signature (which passed
     // "connection" directly instead of in options. (Connections must have a "methods"
@@ -46,27 +59,20 @@ Meteor.Collection = function (name, options) {
   switch (options.idGeneration) {
   case 'MONGO':
     self._makeNewID = function () {
-      return new Meteor.Collection.ObjectID();
+      var src = name ? DDP.randomStream('/collection/' + name) : Random;
+      return new Meteor.Collection.ObjectID(src.hexString(24));
     };
     break;
   case 'STRING':
   default:
     self._makeNewID = function () {
-      return Random.id();
+      var src = name ? DDP.randomStream('/collection/' + name) : Random;
+      return src.id();
     };
     break;
   }
 
-  if (options.transform)
-    self._transform = Deps._makeNonreactive(options.transform);
-  else
-    self._transform = null;
-
-  if (!name && (name !== null)) {
-    Meteor._debug("Warning: creating anonymous collection. It will not be " +
-                  "saved or synchronized over the network. (Pass null for " +
-                  "the collection name to turn off this warning.)");
-  }
+  self._transform = LocalCollection.wrapTransform(options.transform);
 
   if (! name || options.connection === null)
     // note: nameless collections never have a connection
@@ -240,6 +246,13 @@ _.extend(Meteor.Collection.prototype, {
     if (args.length < 2) {
       return { transform: self._transform };
     } else {
+      check(args[1], Match.Optional(Match.ObjectIncluding({
+        fields: Match.Optional(Match.OneOf(Object, undefined)),
+        sort: Match.Optional(Match.OneOf(Object, Array, undefined)),
+        limit: Match.Optional(Match.OneOf(Number, undefined)),
+        skip: Match.Optional(Match.OneOf(Number, undefined))
+     })));
+
       return _.extend({
         transform: self._transform
       }, args[1]);
@@ -315,8 +328,7 @@ Meteor.Collection._rewriteSelector = function (selector) {
       ret[key] = _.map(value, function (v) {
         return Meteor.Collection._rewriteSelector(v);
       });
-    }
-    else {
+    } else {
       ret[key] = value;
     }
   });
@@ -392,7 +404,7 @@ _.each(["insert", "update", "remove"], function (name) {
       
       var Mylar_meta = {'coll': self, 'transform': intercept_out};
       
-      if (name === "insert") {
+  if (name === "insert") {
 	  if (!args.length)
               throw new Error("insert requires an argument");
 	  // shallow-copy the document and generate an ID
@@ -403,10 +415,10 @@ _.each(["insert", "update", "remove"], function (name) {
 				 || insertId instanceof Meteor.Collection.ObjectID))
 		  throw new Error("Meteor requires document _id fields to be non-empty strings or ObjectIDs");
 	  } else {
-              insertId = args[0]._id = self._makeNewID();
-	  }
-	  Mylar_meta['doc'] = args[0];
-      } else {
+        insertId = args[0]._id = self._makeNewID();
+        Mylar_meta['doc'] = args[0];
+    }
+  } else {
 	  args[0] = Meteor.Collection._rewriteSelector(args[0]);
 	  
 	  if (name === "update") {
@@ -433,10 +445,14 @@ _.each(["insert", "update", "remove"], function (name) {
       // On inserts, always return the id that we generated; on all other
       // operations, just return the result from the collection.
       var chooseReturnValueFromCollectionResult = function (result) {
-	  if (name === "insert")
+      if (name === "insert") {
+        if (!insertId && result) {
+          insertId = result;
+        }
 	      return insertId;
-	  else
+      } else {
 	      return result;
+      }
       };
       
       var wrappedCallback;
@@ -484,7 +500,7 @@ _.each(["insert", "update", "remove"], function (name) {
 	  }
 	  
 	  ret = chooseReturnValueFromCollectionResult(
-	      self._connection.apply(self._prefix + name, args, undefined, wrappedCallback, Mylar_meta)
+        self._connection.apply(self._prefix + name, args, {returnStubValue: true}, wrappedCallback, Mylar_meta)
 	  );
 	  
       } else { // @ENC: go on this branch at server
@@ -541,6 +557,12 @@ Meteor.Collection.prototype._dropIndex = function (index) {
   if (!self._collection._dropIndex)
     throw new Error("Can only call _dropIndex on server collections");
   self._collection._dropIndex(index);
+};
+Meteor.Collection.prototype._dropCollection = function () {
+  var self = this;
+  if (!self._collection.dropCollection)
+    throw new Error("Can only call _dropCollection on server collections");
+  self._collection.dropCollection();
 };
 Meteor.Collection.prototype._createCappedCollection = function (byteSize) {
   var self = this;
@@ -602,10 +624,17 @@ Meteor.Collection.ObjectID = LocalCollection._ObjectID;
         if (!(options[name] instanceof Function)) {
           throw new Error(allowOrDeny + ": Value for `" + name + "` must be a function");
         }
-        if (self._transform)
-          options[name].transform = self._transform;
-        if (options.transform)
-          options[name].transform = Deps._makeNonreactive(options.transform);
+
+        // If the transform is specified at all (including as 'null') in this
+        // call, then take that; otherwise, take the transform from the
+        // collection.
+        if (options.transform === undefined) {
+          options[name].transform = self._transform;  // already wrapped
+        } else {
+          options[name].transform = LocalCollection.wrapTransform(
+            options.transform);
+        }
+
         self._validators[name][allowOrDeny].push(options[name]);
       }
     });
@@ -667,13 +696,31 @@ Meteor.Collection.prototype._defineMutationMethods = function() {
       m[self._prefix + method] = function (/* ... */) {
         // All the methods do their own validation, instead of using check().
         check(arguments, [Match.Any]);
+        var args = _.toArray(arguments);
         try {
-          if (this.isSimulation) {
+          // For an insert, if the client didn't specify an _id, generate one
+          // now; because this uses DDP.randomStream, it will be consistent with
+          // what the client generated. We generate it now rather than later so
+          // that if (eg) an allow/deny rule does an insert to the same
+          // collection (not that it really should), the generated _id will
+          // still be the first use of the stream and will be consistent.
+          //
+          // However, we don't actually stick the _id onto the document yet,
+          // because we want allow/deny rules to be able to differentiate
+          // between arbitrary client-specified _id fields and merely
+          // client-controlled-via-randomSeed fields.
+          var generatedId = null;
+          if (method === "insert" && !_.has(args[0], '_id')) {
+            generatedId = self._makeNewID();
+          }
 
+          if (this.isSimulation) {
             // In a client simulation, you can do any mutation (even with a
             // complex selector).
+            if (generatedId !== null)
+              args[0]._id = generatedId;
             return self._collection[method].apply(
-              self._collection, _.toArray(arguments));
+              self._collection, args);
           }
 
           // This is the server receiving a method call from the client.
@@ -681,7 +728,7 @@ Meteor.Collection.prototype._defineMutationMethods = function() {
           // We don't allow arbitrary selectors in mutations from the client: only
           // single-ID selectors.
           if (method !== 'insert')
-            throwIfSelectorIsNotId(arguments[0], method);
+            throwIfSelectorIsNotId(args[0], method);
 
           if (self._restricted) {
             // short circuit if there is no way it will pass.
@@ -693,12 +740,14 @@ Meteor.Collection.prototype._defineMutationMethods = function() {
 
             var validatedMethodName =
                   '_validated' + method.charAt(0).toUpperCase() + method.slice(1);
-            var argsWithUserId = [this.userId].concat(_.toArray(arguments));
-            return self[validatedMethodName].apply(self, argsWithUserId);
+            args.unshift(this.userId);
+            method === 'insert' && args.push(generatedId);
+            return self[validatedMethodName].apply(self, args);
           } else if (self._isInsecure()) {
+            if (generatedId !== null)
+              args[0]._id = generatedId;
             // In insecure mode, allow any mutation (with a simple selector).
-            return self._collection[method].apply(self._collection,
-                                                  _.toArray(arguments));
+            return self._collection[method].apply(self._collection, args);
           } else {
             // In secure mode, if we haven't called allow or deny, then nothing
             // is permitted.
@@ -743,29 +792,45 @@ Meteor.Collection.prototype._isInsecure = function () {
   return self._insecure;
 };
 
-var docToValidate = function (validator, doc) {
+var docToValidate = function (validator, doc, generatedId) {
   var ret = doc;
-  if (validator.transform)
-    ret = validator.transform(EJSON.clone(doc));
+  if (validator.transform) {
+    ret = EJSON.clone(doc);
+    // If you set a server-side transform on your collection, then you don't get
+    // to tell the difference between "client specified the ID" and "server
+    // generated the ID", because transforms expect to get _id.  If you want to
+    // do that check, you can do it with a specific
+    // `C.allow({insert: f, transform: null})` validator.
+    if (generatedId !== null) {
+      ret._id = generatedId;
+    }
+    ret = validator.transform(ret);
+  }
   return ret;
 };
 
-Meteor.Collection.prototype._validatedInsert = function(userId, doc) {
+Meteor.Collection.prototype._validatedInsert = function (userId, doc,
+                                                         generatedId) {
   var self = this;
 
   // call user validators.
   // Any deny returns true means denied.
   if (_.any(self._validators.insert.deny, function(validator) {
-    return validator(userId, docToValidate(validator, doc));
+    return validator(userId, docToValidate(validator, doc, generatedId));
   })) {
     throw new Meteor.Error(403, "Access denied");
   }
   // Any allow returns true means proceed. Throw error if they all fail.
   if (_.all(self._validators.insert.allow, function(validator) {
-    return !validator(userId, docToValidate(validator, doc));
+    return !validator(userId, docToValidate(validator, doc, generatedId));
   })) {
     throw new Meteor.Error(403, "Access denied");
   }
+
+  // If we generated an ID above, insert it now: after the validation, but
+  // before actually inserting.
+  if (generatedId !== null)
+    doc._id = generatedId;
 
   self._collection.insert.call(self._collection, doc);
 };
@@ -828,7 +893,7 @@ Meteor.Collection.prototype._validatedUpdate = function(
 
   var doc = self._collection.findOne(selector, findOptions);
   if (!doc)  // none satisfied!
-    return;
+    return 0;
 
   var factoriedDoc;
 
@@ -861,7 +926,7 @@ Meteor.Collection.prototype._validatedUpdate = function(
   // avoid races, but since selector is guaranteed to already just be an ID, we
   // don't have to any more.
 
-  self._collection.update.call(
+  return self._collection.update.call(
     self._collection, selector, mutator, options);
 };
 
@@ -891,7 +956,7 @@ Meteor.Collection.prototype._validatedRemove = function(userId, selector) {
 
   var doc = self._collection.findOne(selector, findOptions);
   if (!doc)
-    return;
+    return 0;
 
   // call user validators.
   // Any deny returns true means denied.
@@ -912,5 +977,5 @@ Meteor.Collection.prototype._validatedRemove = function(userId, selector) {
   // Mongo to avoid races, but since selector is guaranteed to already just be
   // an ID, we don't have to any more.
 
-  self._collection.remove.call(self._collection, selector);
+  return self._collection.remove.call(self._collection, selector);
 };

@@ -15,6 +15,7 @@ Plugin.registerSourceHandler("less", function (compileStep) {
 
   var source = compileStep.read().toString('utf8');
   var options = {
+    filename: compileStep.inputPath,
     // Use fs.readFileSync to process @imports. This is the bundler, so
     // that's not going to cause concurrency issues, and it means that (a)
     // we don't have to use Futures and (b) errors thrown by bugs in less
@@ -23,13 +24,21 @@ Plugin.registerSourceHandler("less", function (compileStep) {
     paths: [path.dirname(compileStep._fullInputPath)] // for @import
   };
 
-  var f = new Future;
-  var css;
+  var parser = new less.Parser(options);
+  var astFuture = new Future;
+  var sourceMap = null;
   try {
-    less.render(source, options, f.resolver());
-    css = f.wait();
+    parser.parse(source, astFuture.resolver());
+    var ast = astFuture.wait();
+
+    var css = ast.toCSS({
+      sourceMap: true,
+      writeSourceMap: function (sm) {
+        sourceMap = JSON.parse(sm);
+      }
+    });
   } catch (e) {
-    // less.render() is supposed to report any errors via its
+    // less.Parser.parse is supposed to report any errors via its
     // callback. But sometimes, it throws them instead. This is
     // probably a bug in less. Be prepared for either behavior.
     compileStep.error({
@@ -41,14 +50,25 @@ Plugin.registerSourceHandler("less", function (compileStep) {
     return;
   }
 
+
+  if (sourceMap) {
+    sourceMap.sources = [compileStep.inputPath];
+    sourceMap.sourcesContent = [source];
+    sourceMap = JSON.stringify(sourceMap);
+  }
+
   compileStep.addStylesheet({
     path: compileStep.inputPath + ".css",
-    data: css
+    data: css,
+    sourceMap: sourceMap
   });
 });;
 
-// Register lessimport files with the dependency watcher, without actually
-// processing them.
-Plugin.registerSourceHandler("lessimport", function () {
+// Register import.less files with the dependency watcher, without actually
+// processing them. There is a similar rule in the stylus package.
+Plugin.registerSourceHandler("import.less", function () {
   // Do nothing
 });
+
+// Backward compatibility with Meteor 0.7
+Plugin.registerSourceHandler("lessimport", function () {});

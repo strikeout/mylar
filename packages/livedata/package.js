@@ -3,11 +3,15 @@ Package.describe({
   internal: true
 });
 
-Npm.depends({sockjs: "0.3.7",
-             websocket: "1.0.8"});
+// We use 'faye-websocket' for connections in server-to-server DDP, mostly
+// because it's the same library used as a server in sockjs, and it's easiest to
+// deal with a single websocket implementation.  (Plus, its maintainer is easy
+// to work with on pull requests.)
+Npm.depends({sockjs: "0.3.8", "faye-websocket": "0.7.2"});
 
 Package.on_use(function (api) {
-  api.use(['check', 'random', 'ejson', 'json', 'underscore', 'deps', 'logging'],
+  api.use(['check', 'random', 'ejson', 'json', 'underscore', 'deps',
+           'logging', 'retry'],
           ['client', 'server']);
 
   // It is OK to use this package on a server architecture without making a
@@ -23,13 +27,18 @@ Package.on_use(function (api) {
   // runs Meteor.publish while it's loaded.
   api.use('autopublish', 'server', {weak: true});
 
+  // If the facts package is loaded, publish some statistics.
+  api.use('facts', 'server', {weak: true});
+
+  api.use('callback-hook', 'server');
+
   api.export('DDP');
   api.export('DDPServer', 'server');
 
   api.export('LivedataTest', {testOnly: true});
 
   // Transport
-  api.use('reload', 'client');
+  api.use('reload', 'client', {weak: true});
   api.add_files('common.js');
   api.add_files(['sockjs-0.3.4.js', 'stream_client_sockjs.js'], 'client');
   api.add_files('stream_client_nodejs.js', 'server');
@@ -40,6 +49,7 @@ Package.on_use(function (api) {
   // _idParse, _idStringify.
   api.use('minimongo', ['client', 'server']);
 
+  api.add_files('heartbeat.js', ['client', 'server']);
 
   api.add_files('livedata_server.js', 'server');
 
@@ -47,6 +57,7 @@ Package.on_use(function (api) {
   api.add_files('crossbar.js', 'server');
 
   api.add_files('livedata_common.js', ['client', 'server']);
+  api.add_files('random_stream.js', ['client', 'server']);
 
   api.add_files('livedata_connection.js', ['client', 'server']);
 
@@ -61,13 +72,17 @@ Package.on_test(function (api) {
   api.use('test-helpers', ['client', 'server']);
   api.use(['underscore', 'tinytest', 'random', 'deps', 'minimongo']);
 
+  api.add_files('stub_stream.js');
+  api.add_files('livedata_server_tests.js', 'server');
   api.add_files('livedata_connection_tests.js', ['client', 'server']);
   api.add_files('livedata_tests.js', ['client', 'server']);
   api.add_files('livedata_test_service.js', ['client', 'server']);
   api.add_files('session_view_tests.js', ['server']);
   api.add_files('crossbar_tests.js', ['server']);
+  api.add_files('random_stream_tests.js', ['client', 'server']);
 
   api.use('http', 'client');
   api.add_files(['stream_tests.js'], 'client');
+  api.add_files('stream_client_tests.js', 'server');
   api.use('check', ['client', 'server']);
 });

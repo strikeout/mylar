@@ -30,10 +30,12 @@ Meteor.loginWithPassword = function (selector, password, callback) {
   // password exchange. So we set it to true here, and clear it on error; in
   // the non-error case, it gets cleared by callLoginMethod.
   Accounts._setLoggingIn(true);
-  Meteor.apply('beginPasswordExchange', [request], function (error, result) {
+  Accounts.connection.apply(
+    'beginPasswordExchange', [request], function (error, result) {
     if (error || !result) {
       Accounts._setLoggingIn(false);
-      error = error || new Error("No result from call to beginPasswordExchange");
+        error = error ||
+          new Error("No result from call to beginPasswordExchange");
       callback && callback(error);
       return;
     }
@@ -87,7 +89,8 @@ Accounts.changePassword = function (oldPassword, newPassword, callback) {
   var verifier = SRP.generateVerifier(newPassword);
 
   if (!oldPassword) {
-    Meteor.apply('changePassword', [{srp: verifier}], function (error, result) {
+    Accounts.connection.apply(
+      'changePassword', [{srp: verifier}], function (error, result) {
       if (error || !result) {
         callback && callback(
           error || new Error("No result from changePassword."));
@@ -99,7 +102,8 @@ Accounts.changePassword = function (oldPassword, newPassword, callback) {
     var srp = new SRP.Client(oldPassword);
     var request = srp.startExchange();
     request.user = {id: Meteor.user()._id};
-    Meteor.apply('beginPasswordExchange', [request], function (error, result) {
+    Accounts.connection.apply(
+      'beginPasswordExchange', [request], function (error, result) {
       if (error || !result) {
         callback && callback(
           error || new Error("No result from call to beginPasswordExchange"));
@@ -108,14 +112,16 @@ Accounts.changePassword = function (oldPassword, newPassword, callback) {
 
       var response = srp.respondToChallenge(result);
       response.srp = verifier;
-      Meteor.apply('changePassword', [response], function (error, result) {
+        Accounts.connection.apply(
+          'changePassword', [response],function (error, result) {
         if (error || !result) {
           callback && callback(
             error || new Error("No result from changePassword."));
         } else {
           if (!srp.verifyConfirmation(result)) {
             // Monkey business!
-            callback && callback(new Error("Old password verification failed."));
+                callback &&
+                  callback(new Error("Old password verification failed."));
           } else {
             callback && callback();
           }
@@ -134,7 +140,7 @@ Accounts.changePassword = function (oldPassword, newPassword, callback) {
 Accounts.forgotPassword = function(options, callback) {
   if (!options.email)
     throw new Error("Must pass options.email");
-  Meteor.call("forgotPassword", options, callback);
+  Accounts.connection.call("forgotPassword", options, callback);
 };
 
 // Resets a password based on a token originally created by

@@ -36,7 +36,7 @@ var project = require('./project.js');
 // explicitly listed in .meteor/packages. So we need to add
 // "standard-app-packages" to .meteor/packages when upgrading.
 var addAppPackagesAndStandardAppPackages = function (appDir) {
-  project.add_package(appDir, 'standard-app-packages');
+  project.addPackage(appDir, 'standard-app-packages');
 
   var appPackageDir = path.join(appDir, 'packages');
   try {
@@ -51,13 +51,23 @@ var addAppPackagesAndStandardAppPackages = function (appDir) {
     // package.js. (In 0.6.5, they can also be built packages with
     // unipackage.json... but that surely is irrelevant for this upgrade.)
     if (fs.existsSync(path.join(appPackageDir, p, 'package.js')))
-      project.add_package(appDir, p);
+      project.addPackage(appDir, p);
   });
+};
+
+// In Meteor 0.8.0, preserve-inputs became a no-op, because Blaze doesn't
+// require manual preserve directives any more. We print a deprecation message
+// on apps that use it, but it's part of the default app skeleton, and we don't
+// want literally every user to have to type the same "meteor remove
+// preserve-inputs" command. So we do it for them.
+var noPreserveInputs = function (appDir) {
+  project.removePackage(appDir, 'preserve-inputs');
 };
 
 
 var upgradersByName = {
-  "app-packages": addAppPackagesAndStandardAppPackages
+  "app-packages": addAppPackagesAndStandardAppPackages,
+  "no-preserve-inputs": noPreserveInputs
 };
 
 exports.runUpgrader = function (upgraderName, appDir) {

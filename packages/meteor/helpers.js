@@ -105,11 +105,32 @@ _.extend(Meteor, {
           callback = fut.resolver();
         }
       }
-      newArgs.push(Meteor.bindEnvironment(callback, logErr));
+      newArgs.push(Meteor.bindEnvironment(callback));
       var result = fn.apply(self, newArgs);
       if (fut)
         return fut.wait();
       return result;
     };
+  },
+
+  // Sets child's prototype to a new object whose prototype is parent's
+  // prototype. Used as:
+  //   Meteor._inherit(ClassB, ClassA).
+  //   _.extend(ClassB.prototype, { ... })
+  // Inspired by CoffeeScript's `extend` and Google Closure's `goog.inherits`.
+  _inherits: function (Child, Parent) {
+    // copy static fields
+    _.each(Parent, function (prop, field) {
+      Child[field] = prop;
+    });
+
+    // a middle member of prototype chain: takes the prototype from the Parent
+    var Middle = function () {
+      this.constructor = Child;
+    };
+    Middle.prototype = Parent.prototype;
+    Child.prototype = new Middle();
+    Child.__super__ = Parent.prototype;
+    return Child;
   }
 });

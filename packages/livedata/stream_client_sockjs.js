@@ -1,26 +1,29 @@
 // @param url {String} URL to Meteor app
 //   "http://subdomain.meteor.com/" or "/" or
 //   "ddp+sockjs://foo-**.meteor.com/sockjs"
-LivedataTest.ClientStream = function (url) {
+LivedataTest.ClientStream = function (url, options) {
   var self = this;
+  self.options = _.extend({
+    retry: true
+  }, options);
   self._initCommon();
 
   //// Constants
 
 
   // how long between hearing heartbeat from the server until we declare
-  // the connection dead. heartbeats come every 25s (stream_server.js)
+  // the connection dead. heartbeats come every 45s (stream_server.js)
   //
-  // NOTE: this is a workaround until sockjs detects heartbeats on the
-  // client automatically.
-  // https://github.com/sockjs/sockjs-client/issues/67
-  // https://github.com/sockjs/sockjs-node/issues/68
-  self.HEARTBEAT_TIMEOUT = 60000;
+  // NOTE: this is a older timeout mechanism. We now send heartbeats at
+  // the DDP level (https://github.com/meteor/meteor/pull/1865), and
+  // expect those timeouts to kill a non-responsive connection before
+  // this timeout fires. This is kept around for compatibility (when
+  // talking to a server that doesn't support DDP heartbeats) and can be
+  // removed later.
+  self.HEARTBEAT_TIMEOUT = 100*1000;
 
   self.rawUrl = url;
   self.socket = null;
-
-  self.sent_update_available = false;
 
   self.heartbeatTimer = null;
 
@@ -52,7 +55,7 @@ _.extend(LivedataTest.ClientStream.prototype, {
     self.rawUrl = url;
   },
 
-  _connected: function (welcome_message) {
+  _connected: function () {
     var self = this;
 
     if (self.connectionTimer) {
@@ -64,24 +67,6 @@ _.extend(LivedataTest.ClientStream.prototype, {
       // already connected. do nothing. this probably shouldn't happen.
       return;
     }
-
-    // inspect the welcome data and decide if we have to reload
-    try {
-      var welcome_data = JSON.parse(welcome_message);
-    } catch (err) {
-      Meteor._debug("DEBUG: malformed welcome packet", welcome_message);
-    }
-
-    if (welcome_data && welcome_data.server_id) {
-      if (__meteor_runtime_config__.serverId &&
-          __meteor_runtime_config__.serverId !== welcome_data.server_id &&
-          !self.sent_update_available) {
-        self.sent_update_available = true;
-        _.each(self.eventCallbacks.update_available,
-               function (callback) { callback(); });
-      }
-    } else
-      Meteor._debug("DEBUG: invalid welcome packet", welcome_data);
 
     // update status
     self.currentStatus.status = "connected";
@@ -105,6 +90,8 @@ _.extend(LivedataTest.ClientStream.prototype, {
       self.socket.close();
       self.socket = null;
     }
+
+    _.each(self.eventCallbacks.disconnect, function (callback) { callback(); });
   },
 
   _clearConnectionAndHeartbeatTimers: function () {
@@ -121,7 +108,7 @@ _.extend(LivedataTest.ClientStream.prototype, {
 
   _heartbeat_timeout: function () {
     var self = this;
-    Meteor._debug("Connection timeout. No heartbeat received.");
+    Meteor._debug("Connection timeout. No sockjs heartbeat received.");
     self._lostConnection();
   },
 
@@ -164,22 +151,21 @@ _.extend(LivedataTest.ClientStream.prototype, {
     var self = this;
     self._cleanup(); // cleanup the old socket, if there was one.
 
+    var options = _.extend({
+      protocols_whitelist:self._sockjsProtocolsWhitelist()
+    }, self.options._sockjsOptions);
+
     // Convert raw URL to SockJS URL each time we open a connection, so that we
     // can connect to random hostnames and get around browser per-host
     // connection limits.
-    self.socket = new SockJS(
-      toSockjsUrl(self.rawUrl), undefined, {
-        debug: false, protocols_whitelist: self._sockjsProtocolsWhitelist()
-      });
+    self.socket = new SockJS(toSockjsUrl(self.rawUrl), undefined, options);
+    self.socket.onopen = function (data) {
+      self._connected();
+    };
     self.socket.onmessage = function (data) {
       self._heartbeat_received();
 
-      // first message we get when we're connecting goes to _connected,
-      // which connects us. All subsequent messages (while connected) go to
-      // the callback.
-      if (self.currentStatus.status === "connecting")
-        self._connected(data.data);
-      else if (self.currentStatus.connected)
+      if (self.currentStatus.connected)
         _.each(self.eventCallbacks.message, function (callback) {
           callback(data.data);
         });

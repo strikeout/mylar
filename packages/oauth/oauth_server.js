@@ -1,7 +1,8 @@
 var Fiber = Npm.require('fibers');
+var url = Npm.require('url');
 
-Oauth = {};
-OauthTest = {};
+OAuth = {};
+OAuthTest = {};
 
 RoutePolicy.declare('/_oauth/', 'network');
 
@@ -11,7 +12,7 @@ var registeredServices = {};
 // 'oauth1' and 'oauth2' packages manipulate this directly to register
 // for callbacks.
 //
-Oauth._requestHandlers = {};
+OAuth._requestHandlers = {};
 
 
 // Register a handler for an OAuth service. The handler will be called
@@ -30,7 +31,7 @@ Oauth._requestHandlers = {};
 //       up in the user's services[name] field
 //     - `null` if the user declined to give permissions
 //
-Oauth.registerService = function (name, version, urls, handleOauthRequest) {
+OAuth.registerService = function (name, version, urls, handleOauthRequest) {
   if (registeredServices[name])
     throw new Error("Already registered the " + name + " OAuth service");
 
@@ -43,32 +44,15 @@ Oauth.registerService = function (name, version, urls, handleOauthRequest) {
 };
 
 // For test cleanup.
-OauthTest.unregisterService = function (name) {
+OAuthTest.unregisterService = function (name) {
   delete registeredServices[name];
 };
 
 
-// When we get an incoming OAuth http request we complete the oauth
-// handshake, account and token setup before responding.  The
-// results are stored in this map which is then read when the login
-// method is called. Maps credentialToken --> return value of `login`
-//
-// NB: the oauth1 and oauth2 packages manipulate this directly. might
-// be nice for them to have a setter instead
-//
-// XXX we should periodically clear old entries
-//
-Oauth._loginResultForCredentialToken = {};
+OAuth.retrieveCredential = function(credentialToken, credentialSecret) {
+  return OAuth._retrievePendingCredential(credentialToken, credentialSecret);
+};
 
-Oauth.hasCredential = function(credentialToken) {
-  return _.has(Oauth._loginResultForCredentialToken, credentialToken);
-}
-
-Oauth.retrieveCredential = function(credentialToken) {
-  var result = Oauth._loginResultForCredentialToken[credentialToken];
-  delete Oauth._loginResultForCredentialToken[credentialToken];
-  return result;
-}
 
 // Listen to incoming OAuth http requests
 WebApp.connectHandlers.use(function(req, res, next) {
@@ -99,20 +83,28 @@ middleware = function (req, res, next) {
     // Make sure we're configured
     ensureConfigured(serviceName);
 
-    var handler = Oauth._requestHandlers[service.version];
+    var handler = OAuth._requestHandlers[service.version];
     if (!handler)
       throw new Error("Unexpected OAuth version " + service.version);
     handler(service, req.query, res);
   } catch (err) {
     // if we got thrown an error, save it off, it will get passed to
-    // the approporiate login call (if any) and reported there.
+    // the appropriate login call (if any) and reported there.
     //
     // The other option would be to display it in the popup tab that
     // is still open at this point, ignoring the 'close' or 'redirect'
     // we were passed. But then the developer wouldn't be able to
     // style the error or react to it in any way.
-    if (req.query.state && err instanceof Error)
-      Oauth._loginResultForCredentialToken[req.query.state] = err;
+    if (req.query.state && err instanceof Error) {
+      try { // catch any exceptions to avoid crashing runner
+        OAuth._storePendingCredential(req.query.state, err);
+      } catch (err) {
+        // Ignore the error and just give up. If we failed to store the
+        // error, then the login will just fail with a generic error.
+        Log.warn("Error in OAuth Server while storing pending login result.\n" +
+                 err.stack || err.message);
+      }
+    }
 
     // XXX the following is actually wrong. if someone wants to
     // redirect rather than close once we are done with the OAuth
@@ -129,9 +121,9 @@ middleware = function (req, res, next) {
   }
 };
 
-OauthTest.middleware = middleware;
+OAuthTest.middleware = middleware;
 
-// Handle /_oauth/* paths and extract the service name
+// Handle /_oauth/* paths and extract the service name.
 //
 // @returns {String|null} e.g. "facebook", or null if this isn't an
 // oauth request
@@ -153,18 +145,39 @@ var oauthServiceName = function (req) {
 // Make sure we're configured
 var ensureConfigured = function(serviceName) {
   if (!ServiceConfiguration.configurations.findOne({service: serviceName})) {
-    throw new ServiceConfiguration.ConfigError("Service not configured");
-  };
+    throw new ServiceConfiguration.ConfigError();
+  }
 };
 
 // Internal: used by the oauth1 and oauth2 packages
-Oauth._renderOauthResults = function(res, query) {
-  // We support ?close and ?redirect=URL. Any other query should
-  // just serve a blank page
-  if ('close' in query) { // check with 'in' because we don't set a value
+OAuth._renderOauthResults = function(res, query, credentialSecret) {
+  // We support ?close and ?redirect=URL. Any other query should just
+  // serve a blank page. For tests, we support the
+  // `only_credential_secret_for_test` parameter, which just returns the
+  // credential secret without any surrounding HTML. (The test needs to
+  // be able to easily grab the secret and use it to log in.)
+  if (query.only_credential_secret_for_test) {
+    res.writeHead(200, {'Content-Type': 'text/html'});
+    res.end(credentialSecret, 'utf-8');
+  } else if (query.error) {
+    Log.warn("Error in OAuth Server: " + query.error);
     closePopup(res);
+  } else if ('close' in query) { // check with 'in' because we don't set a value
+    closePopup(res, query.state, credentialSecret);
   } else if (query.redirect) {
-    res.writeHead(302, {'Location': query.redirect});
+    // Only redirect to URLs on the same domain as this app.
+    // XXX No code in core uses this code path right now.
+    // XXX In order for the redirect flow to be fully supported, we'd
+    // have to communicate the credentialSecret back to the app somehow.
+    var redirectHostname = url.parse(query.redirect).hostname;
+    var appHostname = url.parse(Meteor.absoluteUrl()).hostname;
+    if (appHostname === redirectHostname) {
+      // We rely on node to make sure the header is really only a single header
+      // (not, for example, a url with a newline and then another header).
+      res.writeHead(302, {'Location': query.redirect});
+    } else {
+      res.writeHead(400);
+    }
     res.end();
   } else {
     res.writeHead(200, {'Content-Type': 'text/html'});
@@ -172,10 +185,76 @@ Oauth._renderOauthResults = function(res, query) {
   }
 };
 
-var closePopup = function(res) {
+var closePopup = function(res, state, credentialSecret) {
+
+  var isSafe = function (value) {
+    // This matches strings generated by `Random.secret` and
+    // `Random.id`.
+    return typeof value === "string" &&
+      /^[a-zA-Z0-9\-_]+$/.test(value);
+  };
+
   res.writeHead(200, {'Content-Type': 'text/html'});
+  // If we have a credentialSecret, report it back to the parent window, with
+  // the corresponding state (which we sanitize because it came from a
+  // query parameter). The parent window uses the state and credential secret
+  // to log in over DDP.
+  var setCredentialSecret = '';
+  if (state && credentialSecret && isSafe(state) && isSafe(credentialSecret)) {
+    setCredentialSecret = 'window.opener && ' +
+      'window.opener.Package.oauth.OAuth._handleCredentialSecret(' +
+      JSON.stringify(state) + ', ' + JSON.stringify(credentialSecret) + ');';
+  }
   var content =
-        '<html><head><script>window.close()</script></head></html>';
+        '<html><head><script>' +
+        setCredentialSecret +
+        'window.close()</script></head></html>';
   res.end(content, 'utf-8');
 };
 
+
+var OAuthEncryption = Package["oauth-encryption"] && Package["oauth-encryption"].OAuthEncryption;
+
+var usingOAuthEncryption = function () {
+  return OAuthEncryption && OAuthEncryption.keyIsLoaded();
+};
+
+// Encrypt sensitive service data such as access tokens if the
+// "oauth-encryption" package is loaded and the oauth secret key has
+// been specified.  Returns the unencrypted plaintext otherwise.
+//
+// The user id is not specified because the user isn't known yet at
+// this point in the oauth authentication process.  After the oauth
+// authentication process completes the encrypted service data fields
+// will be re-encrypted with the user id included before inserting the
+// service data into the user document.
+//
+OAuth.sealSecret = function (plaintext) {
+  if (usingOAuthEncryption())
+    return OAuthEncryption.seal(plaintext);
+  else
+    return plaintext;
+}
+
+// Unencrypt a service data field, if the "oauth-encryption"
+// package is loaded and the field is encrypted.
+//
+// Throws an error if the "oauth-encryption" package is loaded and the
+// field is encrypted, but the oauth secret key hasn't been specified.
+//
+OAuth.openSecret = function (maybeSecret, userId) {
+  if (!Package["oauth-encryption"] || !OAuthEncryption.isSealed(maybeSecret))
+    return maybeSecret;
+
+  return OAuthEncryption.open(maybeSecret, userId);
+};
+
+// Unencrypt fields in the service data object.
+//
+OAuth.openSecrets = function (serviceData, userId) {
+  var result = {};
+  _.each(_.keys(serviceData), function (key) {
+    result[key] = OAuth.openSecret(serviceData[key], userId);
+  });
+  return result;
+};

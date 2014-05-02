@@ -1,6 +1,6 @@
 DDP = {};
 
-SUPPORTED_DDP_VERSIONS = [ 'pre1' ];
+SUPPORTED_DDP_VERSIONS = [ 'pre2', 'pre1' ];
 
 LivedataTest.SUPPORTED_DDP_VERSIONS = SUPPORTED_DDP_VERSIONS;
 
@@ -29,15 +29,14 @@ MethodInvocation = function (options) {
   // reruns subscriptions
   this._setUserId = options.setUserId || function () {};
 
-  // used for associating the connection with a login token so that the
-  // connection can be closed if the token is no longer valid
-  this._setLoginToken = options._setLoginToken || function () {};
+  // On the server, the connection this method call came in on.
+  this.connection = options.connection;
 
-  // Scratch data scoped to this connection (livedata_connection on the
-  // client, livedata_session on the server). This is only used
-  // internally, but we should have real and documented API for this
-  // sort of thing someday.
-  this._sessionData = options.sessionData;
+  // The seed for randomStream value generation
+  this.randomSeed = options.randomSeed;
+
+  // This is set by RandomStream.get; and holds the random stream state
+  this.randomStream = null;
 };
 
 _.extend(MethodInvocation.prototype, {
@@ -52,13 +51,6 @@ _.extend(MethodInvocation.prototype, {
       throw new Error("Can't call setUserId in a method after calling unblock");
     self.userId = userId;
     self._setUserId(userId);
-  },
-  _setLoginToken: function (token) {
-    this._setLoginToken(token);
-    this._sessionData.loginToken = token;
-  },
-  _getLoginToken: function (token) {
-    return this._sessionData.loginToken;
   }
 });
 

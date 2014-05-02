@@ -70,6 +70,60 @@
     "release": "0.6.6.2"
   },
   {
+    "release": "0.6.6.3"
+  },
+  {
+    "release": "0.7.0"
+  },
+  {
+    "release": "0.7.0.1"
+  },
+  {
+    "release": "0.7.1"
+  },
+  {
+    "release": "0.7.1.1",
+    "packageNotices": {
+      "jquery": ["jquery has been upgraded to 1.11.0. See ",
+                 "http://jquery.com/upgrade-guide/1.9/"]
+    }
+  },
+  {
+    "release": "0.7.1.2"
+  },
+  {
+    "release": "0.7.2"
+  },
+  {
+    "release": "0.7.2.1"
+  },
+  {
+    "release": "0.8.0",
+    "notices": [
+      "Meteor has a new live templating engine: Blaze!",
+      "See https://github.com/meteor/meteor/wiki/Using-Blaze for what's new."
+    ],
+    "packageNotices": {
+      "accounts-ui": ["Include login buttons with {{> loginButtons}}, not {{loginButtons}}."],
+      "spark": ["The spark package has been removed."],
+      "domutils": ["The domutils package has been removed."],
+      "universal-events": ["The universal-events package has been removed.",
+                           "Use jQuery event delegation instead."],
+      "liverange": ["The liverange package has been removed."],
+      "madewith": ["The madewith package has been removed.",
+                   "http://madewith.meteor.com/ no longer supports app badges."]
+    }
+  },
+  {
+    "release": "0.8.0.1"
+  },
+  {
+    "release": "0.8.1"
+  },
+  {
+    "release": "0.8.1.1"
+  },
+  {
     "release": "NEXT"
   }
 ]

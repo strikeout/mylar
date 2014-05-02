@@ -27,10 +27,12 @@ Package.on_use(function(api) {
     'livedata',
     // You want to keep your data somewhere? How about MongoDB?
     'mongo-livedata',
-    // You want some views? How about Handlebars-based templating?
+    // Meteor UI!
+    'ui',
+    // A great template language!
+    'spacebars',
+    // Turn templates into views!
     'templating',
-    // What, you want to call Handlebars.registerHandler? Sounds good to me.
-    'handlebars',
     // Easy type assertions? check.
     'check',
     // _.isUseful(true)
@@ -42,4 +44,13 @@ Package.on_use(function(api) {
     // People like being able to clone objects.
     'ejson'
   ]);
+
+  // These are useful too!  But you don't have to see their exports
+  // unless you want to.
+  api.use([
+    // We can reload the client without messing up methods in flight.
+    'reload',
+    // And update automatically when new client code is available!
+    'autoupdate'
+  ], ['client', 'server']);
 });

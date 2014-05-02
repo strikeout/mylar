@@ -1,5 +1,19 @@
 #!/bin/sh
 
+# This is the Meteor install script!
+# Are you looking at this in your web browser, and would like to install Meteor?
+# Just open up your terminal and type:
+#
+#    curl https://install.meteor.com/ | sh
+#
+# Meteor currently supports:
+#   - Mac: OS X 10.6 and above
+#   - Linux: x86 and x86_64 systems
+
+
+
+# Now, on to the actual installer!
+
 ## NOTE sh NOT bash. This script should be POSIX sh only, since we don't
 ## know what shell the user has. Debian uses 'dash' for 'sh', for
 ## example.
@@ -72,6 +86,7 @@ mv "${INSTALL_TMPDIR}/.meteor" "$HOME"
 rmdir "${INSTALL_TMPDIR}"
 # just double-checking :)
 test -x "$HOME/.meteor/meteor"
+"$HOME/.meteor/meteor" --get-ready
 
 echo
 echo "Meteor __RELEASE__ has been installed in your home directory (~/.meteor)."
@@ -96,6 +111,15 @@ EOF
 elif type sudo >/dev/null 2>&1; then
   echo "Writing a launcher script to $PREFIX/bin/meteor for your convenience."
   echo "This may prompt for your password."
+
+  # New macs (10.9+) don't ship with /usr/local, however it is still in
+  # the default PATH. We still install there, we just need to create the
+  # directory first.
+  if [ ! -d "$PREFIX/bin" ] ; then
+      sudo mkdir -m 755 "$PREFIX" || true
+      sudo mkdir -m 755 "$PREFIX/bin" || true
+  fi
+
   if sudo cp "$LAUNCHER" "$PREFIX/bin/meteor"; then
     cat <<"EOF"
 
