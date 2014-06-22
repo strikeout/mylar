@@ -1,0 +1,9 @@
+content   mylar                content/
+
+resource mylar components/modules/
+
+component {f6480eac-e13a-494c-85ba-4de1817abbbd} components/mylar_service.js
+contract @mylar.csail.mit.edu/service;1 {f6480eac-e13a-494c-85ba-4de1817abbbd}
+category profile-after-change mylar_service @mylar.csail.mit.edu/service;1
+
+overlay chrome://browser/content/browser.xul  chrome://mylar/content/overlay.xul

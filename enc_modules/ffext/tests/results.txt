@@ -1,0 +1,28 @@
+plain	enc	plain	enc
++ext	+ext	noext	noext
+896	1090	339	352
+923	1105	270	374
+997	1103	286	326
+813	1088	299	305
+863	1123	278	385
+985	1127	267	350
+881	1104	284	376
+962	1145	297	377
+876	1130	268	357
+948	1078	327	359
+
+AVG:
+914.4	1109.3	291.5	356.1
+
+
+plain with extension:
+914
+
+plain without extension
+291
+
+enc with extension:
+1109
+
+enc without extension:
+356

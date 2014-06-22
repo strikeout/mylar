@@ -1,0 +1,15 @@
+OBJDIRS   += util
+UTILSRC   := util.cc 
+UTILOBJ   := $(patsubst %.cc,$(OBJDIR)/util/%.o,$(UTILSRC))
+
+all:    $(OBJDIR)/libmkutil.so
+$(OBJDIR)/libmkutil.so: $(UTILOBJ) 
+	$(CXX) -shared -o $@ $(UTILOBJ) $(LDFLAGS) -lgmpxx -lgmp 
+
+install: install_util
+
+.PHONY: install_util
+install_util: $(OBJDIR)/libmkutil.so
+	install -m 644 $(OBJDIR)/libmkutil.so /usr/lib
+
+# vim: set noexpandtab:

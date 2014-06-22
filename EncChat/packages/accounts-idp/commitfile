@@ -1,0 +1,6 @@
+idp now allows login with token; admin can create user accounts, server sends token via email to each such user, and the user can login with token, choose a password and generate keys.
+
+It does not use suppressLogin, it has a different design. 
+
+Needs to be polished.
+

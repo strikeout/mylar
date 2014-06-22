@@ -23,6 +23,28 @@ Mongo = {};
 The default id generation technique is `'STRING'`.
  * @param {Function} options.transform An optional transformation function. Documents will be passed through this function before being returned from `fetch` or `findOne`, and before being passed to callbacks of `observe`, `map`, `forEach`, `allow`, and `deny`. Transforms are *not* applied for the callbacks of `observeChanges` or to cursors returned from publish functions.
  */
+
+
+
+// --- MYLAR START
+function intercept_out(collection, container, callback) {
+    if (Meteor.isClient && Mongo.Collection.intercept && Mongo.Collection.intercept.out) {
+        Mongo.Collection.intercept.out(collection, container, callback);
+    } else {
+        callback && callback();
+    }
+}
+function intercept_in(collection, id, container, callback) {
+    if (Meteor.isClient && Mongo.Collection.intercept && Mongo.Collection.intercept.incoming) {
+        Mongo.Collection.intercept.incoming(collection, id, container, callback);
+    } else {
+        callback && callback();
+    }
+}
+// --- MYLAR END
+
+
+
 Mongo.Collection = function (name, options) {
   var self = this;
   if (! (self instanceof Mongo.Collection))
@@ -104,6 +126,13 @@ Mongo.Collection = function (name, options) {
   self._collection = options._driver.open(name, self._connection);
   self._name = name;
 
+
+// ---- MYLAR START
+   if (Mongo.Collection.intercept && Mongo.Collection.intercept.init) {
+	Mongo.Collection.intercept.init(self);
+   }
+// ---- MYLAR END
+
   if (self._connection && self._connection.registerStore) {
     // OK, we're going to be a slave, replicating some remote
     // database, except possibly with some temporary divergence while
@@ -143,21 +172,25 @@ Mongo.Collection = function (name, options) {
         // value meaning "remove it".)
         if (msg.msg === 'replace') {
           var replace = msg.replace;
+// --- MYLAR START
           if (!replace) {
-            if (doc)
-              self._collection.remove(mongoId);
-          } else if (!doc) {
-            self._collection.insert(replace);
-          } else {
-            // XXX check that replace has no $ ops
-            self._collection.update(mongoId, replace);
-          }
+            if (doc) self._collection.remove(mongoId);
+	    } else {
+            intercept_in(self, mongoId, replace, function() {
+                if (!doc) self._collection.insert(replace);
+                else self._collection.update(mongoId, replace);
+            });
+	    }
+
           return;
         } else if (msg.msg === 'added') {
+            intercept_in(self, mongoId, msg.fields, function () {
           if (doc) {
             throw new Error("Expected not to find a document already present for an add");
           }
           self._collection.insert(_.extend({_id: mongoId}, msg.fields));
+              });
+
         } else if (msg.msg === 'removed') {
           if (!doc)
             throw new Error("Expected to find a document already present for removed");
@@ -166,6 +199,20 @@ Mongo.Collection = function (name, options) {
           if (!doc)
             throw new Error("Expected to find a document to change");
           if (!_.isEmpty(msg.fields)) {
+              var newdoc = _.extend(doc, {}); //clone the object
+
+              _.each(msg.fields, function (value, key) {
+                  if (value === undefined) {
+                      delete newdoc[key];
+                  } else {
+                      newdoc[key] = value;
+                  }
+              });
+              intercept_in(self, mongoId, newdoc, function () {
+                  self._collection.update(mongoId, newdoc);
+              });
+
+              /*
             var modifier = {};
             _.each(msg.fields, function (value, key) {
               if (value === undefined) {
@@ -178,7 +225,11 @@ Mongo.Collection = function (name, options) {
                 modifier.$set[key] = value;
               }
             });
-            self._collection.update(mongoId, modifier);
+               update_doc(doc, modifier);
+               intercept_in(self, mongoId, doc, function() {
+               self._collection.replace(mongoId, doc);
+               });*/
+// --- MYLAR END
           }
         } else {
           throw new Error("I don't know how to deal with this message");
@@ -460,6 +511,10 @@ _.each(["insert", "update", "remove"], function (name) {
       callback = args.pop();
     }
 
+// --- MYLAR START
+      var Mylar_meta = {'coll': self, 'transform': intercept_out};
+// --- MYLAR END
+
     if (name === "insert") {
       if (!args.length)
         throw new Error("insert requires an argument");
@@ -483,6 +538,11 @@ _.each(["insert", "update", "remove"], function (name) {
         }
         if (generateId) {
           insertId = args[0]._id = self._makeNewID();
+
+// --- MYLAR START
+          Mylar_meta['doc'] = args[0];
+// --- MYLAR END
+
         }
       }
     } else {
@@ -504,6 +564,9 @@ _.each(["insert", "update", "remove"], function (name) {
             options.insertedId = self._makeNewID();
           }
         }
+// --- MYLAR START
+	      Mylar_meta['doc'] = args[1]['$set'];
+// --- MYLAR END
       }
     }
 
@@ -558,7 +621,7 @@ _.each(["insert", "update", "remove"], function (name) {
       }
 
       ret = chooseReturnValueFromCollectionResult(
-        self._connection.apply(self._prefix + name, args, {returnStubValue: true}, wrappedCallback)
+        self._connection.apply(self._prefix + name, args, {returnStubValue: true}, wrappedCallback, Mylar_meta)
       );
 
     } else {

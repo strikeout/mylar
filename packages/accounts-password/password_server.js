@@ -690,6 +690,8 @@ var createUser = function (options) {
 // method for create user. Requests come from the client.
 Meteor.methods({createUser: function (options) {
   var self = this;
+
+
   return Accounts._loginMethod(
     self,
     "createUser",

@@ -1,0 +1,42 @@
+<head>
+  <title>Password-based IDP</title>
+</head>
+
+<body>
+  {{> main}}
+</body>
+
+<template name="main">
+  <h2>Anonymous password-based IDP</h2>
+
+  {{> login}}
+</template>
+
+<template name="login">
+  <div>
+    {{#if logged_in}}
+      Logged in as {{username}}.
+      <input type="button" class="logout" value="Logout">
+    {{else}}
+      <form class="form-horizontal">
+        <div class="control-group">
+          <label class="control-label" for="username">Username</label>
+          <div class="controls">
+            <input type="text" id="username" placeholder="username" value="{{username}}">
+          </div>
+        </div>
+        <div class="control-group">
+          <label class="control-label" for="password">Password</label>
+          <div class="controls">
+            <input type="password" id="password" placeholder="password">
+          </div>
+        </div>
+        <div class="control-group">
+          <div class="controls">
+            <input type="button" class="login" value="Login">
+          </div>
+        </div>
+      </form>
+    {{/if}}
+  </div>
+</template>

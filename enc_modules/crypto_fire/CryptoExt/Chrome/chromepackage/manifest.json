@@ -1,0 +1,9 @@
+{
+  "name": "Crypto Fire Ext",
+  "version": "${FBSTRING_PLUGIN_VERSION}",
+  "description": "Plugin to provide crypto methods to javascript apps.",
+
+	"plugins": [
+    { "path": "npCryptoExt.dll", "public": true }
+  ]
+}

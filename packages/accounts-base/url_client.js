@@ -42,3 +42,10 @@ if (match) {
   Accounts._enrollAccountToken = match[1];
   window.location.hash = '';
 }
+
+
+match = window.location.hash.match(/^\#\/Mylar(.*)\/(.*)$/);
+if (match) {
+    console.log("Mylar url intercept!");
+    autoLoginEnabled = false; // let Mylar intercept from here
+}

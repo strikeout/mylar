@@ -1,93 +1,86 @@
-# Meteor
+# Mylar
 
-Meteor is an ultra-simple environment for building modern web
-applications.
+Mylar is a platform for building web applications that protects data confidentiality against attackers who fully compromise the servers.
 
-With Meteor you write apps:
+Mylar is built on Meteor, a purely Javascript web application framework:
+http://docs.meteor.com/
 
-* in pure Javascript
-* that send data over the wire, rather than HTML
-* using your choice of popular open-source libraries
+## Building
+You'll need the following libraries to build Mylar:
 
-Documentation is available at http://docs.meteor.com/
+- libreadline
+- libgmp
+- libpbc
+- libcrypto++9
 
-## Quick Start
+## Demo
 
-Install Meteor:
+Download the EncChat app:
+git clone git://g.csail.mit.edu/EncChat
 
-    curl https://install.meteor.com | /bin/sh
+cd EncChat
+/path/to/mylar/meteor 
 
-Create a project:
+Open a browser and visit localhost:3000 or from a different machine than the server, visit http://<machine-ip>:3000. Have fun with the application!
 
-    meteor create try-meteor
+The app is secured against passive adversaries (adversaries who read all data at the server, but do not actively change information).
 
-Run it:
+## Examine
 
-    cd try-meteor
-    meteor
+Check that messages are encrypted in the mongo database.
+EncChat$ /path/to/mylar/meteor mongo
+> db.messages.findOne()
 
-Deploy it to the world, for free:
+You should see a field "message_enc" that contains the encryption of the message. There should be no field "message", which before contained the unencrypted data. You can also see "roomprinc", which is the principal for the room that the message is encrypted for.
 
-    meteor deploy try-meteor.meteor.com
 
-## Slow Start (for developers)
 
-If you want to run on the bleeding edge, or help develop Meteor, you
-can run Meteor directly from a git checkout.
+## Cleanup
 
-    git clone git://github.com/meteor/meteor.git
-    cd meteor
+If you want to reset the application, do:
+EncChat$ /path/to/mylar meteor reset
 
-If you're the sort of person who likes to build everything from scratch,
-you can build all the Meteor dependencies (node.js, npm, mongodb, etc)
-with the provided script. This requires git, a C and C++ compiler,
-autotools, and scons. If you do not run this script, Meteor will
-automatically download pre-compiled binaries when you first run it.
+## Enable search
 
-    # OPTIONAL
-    ./scripts/generate-dev-bundle.sh
+To enable search, you need two things:
 
-Now you can run meteor directly from the checkout (if you did not
-build the dependency bundle above, this will take a few moments to
-download a pre-build version).
+1. Install the search plugin
+In order to use the search plugin, you'll need to build it for your system using the FireBreath framework for Firefox.
+You should navigate to enc_modules/crypto_fire and follow the README there in order to set it up.
+In addition, there is a binary that works on some systems in the enc_modules/crypto_fire/Binaries/ folder, which you should copy to:
+$(HOME)/.mozilla/plugins/, creating the plugins folder if necessary.
 
-    ./meteor --help
+2. add the search package to the application
+EncChat$ /path/to/mylar add search
 
-From your checkout, you can read the docs locally. The `/docs` directory is a
-meteor application, so simply change into the `/docs` directory and launch
-the app:
 
-    cd docs/
-    ../meteor
+## Active adversary
+[documentation coming soon]
 
-You'll then be able to read the docs locally in your browser at
-`http://localhost:3000/`
 
-Note that if you run Meteor from a git checkout, you cannot pin apps to specific
-Meteor releases or run using different Meteor releases using `--release`.
+## Develop a new app
 
-## Uninstalling Meteor
+Follow the steps:
 
-Aside from a short launcher shell script, Meteor installs itself inside your
-home directory. To uninstall Meteor, run:
+1. Write a regular Meteor application. Meteor is very easy and fun to learn! https://www.meteor.com/ has great tutorials and documentation.
 
-    rm -rf ~/.meteor/
-    sudo rm /usr/local/bin/meteor
+2. Secure it with Mylar:
 
-## Developer Resources
+First, read the Mylar paper and make sure you understand the section "Building a Mylar application".
 
-Building an application with Meteor?
+2.a. in model.js, annotate which fields are sensitive and should be encrypted
+    For example, to encrypt the field "message" of the collection "Messages", do:
+    Messages._encrypted_fields({ 'message' : {princ: 'roomprinc', princtype: 'room',
+					  attr: 'SEARCHABLE'}});
+    Only the principal for the room will have access to the message. 
 
-* Announcement list: sign up at http://www.meteor.com/
-* Ask a question: http://stackoverflow.com/questions/tagged/meteor
-* Meteor help and discussion mailing list: https://groups.google.com/group/meteor-talk
-* IRC: `#meteor` on `irc.freenode.net`
+2.b. Indicate access control annotations. Each user has a principal Principal.user() automatically created. Based on the access control desired, create principals, give principals access to other principals using "add_access", and find principals with "lookup" or "lookupUser". For example, to invite the user "invitee", to a room with principal "room_princ", do:
 
-Interested in contributing to Meteor?
+Principal.lookupUser(invitee, function(princ){
+     Principal.add_access(princ, room_princ, function () {
+		[..]
+     }
+}
 
-* Core framework design mailing list: https://groups.google.com/group/meteor-core
-* Contribution guidelines: https://github.com/meteor/meteor/tree/devel/Contributing.md
 
-We are hiring!  Visit https://www.meteor.com/jobs/working-at-meteor to
-learn more about working full-time on the Meteor project.
-
+					  

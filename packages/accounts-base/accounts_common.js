@@ -148,8 +148,8 @@ Meteor.users = new Mongo.Collection("users", {
 Meteor.startup(function () {
   var ServiceConfiguration =
     Package['service-configuration'].ServiceConfiguration;
-  Accounts.loginServiceConfiguration = ServiceConfiguration.configurations;
-  Accounts.ConfigError = ServiceConfiguration.ConfigError;
+Accounts.loginServiceConfiguration = ServiceConfiguration.configurations;
+Accounts.ConfigError = ServiceConfiguration.ConfigError;
 });
 
 // Thrown when the user cancels the login process (eg, closes an oauth

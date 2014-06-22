@@ -1,0 +1,40 @@
+We make few changes to Meteor, but we do assume that Meteor works in certain ways.
+
+Changes Meteor-enc makes to Meteor
+----------------------------------
+0. meteor
+- start crypto-server on server startup
+
+1. mongo-livedata
+
+collection.js:
+- calls to intercept_*,
+and the definition of callback f, and where f is called
+
+2. livedata/livedata_connection.js    OK
+
+Changed _process_ready: instead of calling ready_func, it calls intercept.on_ready(collection, ready_func)
+
+3. accounts-base & accounts-password   OK
+
+suppressLogin flag
+
+Mylar intercept code in url_client.js
+
+Assumptions on Meteor that we make
+----------------------------------
+
+1. collection.js
+
+It assumes that the functions update, insert, remove can return without actually performing the tasks they are supposed to, as long as these tasks will be performed before calling the subscription ready callback of the user. This assumption appears because we call an _asynchronous_ intercept function inside insert/update/remove before running the code in insert/update/remove.
+
+If Meteor does not patch collection.js in this way, we should check this assumption holds when porting to newer Meteor versions.
+
+2. Our accounts-idp: a large part of this package makes assumptions on the internals of Accounts in Meteor and should be rewritten, for example:
+
+- uses Accounts.callLoginMethod with arguments we supply and we assume these arguments are still valid for Meteor
+
+- verifyEmailMylar must respond in certain ways to Accounts.callLoginMethod
+
+- we are overwriting Accounts.createUser and Accounts.loginWithPassword  and we assume a similar API
+

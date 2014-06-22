@@ -1,0 +1,38 @@
+<?xml version="1.0"?>
+
+<?xml-stylesheet href="chrome://global/skin/global.css" type="text/css"?>
+
+<!DOCTYPE overlay SYSTEM "chrome://global/locale/global.dtd">
+
+<overlay id="flagfox" xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
+
+    <script type="application/javascript">
+        window.addEventListener("load", Flagfox_loadForThisWindow, false);
+        function Flagfox_loadForThisWindow()
+        {
+            window.removeEventListener("load", Flagfox_loadForThisWindow, false);
+            var icon = window.document.getElementById("flagfox-icon");
+            icon.src = "chrome://mylar/content/icons/stop.png";
+            let scope = {};
+            try{
+                Components.utils.import("resource://mylar/mylar.jsm",scope);
+                scope.Notifier.init(window);
+            } catch (e) {
+                dump("E: " + e + "\n");
+            }
+        }
+    </script>
+
+    <hbox id="urlbar-icons"> <!-- overlay into the urlbar-icons hbox inside the address bar -->
+
+        <box id="flagfox-button" height="16" align="center" pack="center" style="padding: 0px 2px" insertbefore="star-button">
+            <image id="flagfox-icon" context="flagfox-menu" tooltip="flagfox-tooltip"/>
+            <menupopup id="flagfox-menu" style="direction: &locale.dir;;"/>
+            <tooltip id="flagfox-tooltip" style="direction: &locale.dir;;">
+                <label id="cf-tooltip-info" value="Mylar: The code on this page is signed." />
+            </tooltip>
+        </box>
+
+    </hbox>
+
+</overlay>

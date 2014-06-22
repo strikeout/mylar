@@ -374,9 +374,9 @@ _.extend(LocalCollection.Cursor.prototype, {
             return;
         }
 
-        self.collection._observeQueue.queueTask(function () {
-          f.apply(context, args);
-        });
+          self.collection._observeQueue.queueTask(function () {
+            f.apply(context, args);
+          });
       };
     };
     query.added = wrapCallback(options.added, 1);
@@ -690,6 +690,7 @@ LocalCollection.prototype.remove = function (selector, callback) {
 // we rollback the whole operation, or what?
 LocalCollection.prototype.update = function (selector, mod, options, callback) {
   var self = this;
+
   if (! callback && options instanceof Function) {
     callback = options;
     options = null;
@@ -723,7 +724,7 @@ LocalCollection.prototype.update = function (selector, mod, options, callback) {
       ++updateCount;
       if (!options.multi)
         return false;  // break
-    }
+  }
     return true;
   });
 

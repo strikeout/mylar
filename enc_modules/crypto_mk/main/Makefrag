@@ -1,0 +1,15 @@
+OBJDIRS     += main
+CRYPTMKSRC   :=  base64.cc prng.cc ec.cc multikey.cc multikey_sum.cc b64_wrapper.cc
+CRYPTMKOBJ   := $(patsubst %.cc,$(OBJDIR)/main/%.o,$(CRYPTMKSRC))
+
+all:    $(OBJDIR)/libcryptmk.so
+$(OBJDIR)/libcryptmk.so: $(CRYPTMKOBJ) $(OBJDIR)/libmkutil.so
+	$(CXX) -shared -o $@ $(CRYPTMKOBJ) $(LDFLAGS) -lgmpxx -lgmp -lpbc -lntl -lmkutil
+	
+install: install_cryptmk
+
+.PHONY: install_cryptmk
+install_cryptmk: $(OBJDIR)/libcryptmk.so
+	install -m 644 $(OBJDIR)/libcryptmk.so /usr/lib
+
+# vim: set noexpandtab:

@@ -78,6 +78,7 @@ Accounts.callLoginMethod = function (options) {
   options = _.extend({
     methodName: 'login',
     methodArguments: [],
+      suppressLogin: false, 
     _suppressLoggingIn: false
   }, options);
   // Set defaults for callback arguments to no-op functions; make sure we
@@ -151,8 +152,8 @@ Accounts.callLoginMethod = function (options) {
                 // periodic localStorage poll will call `makeClientLoggedOut`
                 // eventually if another tab wiped the token from storage.
                 if (storedTokenNow && storedTokenNow === result.token) {
-                  makeClientLoggedOut();
-                }
+                makeClientLoggedOut();
+              }
               }
               // Possibly a weird callback to call, but better than nothing if
               // there is a reconnect between "login result received" and "data
@@ -194,12 +195,15 @@ Accounts.callLoginMethod = function (options) {
     }
 
     // Make the client logged in. (The user data should already be loaded!)
-    makeClientLoggedIn(result.id, result.token, result.tokenExpires);
+      if (!options.suppressLogin) {
+	  makeClientLoggedIn(result.id, result.token, result.tokenExpires);
+      }
     onceUserCallback();
   };
 
-  if (!options._suppressLoggingIn)
-    Accounts._setLoggingIn(true);
+    if (!options._suppressLoggingIn) {
+	Accounts._setLoggingIn(true);
+    }
   Accounts.connection.apply(
     options.methodName,
     options.methodArguments,
