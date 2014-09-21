@@ -860,8 +860,7 @@ if (Meteor.isClient) {
                     var cert = data[0];
                     var attr = data[1];
 
-                    var pk = crypto.deserialize_public(EJSON.parse(cert.signer).verify,
-                        "ecdsa");
+                    var pk = crypto.deserialize_public(EJSON.parse(cert.signer).verify, "ecdsa");
                     var subject = new Principal(attr.type, attr.name, subj_keys);
                     var msg = Certificate.contents(subject);
                     // Load up subject keys for the next cert

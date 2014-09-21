@@ -41,27 +41,17 @@ Luckily this is easy with the new package system.
     // to your meteor project's packages folder
 
     // copy
-    cp -R packages/* /pathto/your/project/packages/
+    cp -R packages/* /your/project/packages/
 
     // link
-    ln -s ../../packages/accounts-base/ accounts-base
-    ln -s ../../packages/accounts-idp/ accounts-idp
-    ln -s ../../packages/accounts-password/ accounts-password
-    ln -s ../../packages/active-attacker/ active-attacker
-    ln -s ../../packages/async/ async
-    ln -s ../../packages/basic-crypto/ basic-crypto
-    ln -s ../../packages/ddp/ ddp
-    ln -s ../../packages/mongo/ mongo
-    ln -s ../../packages/principal/ principal
-    ln -s ../../packages/search/ search
-    ln -s ../../packages/timing/ timing
+    find packages/* -type d -maxdepth 0 -mindepth 0 -exec ln -s '{}' /your/project/packages/ \;
 
 ````
 
 
 Look at the /example_EncChat for how to get started with collection declarations.
 
-model.js (client & server)
+example_EncChat/model.js (client & server)
 ````
     //
     Messages._encrypted_fields({
@@ -73,17 +63,26 @@ model.js (client & server)
     });
     Messages._immutable({roomprinc: ['rID', 'roomTitle', '_id']});
 
+
 ````
 
- /server/init.js (server only)
+important for the IDP, we need to publish explicitly the _wrapped_pk fields of the user doc (for now)
 ````
-    // important for the IDP, so it get the _wrapped_pk fields of the user doc
-    Meteor.publish("users", function () {
-        return Meteor.users.find(this.userId, {fields: {}});
-    });
+    Meteor.startup(function () {
+        // pub
+        if (Meteor.isServer) {
+            Meteor.publish("users", function () {
+                return Meteor.users.find(this.userId, {fields: {}});
+            });
+        }
+        // sub
+        if (Meteor.isClient) {
+            Tracker.autorun(function () {
+                Meteor.subscribe("users");
+            })
+        }
+    })
 ````
-
-
 
 Then go to /docs and also check out /enc_modules for (partially outdated) implementation details.
 
