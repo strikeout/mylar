@@ -4,7 +4,7 @@ Package.describe({
 
 Package.on_use(function (api) {
     where = ['client', 'server'];
-
+    api.use(['ejson', 'underscore']);
     api.add_files(['sjcl.js', 'crypto.js'], where);
 
     api.export("sjcl");

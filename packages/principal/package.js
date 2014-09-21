@@ -7,7 +7,7 @@ Package.on_use(function (api) {
     var where = ['client', 'server'];
 
     api.use(['standard-app-packages', 'accounts-base', 'basic-crypto', 'ejson', 'timing', 'http', 'async'],
-	    where);
+        where);
 
     api.imply(['standard-app-packages', 'timing', 'async', 'basic-crypto']);
     api.add_files(['graphmodel.js', 'certs.js', 'principal.js', 'collection_hook.js'], where);
@@ -21,5 +21,4 @@ Package.on_use(function (api) {
     api.export("search_field_name");
     api.export("WrappedKeys");
     api.export("active_attacker");
-  api.export("generate_princ_keys");
 });

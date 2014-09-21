@@ -7,9 +7,8 @@ standard-app-packages
 bootstrap
 accounts-password
 accounts-base
-http
-
-# Mylar 
-principal
 accounts-idp
+
+# Mylar
+principal
 #search

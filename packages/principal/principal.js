@@ -26,7 +26,7 @@
  token: the actual cryptographic token
  */
 
-var debug = false;
+var debug = true;
 var crypto = base_crypto;
 
 
@@ -342,7 +342,8 @@ if (Meteor.isClient) {
             cache_add(p, {'princ': creator});
             Principal._store(p, creator);
             if (creator) {
-                Principal.add_access(creator, p, function(){console.log("hg");
+                Principal.add_access(creator, p, function () {
+                    console.log("Principal.add_access to: creator", creator);
                     cb(p);});
             } else {
                 cb(p);
