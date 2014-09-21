@@ -1,1 +1,0 @@
-packageVar = 'foo';

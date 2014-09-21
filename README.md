@@ -15,10 +15,7 @@ You'll need the following libraries to build Mylar:
 
 ## Demo
 
-Download the EncChat app:
-git clone git://g.csail.mit.edu/EncChat
-
-cd EncChat
+cd EncChat_example
 /path/to/mylar/meteor 
 
 Open a browser and visit localhost:3000 or from a different machine than the server, visit http://<machine-ip>:3000. Have fun with the application!
