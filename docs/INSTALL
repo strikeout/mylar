@@ -1,0 +1,28 @@
+apt-get install npm
+( cd dev_bundle/lib && npm install mime )
+
+install pbc in /usr/local from http://crypto.stanford.edu/pbc/
+  pbc needs various libraries itself (flex, bison, etc.)
+install libreadline-dev
+install libssl-dev
+install libntl-dev
+
+ignore crypto_ext
+
+in your meteor project
+  add "principal" to .meteor/packages
+
+to run your project
+  run crypto_server
+    cd crypto_server; crypto_server &
+  run idp on port 3000 
+    make sure you npm installed mime (see above)
+    cd idp; ../meteor &
+    does idp take a long time to create account?
+    name created at idp must be equal to  Meteor.user.username() in your project
+  run your project:
+    path_to_meteor_enc/meteor -p 4000
+
+to authenticate users with the meteor-enc idp:
+  see README.md
+

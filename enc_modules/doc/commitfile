@@ -1,7 +1,0 @@
-Disentangled decrypt callbacks from livedata_connection.js and collection.js
-Now mongo_livedata and livedata packages do not have Mylar-specific changes any more, but just call some generic intercept API.
-
-This is the main issue with Meteor for Meteor-enc: the subscription ready function is called with no knowledge of the collection, yet we must run all decryption callbacks on the right collections before calling this ready callback. So derive the collection from the subscription id in hacky ways.
-
-enc_modules/doc/meteor_changes documents changes we made to Meteor (only for collection and livedata so far)
-

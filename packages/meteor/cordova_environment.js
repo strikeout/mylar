@@ -1,2 +1,0 @@
-Meteor.isCordova = true;
-
