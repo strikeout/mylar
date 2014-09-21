@@ -2,6 +2,7 @@
  Implements principals
  */
 
+var debug = false;
 
 /* Principal object
  type
@@ -26,7 +27,8 @@
  token: the actual cryptographic token
  */
 
-var debug = true;
+
+
 var crypto = base_crypto;
 
 
@@ -766,7 +768,7 @@ if (Meteor.isClient) {
             if (debug) console.log("userPK answer " + JSON.stringify(uinfo));
 
             if (err || !uinfo || !uinfo._pk) {
-                console.log("user "+ uname + " " + JSON.stringify(uinfo));
+                if (debug) console.log("user "+ uname + " " + JSON.stringify(uinfo));
                 throw new Error("user " + uname + " public keys are not available");
             }
 
@@ -971,7 +973,7 @@ if (Meteor.isClient) {
                 Meteor.call("wrappedKeyByID", wid,
                     function(err, w) {
                         if (!w || !w.wrapped_keys) {
-                            console.log("smth wrong with this wrapped key "  + wid);
+                            if (debug) console.log("smth wrong with this wrapped key "  + wid);
                             return;
                         }
                         var subject_keys_ser = base_crypto.decrypt(uprinc.keys.decrypt, w["wrapped_keys"]);

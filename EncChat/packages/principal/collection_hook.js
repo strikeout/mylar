@@ -139,7 +139,7 @@ _dec_fields = function (_enc_fields, _signed_fields, id, container, fields, call
                     delete container[enc_name];
                     //todo: searchable consistency check
                 } else {
-                    console.log("no dec princ");
+                    if (debug) console.log("no dec princ");
                 }
                 cb();
             });
@@ -275,8 +275,8 @@ _check_macs = function (immutable, id, container, cb) {
 
     var macs = container['_macs'];
     if (!macs) {
-        console.log("container: " + JSON.stringify(container));
-        console.log("immutable: " + JSON.stringify(immutable));
+        if (debug) console.log("container: " + JSON.stringify(container));
+        if (debug) console.log("immutable: " + JSON.stringify(immutable));
         throw new Error("collection has immutable, but macs are not in received doc");
     }
 
@@ -290,7 +290,7 @@ _check_macs = function (immutable, id, container, cb) {
             }
             var dec = princ.sym_decrypt(mac, el.ring);
             if (dec != " ") {
-                console.log("dec is <" + dec + ">");
+                if (debug) console.log("dec is <" + dec + ">");
                 throw new Error("invalid mac");
             }
             each_cb();
@@ -305,7 +305,7 @@ _check_macs = function (immutable, id, container, cb) {
 function compute_ring(princ, lst, container) {
     var princ_id = container[princ];
     if (!princ_id) {
-        console.log(JSON.stringify(container));
+        if (debug) console.log(JSON.stringify(container));
         throw new Error("container does not contain princ " + princ + "in immutable annotation");
     }
 
@@ -415,10 +415,6 @@ function encrypt_row(_enc_fields, _signed_fields, container, callback) {
                                     if (debug) console.log("inserting in index");
                                     insert_in_enc_index(ciph);
                                 }
-                                //var time1b = window.performance.now();
-                                //var time2 = window.performance.now();
-                                //console.log("all search takes " + (time2-time1));
-                                //console.log("indexing search " + (time1b-time1a));
                                 endTime("mk");
                                 done_encrypt();
                             });
