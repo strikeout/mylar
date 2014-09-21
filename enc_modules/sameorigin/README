@@ -1,1 +1,0 @@
-Basic (manual) tests for what firefox does with the same origin policy. What cross-origin requests does it allow? What content types execute javascript?

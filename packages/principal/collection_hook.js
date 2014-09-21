@@ -306,7 +306,7 @@ function compute_ring(princ, lst, container) {
     var princ_id = container[princ];
     if (!princ_id) {
         if (debug) console.log(JSON.stringify(container));
-        throw new Error("container does not contain princ " + princ + "in immutable annotation");
+        throw new Error("container does not contain princ " + princ + " in immutable annotation");
     }
 
     var res = [princ_id]; //should be a list so that the order of keys is deterministic

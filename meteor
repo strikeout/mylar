@@ -50,14 +50,6 @@ done
 
 
 // --- MYLAR START
-# fetch crypto_ext
-#if [ ! -f crypto_ext/bin/lib32/libc.so.a0e12298 ]; then
-#	wget "http://web.mit.edu/dvorak42/Public/cebin.tar"
-#	tar xvf "cebin.tar"
-#	rm "cebin.tar"
-#fi
-
-# removed crypto_ext temporarily
 for D in enc_modules/crypto_mk enc_modules/crypto_server; do
   echo "Building $D"
   ( cd $D && make )

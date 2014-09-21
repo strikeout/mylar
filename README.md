@@ -1,5 +1,21 @@
 # Mylar
 
+
+
+ln -s ../../packages/accounts-base/ accounts-base
+ln -s ../../packages/accounts-idp/ accounts-idp
+ln -s ../../packages/accounts-password/ accounts-password
+ln -s ../../packages/active-attacker/ active-attacker
+ln -s ../../packages/async/ async
+ln -s ../../packages/basic-crypto/ basic-crypto
+ln -s ../../packages/ddp/ ddp
+ln -s ../../packages/mongo/ mongo
+ln -s ../../packages/principal/ principal
+ln -s ../../packages/search/ search
+ln -s ../../packages/timing/ timing
+
+
+
 Mylar is a platform for building web applications that protects data confidentiality against attackers who fully compromise the servers.
 
 Mylar is built on Meteor, a purely Javascript web application framework:

@@ -1,1 +1,0 @@
-MYLAR_ACTIVE_ATTACKER = true;

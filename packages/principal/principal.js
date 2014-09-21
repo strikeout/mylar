@@ -213,7 +213,7 @@ if (Meteor.isServer) {
                 frontier = new_frontier;
             }
 
-            console.log("did not find a chain from", from_id, from_type, "to", to_id, to_type);
+            if (debug) console.log("did not find a chain from", from_id, from_type, "to", to_id, to_type);
             return undefined;
         },
 
@@ -242,8 +242,7 @@ if (Meteor.isServer) {
          */
         lookup: function (princattrs, authority) {
 
-            if (debug)
-                console.log("lookup " + JSON.stringify(princattrs) + " auth " + authority);
+            if (debug) console.log("lookup " + JSON.stringify(princattrs) + " auth " + authority);
 
             // princs maps a Principal id  to a chain of certificates
             // the last certificate in the chain has id as subject
@@ -266,8 +265,8 @@ if (Meteor.isServer) {
                         subject_name: princattr.name,
                         signer : princid
                     }).fetch();
-                    console.log("looking for name " + princattr.name + " signed by " + princid);
-                    console.log("found " + cs.length);
+                    if (debug) console.log("looking for name " + princattr.name + " signed by " + princid);
+                    if (debug) console.log("found " + cs.length);
                     // add each certificate to new_princs
                     _.each(cs, function (cert) {
                         var new_lst = cert_lst.slice(0);
@@ -279,8 +278,8 @@ if (Meteor.isServer) {
             }
 
             if (_.isEmpty(princs)) {
-                console.log("No principal found! Here is princ graph:");
-                console.log(princ_graph());
+                if (debug) console.log("No principal found! Here is princ graph:");
+                if (debug) console.log(princ_graph());
                 return undefined;
             }
             var p = _.keys(princs)[0];
@@ -345,7 +344,7 @@ if (Meteor.isClient) {
             Principal._store(p, creator);
             if (creator) {
                 Principal.add_access(creator, p, function () {
-                    console.log("Principal.add_access to: creator", creator);
+                    if (debug) console.log("Principal.add_access to: creator", creator);
                     cb(p);});
             } else {
                 cb(p);
