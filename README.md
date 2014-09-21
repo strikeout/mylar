@@ -4,11 +4,10 @@ Web applications rely on servers to store and process confidential information. 
 
 Mylar protects data confidentiality even when an attacker gets full access to servers. Mylar stores only encrypted data on the server, and decrypts data only in users' browsers.
 
-# Simply encrypting each user's data with a user key does not suffice,
-and Mylar addresses three challenges in making this approach work.
+Simply encrypting each user's data with a user key does not suffice, and Mylar addresses three challenges in making this approach work.
 
-- First, Mylar allows the server to perform keyword search over encrypted documents
-- Second, Mylar allows users to share keys and data securely in the presence of an active adversary.
+- First, Mylar allows users to share keys and data securely in the presence of an active adversary (a man in the middle.
+- Second, Mylar allows the server to perform keyword search over encrypted documents
 - Finally, Mylar ensures that client-side application code is authentic, even if the server is malicious.
 
 
@@ -37,13 +36,13 @@ So we can not simply provide Mylar as an Meteor package (right now) - we have to
 Luckily this is easy with the new package system.
 
 ````
-    // copy or symlink everything in /packages
-    // to your meteor project's packages folder
+    // copy or symlink everything in /packages to
+    // your meteor project's packages folder
 
     // copy
     cp -R packages/* /your/project/packages/
 
-    // link
+    // symlink
     find packages/* -type d -maxdepth 0 -mindepth 0 -exec ln -s '{}' /your/project/packages/ \;
 
 ````
@@ -114,4 +113,4 @@ $(HOME)/.mozilla/plugins/, creating the plugins folder if necessary.
 meteor add search
 
 
-					  
+
