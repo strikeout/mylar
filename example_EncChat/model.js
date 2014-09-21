@@ -29,7 +29,6 @@ Messages._encrypted_fields({
         auth: ['_id']
     }
 });
-
 Messages._immutable({roomprinc: ['rID', 'roomTitle', '_id']});
 
 

@@ -1,27 +1,95 @@
-# Mylar
+# Mylar - ported to Meteor v0.9.9.2
+
+Web applications rely on servers to store and process confidential information. However, anyone who gains access to the server (e.g., an attacker, a curious administrator, or a government) can obtain all of the data stored there.
+
+Mylar protects data confidentiality even when an attacker gets full access to servers. Mylar stores only encrypted data on the server, and decrypts data only in users' browsers.
+
+# Simply encrypting each user's data with a user key does not suffice,
+and Mylar addresses three challenges in making this approach work.
+
+- First, Mylar allows the server to perform keyword search over encrypted documents
+- Second, Mylar allows users to share keys and data securely in the presence of an active adversary.
+- Finally, Mylar ensures that client-side application code is authentic, even if the server is malicious.
+
+
+## Check it out
+
+Just start and examine the example chat
+````
+    cd example_EncChat/
+    meteor
+
+    // => App running at: http://localhost:3000/
+````
+Create a new User, then create a new room. Hack in a message. Send.
+
+If you now take a look at the local Meteor-MongoDb (with a gui like Robomongo or the meteor mongo-shell, you will see a field named "message_enc" that contains the encryption of the message.
+There should be no field "message", which before contained the unencrypted data and will only appear on the client when the message is successfully decrypted.
+
+
+## Use it
+
+First, read the MIT Mylar paper in /docs/MIT_Mylar.pdf and make sure you understand the section "Building a Mylar application".
+
+Mylar is directly hooking into core packages like DDP, Mongo and the Accounts system to intercept the data stream for truly transparent encryption.
+So we can not simply provide Mylar as an Meteor package (right now) - we have to override core packages!
+
+Luckily this is easy with the new package system.
+
+````
+    // copy or symlink everything in /packages
+    // to your meteor project's packages folder
+
+    // copy
+    cp -R packages/* /pathto/your/project/packages/
+
+    // link
+    ln -s ../../packages/accounts-base/ accounts-base
+    ln -s ../../packages/accounts-idp/ accounts-idp
+    ln -s ../../packages/accounts-password/ accounts-password
+    ln -s ../../packages/active-attacker/ active-attacker
+    ln -s ../../packages/async/ async
+    ln -s ../../packages/basic-crypto/ basic-crypto
+    ln -s ../../packages/ddp/ ddp
+    ln -s ../../packages/mongo/ mongo
+    ln -s ../../packages/principal/ principal
+    ln -s ../../packages/search/ search
+    ln -s ../../packages/timing/ timing
+
+````
+
+
+Look at the /example_EncChat for how to get started with collection declarations.
+
+model.js (client & server)
+````
+    //
+    Messages._encrypted_fields({
+        'message': {
+            princ: 'roomprinc',
+            princtype: 'room',
+            auth: ['_id']
+        }
+    });
+    Messages._immutable({roomprinc: ['rID', 'roomTitle', '_id']});
+
+````
+
+ /server/init.js (server only)
+````
+    // important for the IDP, so it get the _wrapped_pk fields of the user doc
+    Meteor.publish("users", function () {
+        return Meteor.users.find(this.userId, {fields: {}});
+    });
+````
 
 
 
-ln -s ../../packages/accounts-base/ accounts-base
-ln -s ../../packages/accounts-idp/ accounts-idp
-ln -s ../../packages/accounts-password/ accounts-password
-ln -s ../../packages/active-attacker/ active-attacker
-ln -s ../../packages/async/ async
-ln -s ../../packages/basic-crypto/ basic-crypto
-ln -s ../../packages/ddp/ ddp
-ln -s ../../packages/mongo/ mongo
-ln -s ../../packages/principal/ principal
-ln -s ../../packages/search/ search
-ln -s ../../packages/timing/ timing
+Then go to /docs and also check out /enc_modules for (partially outdated) implementation details.
 
 
 
-Mylar is a platform for building web applications that protects data confidentiality against attackers who fully compromise the servers.
-
-Mylar is built on Meteor, a purely Javascript web application framework:
-http://docs.meteor.com/
-
-## Building
+## Enable search & building the enc_server
 You'll need the following libraries to build Mylar:
 
 - libreadline
@@ -29,31 +97,11 @@ You'll need the following libraries to build Mylar:
 - libpbc
 - libcrypto++9
 
-## Demo
-
-cd EncChat_example
-/path/to/mylar/meteor 
 
 Open a browser and visit localhost:3000 or from a different machine than the server, visit http://<machine-ip>:3000. Have fun with the application!
 
 The app is secured against passive adversaries (adversaries who read all data at the server, but do not actively change information).
 
-## Examine
-
-Check that messages are encrypted in the mongo database.
-EncChat$ /path/to/mylar/meteor mongo
-> db.messages.findOne()
-
-You should see a field "message_enc" that contains the encryption of the message. There should be no field "message", which before contained the unencrypted data. You can also see "roomprinc", which is the principal for the room that the message is encrypted for.
-
-
-
-## Cleanup
-
-If you want to reset the application, do:
-EncChat$ /path/to/mylar meteor reset
-
-## Enable search
 
 To enable search, you need two things:
 
@@ -64,36 +112,7 @@ In addition, there is a binary that works on some systems in the enc_modules/cry
 $(HOME)/.mozilla/plugins/, creating the plugins folder if necessary.
 
 2. add the search package to the application
-EncChat$ /path/to/mylar add search
-
-
-## Active adversary
-[documentation coming soon]
-
-
-## Develop a new app
-
-Follow the steps:
-
-1. Write a regular Meteor application. Meteor is very easy and fun to learn! https://www.meteor.com/ has great tutorials and documentation.
-
-2. Secure it with Mylar:
-
-First, read the Mylar paper and make sure you understand the section "Building a Mylar application".
-
-2.a. in model.js, annotate which fields are sensitive and should be encrypted
-    For example, to encrypt the field "message" of the collection "Messages", do:
-    Messages._encrypted_fields({ 'message' : {princ: 'roomprinc', princtype: 'room',
-					  attr: 'SEARCHABLE'}});
-    Only the principal for the room will have access to the message. 
-
-2.b. Indicate access control annotations. Each user has a principal Principal.user() automatically created. Based on the access control desired, create principals, give principals access to other principals using "add_access", and find principals with "lookup" or "lookupUser". For example, to invite the user "invitee", to a room with principal "room_princ", do:
-
-Principal.lookupUser(invitee, function(princ){
-     Principal.add_access(princ, room_princ, function () {
-		[..]
-     }
-}
+meteor add search
 
 
 					  

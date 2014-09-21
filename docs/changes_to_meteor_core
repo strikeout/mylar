@@ -1,25 +1,27 @@
 We make few changes to Meteor, but we do assume that Meteor works in certain ways.
 
+
+
 Changes Meteor-enc makes to Meteor
 ----------------------------------
-0. meteor
-- start crypto-server on server startup
+0. ./meteor
+   compile and start crypto-server on server startup
 
-1. mongo-livedata
+1. mongo/collection.js:
+   calls to intercept_in & intercept_out
 
-collection.js:
-- calls to intercept_*,
-and the definition of callback f, and where f is called
+2. ddp/livedata_connection.js
+   Changed _process_ready: instead of calling ready_func,
+   it calls intercept.on_ready(collection, ready_func)
 
-2. livedata/livedata_connection.js    OK
+3. accounts-base & accounts-password
+   suppressLogin flag &&
+   intercept code in url_client.js
 
-Changed _process_ready: instead of calling ready_func, it calls intercept.on_ready(collection, ready_func)
 
-3. accounts-base & accounts-password   OK
 
-suppressLogin flag
 
-Mylar intercept code in url_client.js
+
 
 Assumptions on Meteor that we make
 ----------------------------------
