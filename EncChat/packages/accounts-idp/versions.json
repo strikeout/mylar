@@ -2,11 +2,11 @@
   "dependencies": [
     [
       "accounts-base",
-      "0.0.0"
+      "1.1.0"
     ],
     [
       "accounts-password",
-      "0.0.0"
+      "1.0.1"
     ],
     [
       "application-configuration",
@@ -141,8 +141,8 @@
       "1.0.5"
     ],
     [
-      "mongo-livedata",
-      "1.0.4"
+      "npm-bcrypt",
+      "0.7.7"
     ],
     [
       "observe-sequence",

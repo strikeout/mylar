@@ -34,6 +34,9 @@ Deps.autorun(function(){
 Meteor.startup(function () {
     if (verify_idp_token) {
 	var token = decodeURIComponent(verify_idp_token);
+
+	// TODO: our code assumes the user is already logged in to the app when it
+	// follows the URL from the IDP
 	var u = Principal.user();
 	
 	console.log('Verifying IDP token', token);

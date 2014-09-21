@@ -649,7 +649,10 @@ _.extend(Connection.prototype, {
     //                              be confused with server return values; we
     //                              may improve this in future.
     // @param callback {Optional Function}
+
+    // MYLAR START
     apply: function (name, args, options, callback, mylar_meta) {
+    // MYLAR END
         var self = this;
 
         // We were passed 3 arguments. They may be either (name, args, options)
@@ -819,12 +822,13 @@ _.extend(Connection.prototype, {
         if (randomSeed !== null) {
             message.randomSeed = randomSeed;
         }
-
+        // MYLAR START
         if (mylar_meta && Meteor.isClient) {
 
             mylar_meta.transform(mylar_meta.coll, mylar_meta.doc, function (container) {
 
-
+                // MYLAR: this line is important because of a patch introduced in 0.9 which prevents
+                // the mutation of message.params.args, see line 673-675, we replace
                 if (container) message.params = [container];
 
                 var methodInvoker = new MethodInvoker({
@@ -835,7 +839,6 @@ _.extend(Connection.prototype, {
                     wait: !!options.wait,
                     message: message
                 });
-
 
                 if (options.wait) {
                     // It's a wait method! Wait methods go in their own block.
@@ -886,11 +889,12 @@ _.extend(Connection.prototype, {
 
             // If we're using the default callback on the server,
             // block waiting for the result.
-            if (future) {//@ENC: runs on server only
+    if (future) {
                 return future.wait();
             }
             return options.returnStubValue ? stubReturnValue : undefined;
         }
+        // MYLAR END
     },
 
     // Before calling a method stub, prepare all stores to track changes and allow
@@ -1372,6 +1376,7 @@ _.extend(Connection.prototype, {
                 // Did we already receive a ready message? (Oops!)
                 if (subRecord.ready)
                     return;
+                // MYLAR START
                 ready_func = function () {
                     subRecord.readyCallback && subRecord.readyCallback();
                     subRecord.ready = true;
@@ -1383,6 +1388,7 @@ _.extend(Connection.prototype, {
                 } else {
                     ready_func();
                 }
+                // MYLAR END
             });
         });
     },

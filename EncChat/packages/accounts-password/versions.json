@@ -2,7 +2,7 @@
   "dependencies": [
     [
       "accounts-base",
-      "0.0.0"
+      "1.1.0"
     ],
     [
       "application-configuration",
@@ -29,10 +29,6 @@
       "1.0.8"
     ],
     [
-      "deps",
-      "1.0.3"
-    ],
-    [
       "ejson",
       "1.0.2"
     ],
@@ -57,10 +53,6 @@
       "1.0.0"
     ],
     [
-      "livedata",
-      "1.0.9"
-    ],
-    [
       "localstorage",
       "1.0.0"
     ],
@@ -81,8 +73,8 @@
       "1.0.5"
     ],
     [
-      "mongo-livedata",
-      "1.0.4"
+      "npm-bcrypt",
+      "0.7.7"
     ],
     [
       "ordered-dict",

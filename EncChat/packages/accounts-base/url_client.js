@@ -10,7 +10,6 @@ autoLoginEnabled = true;
 // on the http request
 var match;
 match = window.location.hash.match(/^\#\/reset-password\/(.*)$/);
-
 if (match) {
   autoLoginEnabled = false;
   Accounts._resetPasswordToken = match[1];

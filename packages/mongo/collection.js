@@ -212,7 +212,7 @@ Mongo.Collection = function (name, options) {
                         intercept_in(self, mongoId, newdoc, function () {
                             self._collection.update(mongoId, newdoc);
                         });
-
+// --- MYLAR END
                     }
                 } else {
                     throw new Error("I don't know how to deal with this message");
@@ -511,9 +511,9 @@ _.each(["insert", "update", "remove"], function (name) {
                     || insertId instanceof Mongo.ObjectID))
                     throw new Error("Meteor requires document _id fields to be non-empty strings or ObjectIDs");
             } else {
+            // --- MYLAR START
                 insertId = args[0]._id = self._makeNewID();
             }
-            // --- MYLAR START
             Mylar_meta['doc'] = args[0];
             // --- MYLAR END
         } else {
@@ -591,10 +591,11 @@ _.each(["insert", "update", "remove"], function (name) {
                 throwIfSelectorIsNotId(args[0], name);
             }
 
-            // MYLAR _connection.APPLY
+            // MYLAR START
             ret = chooseReturnValueFromCollectionResult(
                 self._connection.apply(self._prefix + name, args, {returnStubValue: true}, wrappedCallback, Mylar_meta)
             );
+            // --- MYLAR END
 
         } else {
             // it's my collection.  descend into the collection object
@@ -889,6 +890,16 @@ Mongo.Collection.prototype._defineMutationMethods = function () {
                         if (generatedId !== null)
                             args[0]._id = generatedId;
                         // In insecure mode, allow any mutation (with a simple selector).
+                        // XXX This is kind of bogus.  Instead of blindly passing whatever
+                        //     we get from the network to this function, we should actually
+                        //     know the correct arguments for the function and pass just
+                        //     them.  For example, if you have an extraneous extra null
+                        //     argument and this is Mongo on the server, the _wrapAsync'd
+                        //     functions like update will get confused and pass the
+                        //     "fut.resolver()" in the wrong slot, where _update will never
+                        //     invoke it. Bam, broken DDP connection.  Probably should just
+                        //     take this whole method and write it three times, invoking
+                        //     helpers for the common code.
                         return self._collection[method].apply(self._collection, args);
                     } else {
                         // In secure mode, if we haven't called allow or deny, then nothing
