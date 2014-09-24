@@ -7,7 +7,7 @@ Mylar protects data confidentiality even when an attacker gets full access to se
 
 Simply encrypting each user's data with a user key does not suffice, and Mylar addresses three challenges in making this approach work.
 
-- First, Mylar allows users to share keys and data securely in the presence of an active adversary (a man in the middle.
+- First, Mylar allows users to share keys and data securely in the presence of an active adversary (man in the middle attack or a malicious administrator actively tampering with the data sent to the client)
 - Second, Mylar allows the server to perform keyword search over encrypted documents
 - Finally, Mylar ensures that client-side application code is authentic, even if the server is malicious.
 
