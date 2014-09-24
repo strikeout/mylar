@@ -825,6 +825,8 @@ _.extend(Connection.prototype, {
         // MYLAR START
         if (mylar_meta && Meteor.isClient) {
 
+            if (CProgress && document && document.body) CProgress.start(); // start showing progress
+
             mylar_meta.transform(mylar_meta.coll, mylar_meta.doc, function (container) {
 
                 // MYLAR: this line is important because of a patch introduced in 0.9 which prevents
@@ -858,6 +860,8 @@ _.extend(Connection.prototype, {
                     methodInvoker.sendMessage();
 
             });
+            if (CProgress && document && document.body) CProgress.done(); // stop showing progress
+
             return options.returnStubValue ? stubReturnValue : undefined;
 
         } else {	// regular path -- nonMylar

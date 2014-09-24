@@ -1,0 +1,74 @@
+/* Make clicks pass-through */
+#cprogress {
+  pointer-events: none;
+}
+
+#cprogress .bar {
+  background: #ff0000;
+
+  position: fixed;
+  z-index: 1031;
+  bottom: 0;
+  left: 0;
+
+  width: 100%;
+  height: 1px;
+}
+
+/* Fancy blur effect */
+#cprogress .peg {
+  display: block;
+  position: absolute;
+  right: 0px;
+  width: 100px;
+  height: 100%;
+  box-shadow: 0 0 10px #ff0000, 0 0 5px #ff0000;
+  opacity: 1.0;
+
+  -webkit-transform: rotate(3deg) translate(0px, 4px);
+      -ms-transform: rotate(3deg) translate(0px, 4px);
+          transform: rotate(3deg) translate(0px, 4px);
+}
+
+/* Remove these to get rid of the spinner */
+#cprogress .spinner {
+  display: block;
+  position: fixed;
+  z-index: 1031;
+  bottom: 15px;
+  right: 15px;
+}
+
+#cprogress .spinner-icon {
+  width: 18px;
+  height: 18px;
+  box-sizing: border-box;
+
+  border: solid 2px transparent;
+  border-top-color: #ff0000;
+  border-left-color: #ff0000;
+  border-radius: 50%;
+
+  -webkit-animation: cprogress-spinner 400ms linear infinite;
+          animation: cprogress-spinner 400ms linear infinite;
+}
+
+.cprogress-custom-parent {
+  overflow: hidden;
+  position: relative;
+}
+
+.cprogress-custom-parent #cprogress .spinner,
+.cprogress-custom-parent #cprogress .bar {
+  position: absolute;
+}
+
+@-webkit-keyframes cprogress-spinner {
+  0%   { -webkit-transform: rotate(0deg); }
+  100% { -webkit-transform: rotate(360deg); }
+}
+@keyframes cprogress-spinner {
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+

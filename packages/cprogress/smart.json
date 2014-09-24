@@ -1,0 +1,9 @@
+{
+  "name": "nprogress",
+  "description": "NProgress for Meteor",
+  "homepage": "https://github.com/zhouzhuojie/meteor-nprogress",
+  "author": "Zhuojie Zhou <zz@pycode.me> (http://pycode.me)",
+  "version": "0.1.0",
+  "git": "https://github.com/zhouzhuojie/meteor-nprogress.git",
+  "packages": {}
+}
