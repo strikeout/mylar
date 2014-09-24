@@ -11,8 +11,9 @@ Changes Meteor-enc makes to Meteor
    calls to intercept_in & intercept_out
 
 2. ddp/livedata_connection.js
-   Changed _process_ready: instead of calling ready_func,
-   it calls intercept.on_ready(collection, ready_func)
+   Changed _process_ready:
+   it calls collection.intercept.on_ready() to decrypt a loaded collection when onReady()
+   event was triggerd by a subscripton
 
 3. accounts-base & accounts-password
    suppressLogin flag &&

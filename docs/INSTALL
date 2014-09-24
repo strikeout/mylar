@@ -1,3 +1,5 @@
+# partially outdated !
+
 apt-get install npm
 ( cd dev_bundle/lib && npm install mime )
 
