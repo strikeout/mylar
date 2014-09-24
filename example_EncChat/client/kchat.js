@@ -188,7 +188,7 @@ Template.room.events({
         roomprinc(function (room_princ) {
             Messages.insert({
                 rID: Meteor.user().Room.inRoomID,
-                roomprinc: room_princ.id,
+                roomprinc: room_princ._id,
                 roomTitle: title,
                 message: msg,
                 userID: Meteor.userId(),
@@ -213,7 +213,7 @@ Template.room.events({
                 roomprinc(function (room_princ) {
                     Messages.insert({
                         rID: Meteor.user().Room.inRoomID,
-                        roomprinc: room_princ.id,
+                        roomprinc: room_princ._id,
                         roomTitle: title,
                         message: msg,
                         userID: Meteor.userId(),
@@ -279,7 +279,7 @@ function CreateRoom() {
     if (roomtitle.length !== 0 && roomtitle.length >= 4 && roomtitle.length <= 16) {
         Principal.create("room", roomtitle, Principal.user(), function (rp) {
             Rooms.insert({roomTitle: roomtitle, peopleID: [], peopleUsername: [], invitedID: [],
-                createdByID: Meteor.userId(), roomprinc: rp.id });
+                createdByID: Meteor.userId(), roomprinc: rp._id });
 
             $("#createRoomErroMsg").text('');
 
