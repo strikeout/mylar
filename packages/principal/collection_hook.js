@@ -258,7 +258,7 @@ _check_macs = function (immutable, id, container, cb) {
 
     var to_check = [];
 
-    _.each(immutable, function(lst, princ) {
+    _.each(immutable, function (lst, princ) {
 
         var ring = get_ring(princ, lst, container);
         if (ring) {
@@ -266,19 +266,18 @@ _check_macs = function (immutable, id, container, cb) {
         }
     });
 
-    if (!to_check.length) {
+    if (!to_check.length || !macs) {
         cb && cb();
         return;
     }
 
     //check macs
-
     var macs = container['_macs'];
-    if (!macs) {
-        if (debug) console.log("container: " + JSON.stringify(container));
-        if (debug) console.log("immutable: " + JSON.stringify(immutable));
-        throw new Error("collection has immutable, but macs are not in received doc");
-    }
+//    if (!macs) {
+//        if (debug) console.log("container: " + JSON.stringify(container));
+//        if (debug) console.log("immutable: " + JSON.stringify(immutable));
+//        throw new Error("collection has immutable but macs are not in received doc", immutable, container);
+//    }
 
     var each_cb = _.after(to_check.length, cb);
 
@@ -306,7 +305,8 @@ function compute_ring(princ, lst, container) {
     var princ_id = container[princ];
     if (!princ_id) {
         if (debug) console.log(JSON.stringify(container));
-        throw new Error("container does not contain princ " + princ + " in immutable annotation");
+        return false;
+//        throw new Error("container does not contain princ " + princ + " in immutable annotation");
     }
 
     var res = [princ_id]; //should be a list so that the order of keys is deterministic
@@ -323,7 +323,7 @@ function compute_ring(princ, lst, container) {
 
 function add_macs(immutable, container, cb) {
 
-    if (!immutable || _.isEmpty(immutable)) {
+    if (_.isEmpty(immutable)) {
         cb && cb();
         return;
     }
@@ -346,6 +346,11 @@ function add_macs(immutable, container, cb) {
     _.each(immutable, function (lst, princ) {
 
         var ring = compute_ring(princ, lst, container);
+
+        if (!ring) {
+            cb && cb();
+            return;
+        }
 
         Principal._lookupByID(container[princ], function (p) {
             //TODO: a shorter mac by hashing?
@@ -370,6 +375,14 @@ function encrypt_row(_enc_fields, _signed_fields, container, callback) {
     });
 
     _.each(r, function (f) {
+
+        var princ_field = _enc_fields[r].princ;
+
+        // check if user sent a field which is marked for encryption but
+        // doesnt provide an encryptor principal, prevent unencrypted inserts
+        if (_.isEmpty(container[princ_field]))
+            throw new Error('Provided field to encrypt, but no principal for: ' + f + ' / ' + princ_field)
+
 
         async.map([_enc_fields, _signed_fields], lookup_princ_func(f, container),
             function (err, results) {
@@ -438,6 +451,7 @@ function encrypt_row(_enc_fields, _signed_fields, container, callback) {
 // container is a map of key to values
 //_enc_fields is set
 _enc_row_helper = function (_enc_fields, _im_rings, _signed_fields, container, callback) {
+    _signed_fields = _signed_fields || {};
 
     add_macs(_im_rings, container, function () {
         encrypt_row(_enc_fields, _signed_fields, container, callback);

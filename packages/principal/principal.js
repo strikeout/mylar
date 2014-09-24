@@ -69,8 +69,8 @@ var princ_str = function(name, type, auth_user) {
 // adds princ to cache
 // auth optional {uname: ...or princ: ..}
 var cache_add = function(princ, auth){
-    if (princ._has_secret_keys()) {
-        princ_cache[princ.id] = princ;
+    if (princ && princ._has_secret_keys()) {
+        princ_cache[princ._id] = princ;
         if (auth) {
             var uname = auth.uname;
             if (auth.princ && auth.princ.type == "user") {
@@ -177,7 +177,9 @@ if (Meteor.isServer) {
                 throw new Error("from principal in key chain must have at least id and type set");
             }
 
-            if (!to_id || !to_type) {
+            // removed to_type check here, because to_type doesnt
+            // get passed along when from_id and to_id are equal (user_princ)
+            if (!to_id) {
                 throw new Error("to_princ in key chain must have at least id and type set");
             }
 
@@ -334,9 +336,16 @@ if (Meteor.isClient) {
 
         // check if type exists in Princ type, else create it
         var pt = PrincType.findOne({type: type});
-        if (!pt) {
-            PrincType.insert({type:type, searchable: false});
+        if (!pt) PrincType.insert({type: type, searchable: false});
+
+
+        // check if Principal already exists, return if it does
+        var princ = Principals.findOne({type: type, name: name});
+        if (princ) {
+            console.log('found princ, not creating new', princ)
+            return cb(princ);
         }
+
 
         generate_princ_keys(function(keys) {
             var p = new Principal(type, name, keys);
@@ -450,7 +459,7 @@ if (Meteor.isClient) {
      Loads its secret keys if current user has access to it.
      */
     Principal.prototype.load_secret_keys = function(cb) {
-        var newprinc = cache_get_id(this.id);
+        var newprinc = cache_get_id(this._id);
         if (newprinc) {
             cb(newprinc);
             return;
@@ -466,13 +475,13 @@ if (Meteor.isClient) {
     //   -- authority must have secret keys loaded
     Principal._store = function (princ, authority, is_static) {
 
-        if (debug) console.log("CREATE princ: " + princ.name + " keys " + JSON.stringify(princ.keys.sym_key)  + " id " + princ.id);
+        if (debug) console.log("CREATE princ: " + princ.name + " keys " + JSON.stringify(princ.keys.sym_key)  + " id " + princ._id);
 
         if (!is_static) {
             is_static = false;
         }
         Principals.insert({
-            '_id': princ.id,
+            '_id': princ._id,
             'type' : princ.type,
             'name' : princ.name,
             accessInbox: [],
@@ -524,17 +533,17 @@ if (Meteor.isClient) {
             if (use_search()) {
                 // can compute delta as well so no need for access inbox
                 MylarCrypto.delta(princ1.keys.mk_key, princ2.keys.mk_key, function(delta) {
-                    Meteor.call("updateWrappedKeys", princ2.id, princ1.id, null, wrap, delta, false, cb);
+                    Meteor.call("updateWrappedKeys", princ2._id, princ1._id, null, wrap, delta, false, cb);
                 });
             } else {
-                Meteor.call("updateWrappedKeys", princ2.id, princ1.id, null, wrap, null, false, cb);
+                Meteor.call("updateWrappedKeys", princ2._id, princ1._id, null, wrap, null, false, cb);
             }
             return;
         }
 
         // encrypt using public keys
         var wrap = crypto.encrypt(princ1.keys.encrypt, pt);
-        Meteor.call("updateWrappedKeys", princ2.id, princ1.id, wrap, null, null, true, cb);
+        Meteor.call("updateWrappedKeys", princ2._id, princ1._id, wrap, null, null, true, cb);
     };
 
     // Removes princ1 access to princ2
@@ -549,19 +558,19 @@ if (Meteor.isClient) {
         return function () {
 
             // Remove WK from princ1.
-            var wrappedID = WrappedKeys.findOne({principal: princ2.id, wrapped_for: princ1.id})._id;
+            var wrappedID = WrappedKeys.findOne({principal: princ2._id, wrapped_for: princ1._id})._id;
             WrappedKeys.remove(wrappedID);
 
             // Create a new principal.
             Principal.create(princ2.type, princ2.name, function(newPrincipal){
                 // Add new WK for new principal.
-                var parentOriginal = WrappedKeys.find({principal: princ2.id});
+                var parentOriginal = WrappedKeys.find({principal: princ2._id});
                 var cb = _.after(parentOriginal.length, function() {
                     // The following are required to remove the possibility the client cached keys.
                     // TODO:Reencrypt data
 
                     // Remove the children's pointers to the parent.
-                    // var childrenOriginal = WrappedKeys.find({wrapped_for:princ2.id});
+                    // var childrenOriginal = WrappedKeys.find({wrapped_for:princ2._id});
                     // childrenOriginal.forEach(function(wk){
                     //     var child = wk.principal;
                     //     Principal._remove_access(princ2, child, undefined);
@@ -599,7 +608,7 @@ if (Meteor.isClient) {
         var msg = Certificate.contents(princ);
         var sig = crypto.sign(msg, self.keys.sign);
 
-        return new Certificate(princ, self.id, sig);
+        return new Certificate(princ, self._id, sig);
     };
 
 
@@ -615,12 +624,12 @@ if (Meteor.isClient) {
             return true;
         }
         if (self.keys.decrypt || self.keys.sign || (use_search() && self.keys.mk_key) || self.keys.sym_key) {
-            throw new Error("principal " + self.id + " type " + self.type
+            throw new Error("principal " + self._id + " type " + self.type
                 + " has partial secret keys" + serialize_keys(self.keys));
         }
         return false;
     }
-    // loads secret keys for the principal self.id
+    // loads secret keys for the principal self._id
     // by finding a chain to the current user and decrypts the secret keys
     Principal.prototype._load_secret_keys = function (on_complete, tentative) {
         var self = this;
@@ -632,23 +641,18 @@ if (Meteor.isClient) {
 
             if (debug) console.log("no sk keys:  invoke key chain");
 
-            if (debug) console.log("keychain from " + pretty(auth) + " to " + pretty(self));
-            Meteor.call("keychain", auth.id, auth.type, self.id, self.type,
+            if (auth) Meteor.call("keychain", auth._id, auth.type, self._id, self.type,
                 function (err, chain) {
-                    if (debug) console.log("keychain returns: " + JSON.stringify(chain));
+                    if (debug) console.log("keychain returns: " + JSON.stringify(chain), err);
+
                     if (chain) {
                         self.keys = _.extend(self.keys, base_crypto.chain_decrypt(chain, auth.keys));
-                        if (on_complete) {
-                            on_complete(self);
-                        }
+                        if (on_complete) on_complete(self);
                     }
                     else {
-                        if (tentative) {
-                            on_complete && on_complete(undefined);
-                        } else {
-                            // Did not find a chain
-                            throw new Error("keychain not found");
-                        }
+//                        if (tentative)
+                        on_complete && on_complete(undefined);
+//                        else throw new Error("keychain not found");  // Did not find a chain
                     }
                 });
         }
@@ -675,10 +679,10 @@ if (Meteor.isClient) {
             if (debug) console.log("MISS");
         }
 
-        if (debug) console.log("lookupByID princ id " + id);
+        if (debug) console.log("lookupByID princ id: " + id);
 
-        Meteor.call("princInfo", id, function(err, princ_info) {
-            if (err) {
+        Meteor.call("princInfo", id, function (err, princ_info) {
+            if (!princ_info) {
                 throw new Error("could not find princ with id " + id);
             }
             var p = new Principal(princ_info["type"], princ_info["name"], _get_keys(id));
@@ -823,7 +827,7 @@ if (Meteor.isClient) {
             if (typeof authority == "string") {
                 Principal.lookupUser(authority, cb);
             } else {
-                if (!authority.id)
+                if (!authority._id)
                     throw new Error("authority in lookup must be principal or string ");
                 cb(authority);
             }
@@ -839,7 +843,7 @@ if (Meteor.isClient) {
             if (!auth_princ) {
                 throw new Error("idp did not find user for " + pretty(authority));
             }
-            var auth_id =  auth_princ.id;
+            var auth_id =  auth_princ._id;
 
             Meteor.call("lookup", attrs, auth_id, function (err, result) {
 
@@ -911,7 +915,7 @@ if (Meteor.isClient) {
 
     Principal.prototype.set_id = function () {
         var self = this;
-        self.id = get_id(self.keys);
+        self._id = get_id(self.keys);
     };
 
     // transforms an id into keys - crypto instance of public keys
@@ -996,7 +1000,7 @@ if (Meteor.isClient) {
                         }
                     });
             });
-            Principals.update({_id: uprinc.id},
+            Principals.update({_id: uprinc._id},
                 {$set:{accessInbox: []}});
         }
 
@@ -1010,7 +1014,7 @@ if (Meteor.isClient) {
         if (debug) console.log("run PROCESS ACCESS INBOX: ");
         var uprinc = Principal.user();
         if (uprinc) {
-            var dbprinc = Principals.findOne({_id : uprinc.id});
+            var dbprinc = Principals.findOne({_id : uprinc._id});
             _processAccessInbox(uprinc, dbprinc);
         }
     }
@@ -1023,7 +1027,7 @@ if (Meteor.isClient) {
         }
         var uprinc = Principal.user();
         if (uprinc) {
-            Meteor.subscribe("myprinc", uprinc.id);
+            Meteor.subscribe("myprinc", uprinc._id);
         }
     });
 }
