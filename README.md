@@ -1,4 +1,4 @@
-# Mylar - ported to Meteor v0.9.9.2
+# Mylar - ported to Meteor v0.9.3
 
 ## About
 Web applications rely on servers to store and process confidential information. However, anyone who gains access to the server (e.g., an attacker, a curious administrator, or a government) can obtain all of the data stored there.
