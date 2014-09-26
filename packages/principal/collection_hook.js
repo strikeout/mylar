@@ -574,7 +574,7 @@ function intercept_init(coll) {
 }
 
 // will be run when documents are ready in the local database
-function runWhenDecrypted(subname, f) {
+function onReadyHook(subname, f) {
 
     if (subscriptionsWithNoDec[subname]) {
         f && f();
@@ -611,12 +611,12 @@ Meteor.Collection.intercept =
     init: intercept_init,
     incoming: dec_msg,
     out: enc_row,
-    on_ready: runWhenDecrypted
+    on_ready: onReadyHook
 };
 Meteor.intercept =
 {
     init: intercept_init,
     incoming: dec_msg,
     out: enc_row,
-    on_ready: runWhenDecrypted
+    on_ready: onReadyHook
 };
