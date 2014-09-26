@@ -179,7 +179,7 @@ if (Meteor.isServer) {
 
             // removed to_type check here, because to_type doesnt
             // get passed along when from_id and to_id are equal (user_princ)
-            if (!to_id) {
+            if (!to_id || !to_type) {
                 throw new Error("to_princ in key chain must have at least id and type set");
             }
 
@@ -215,7 +215,7 @@ if (Meteor.isServer) {
                 frontier = new_frontier;
             }
 
-            if (debug) console.log("did not find a chain from", from_id, from_type, "to", to_id, to_type);
+            if (debug) console.log("did not find a chain from", from_type, "to", to_type);
             return undefined;
         },
 
@@ -354,7 +354,8 @@ if (Meteor.isClient) {
             if (creator) {
                 Principal.add_access(creator, p, function () {
                     if (debug) console.log("Principal.add_access to: creator", creator);
-                    cb(p);});
+                    cb(p);
+                });
             } else {
                 cb(p);
             }
@@ -461,7 +462,7 @@ if (Meteor.isClient) {
     Principal.prototype.load_secret_keys = function(cb) {
         var newprinc = cache_get_id(this._id);
         if (newprinc) {
-            cb(newprinc);
+            cb && cb(newprinc);
             return;
         }
         this._load_secret_keys(cb);
@@ -575,7 +576,7 @@ if (Meteor.isClient) {
                     //     var child = wk.principal;
                     //     Principal._remove_access(princ2, child, undefined);
                     // });
-                    on_complete();
+                    on_complete && on_complete();
                 });
                 parentOriginal.forEach(function(wk) {
                     var princ = Principals.findOne(wk.wrapped_for);
@@ -884,12 +885,12 @@ if (Meteor.isClient) {
                     var verified = crypto.chain_verify(chain);
                     if (verified) {
                         if (debug) console.log("chain verifies");
-                        princ = new Principal(attrs[0].type, attrs[0].name, princ_keys);
-                        princ._load_secret_keys(function(){
+                        var princc = new Principal(attrs[0].type, attrs[0].name, princ_keys);
+                        princc._load_secret_keys(function () {
                             if (typeof authority == "string") //TODO: this cache must check it is for users, else insecure
-                                cache_add(princ, {'uname': authority});
+                                cache_add(princc, {'uname': authority});
                             endTime("lookup");
-                            on_complete && on_complete(princ);
+                            on_complete && on_complete(princc);
                         }, true);
 
                     } else {
