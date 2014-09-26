@@ -285,6 +285,11 @@ _check_macs = function (immutable, id, container, cb) {
 
     _.each(to_check, function (el) {
         Principal._lookupByID(container[el.princ], function (princ) {
+            if (!princ) {
+                each_cb();
+                return false; // princ not found, just continue
+//                throw new Error("princ " + el.princ + '/' + princ + " is missing")
+            }
             var mac = macs[el.princ];
             if (!mac) {
                 throw new Error("mac for princ " + princ + " is missing");
@@ -503,7 +508,7 @@ function enc_row(coll, container, callback) {
     }
 
     if (_.isEmpty(coll._im_rings) && _.isEmpty(coll._enc_fields)) {
-        callback && callback();
+        callback && callback(container);
         return;
     }
 

@@ -769,23 +769,23 @@ _.extend(Connection.prototype, {
                 // Note that unlike in the corresponding server code, we never audit
                 // that stubs check() their arguments.
                 var stubReturnValue = DDP._CurrentInvocation.withValue(invocation, function () {
+                // -- MYLAR START
+                    var args_clone = EJSON.clone(args);
+                        // remove the _id from the update operation for the client-stub here
+                    if (mylar_meta.opt === "update") {
+                        delete args_clone[1]['$set']['_id'];
+                    }
                     if (Meteor.isServer) {
                         // Because saveOriginals and retrieveOriginals aren't reentrant,
                         // don't allow stubs to yield.
                         return Meteor._noYieldsAllowed(function () {
                             // re-clone, so that the stub can't affect our caller's values
-                            return stub.apply(invocation, EJSON.clone(args));
+                            return stub.apply(invocation, args_clone);
                         });
                     } else {
-                        // -- MYLAR START
-                        // remove the _id from the update operation for the client-stub here
-                        var args_clone = EJSON.clone(args);
-                        if (mylar_meta.opt === "update") {
-                            delete args_clone[1]['$set']['_id'];
-                        }
                         return stub.apply(invocation, args_clone);
-                        // -- MYLAR END
                     }
+                    // -- MYLAR END
                 });
             }
             catch (e) {
