@@ -750,7 +750,14 @@ _.extend(Connection.prototype, {
                             return stub.apply(invocation, EJSON.clone(args));
                         });
                     } else {
-                        return stub.apply(invocation, EJSON.clone(args));
+                        // -- MYLAR START
+                        // remove the _id from the update operation for the client-stub here
+                        var args_clone = EJSON.clone(args);
+                        if (mylar_meta.opt === "update") {
+                            delete args_clone[1]['$set']['_id'];
+                        }
+                        return stub.apply(invocation, args_clone);
+                        // -- MYLAR END
                     }
                 });
             }
@@ -829,9 +836,20 @@ _.extend(Connection.prototype, {
 
             mylar_meta.transform(mylar_meta.coll, mylar_meta.doc, function (container) {
 
-                // MYLAR: this line is important because of a patch introduced in 0.9 which prevents
-                // the mutation of message.params.args, see line 673-675, we replace
-                if (container) message.params = [container];
+                // MYLAR: this is important because of a patch introduced in 0.9 which prevents
+                // the mutation of message.params.args, see line 673-675
+
+                if (container) {
+                    // remove _id if were updating because: MongoError - Mod on _id not allowed
+                    if (mylar_meta.opt === "update") delete container._id
+
+                    // update or upsert command,
+                    if (message.params.length > 1 && message.params[1]['$set']) {
+                        message.params[1]['$set'] = container;
+                    }
+                    // insert command
+                    else message.params = [container];
+                }
 
                 var methodInvoker = new MethodInvoker({
                     methodId: methodId(),

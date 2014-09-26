@@ -518,6 +518,7 @@ _.each(["insert", "update", "remove"], function (name) {
                 // --- MYLAR START
                 insertId = args[0]._id = self._makeNewID();
             }
+            Mylar_meta['opt'] = "insert";
             Mylar_meta['doc'] = args[0];
             // --- MYLAR END
         } else {
@@ -541,7 +542,10 @@ _.each(["insert", "update", "remove"], function (name) {
                 }
                 // --- MYLAR START
                 Mylar_meta['doc'] = args[1]['$set'];
-//                Mylar_meta['doc']['_id'] = options.insertedId;
+                // if "_id" is in immutable declaration, we can finally
+                // update a doc now by passing it in here and removing it later
+                Mylar_meta['opt'] = "update";
+                if (Mylar_meta['doc']) Mylar_meta['doc']['_id'] = args[0]._id;
                 // --- MYLAR END
             }
         }
