@@ -1,10 +1,9 @@
-
 /*
-   Receives as input
-   subject : Principal
-   signer: id of signinig Principal
-   signature
-   verified 
+ Receives as input
+ subject : Principal
+ signer: id of signinig Principal
+ signature
+ verified
  */
 Certificate = function (subject, signer, signature) {
 
@@ -15,20 +14,20 @@ Certificate = function (subject, signer, signature) {
 };
 
 /*
-   This must have the following fields set:
-   id, type, name, pk
-*/
+ This must have the following fields set:
+ id, type, name, pk
+ */
 Certificate.prototype.store = function () {
     var self = this;
     Certs.insert({
-        subject_id: self.subject.id,
-	subject_type: self.subject.type,
-	subject_name: self.subject.name,
-	signer: self.signer,
-	signature: self.signature
+        subject_id: self.subject._id,
+        subject_type: self.subject.type,
+        subject_name: self.subject.name,
+        signer: self.signer,
+        signature: self.signature
     });
 
- };
+};
 
 
 Certificate.prototype.verify = function (on_complete) {
@@ -46,15 +45,15 @@ Certificate.prototype.verify = function (on_complete) {
 
 //TODO: verify consistency public keys and id
 Certificate.contents = function (princ) {
-    return "(" + princ.id + ", " + princ.type + ", " + princ.name + ")"; 
+    return "(" + princ._id + ", " + princ.type + ", " + princ.name + ")";
 };
 
 
-all_certs = function() {
+all_certs = function () {
     var certs = Certs.find({}).fetch();
-	var res = "";
-    _.each(certs, function(doc) {
-	res = res + "subject: " + doc["subject_id"] + " type " + doc["subject_type"] + " name " + doc["subject_name"] + " SIGNER: " + doc["signer"] + "\n";
+    var res = "";
+    _.each(certs, function (doc) {
+        res = res + "subject: " + doc["subject_id"] + " type " + doc["subject_type"] + " name " + doc["subject_name"] + " SIGNER: " + doc["signer"] + "\n";
     });
     return res;
 }

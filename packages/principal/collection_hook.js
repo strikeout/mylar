@@ -266,11 +266,6 @@ _check_macs = function (immutable, id, container, cb) {
         }
     });
 
-    if (!to_check.length || !macs) {
-        cb && cb();
-        return;
-    }
-
     //check macs
     var macs = container['_macs'];
 //    if (!macs) {
@@ -278,6 +273,13 @@ _check_macs = function (immutable, id, container, cb) {
 //        if (debug) console.log("immutable: " + JSON.stringify(immutable));
 //        throw new Error("collection has immutable but macs are not in received doc", immutable, container);
 //    }
+
+
+    if (!to_check.length || !macs) {
+        cb && cb();
+        return;
+    }
+
 
     var each_cb = _.after(to_check.length, cb);
 
@@ -305,8 +307,8 @@ function compute_ring(princ, lst, container) {
     var princ_id = container[princ];
     if (!princ_id) {
         if (debug) console.log(JSON.stringify(container));
-        return false;
-//        throw new Error("container does not contain princ " + princ + " in immutable annotation");
+//        return false;
+        throw new Error("container does not contain princ " + princ + " in immutable annotation");
     }
 
     var res = [princ_id]; //should be a list so that the order of keys is deterministic
@@ -348,7 +350,7 @@ function add_macs(immutable, container, cb) {
         var ring = compute_ring(princ, lst, container);
 
         if (!ring) {
-            cb && cb();
+            each_cb();
             return;
         }
 
@@ -376,7 +378,7 @@ function encrypt_row(_enc_fields, _signed_fields, container, callback) {
 
     _.each(r, function (f) {
 
-        var princ_field = _enc_fields[r].princ;
+        var princ_field = _enc_fields[f].princ;
 
         // check if user sent a field which is marked for encryption but
         // doesnt provide an encryptor principal, prevent unencrypted inserts
