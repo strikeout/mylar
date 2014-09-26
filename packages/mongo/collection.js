@@ -27,6 +27,8 @@ Mongo = {};
 
 
 // --- MYLAR START
+
+// encrypt outgoing traffic
 function intercept_out(collection, container, callback) {
     if (Meteor.isClient &&
         Mongo.Collection && Mongo.Collection.intercept && Mongo.Collection.intercept.out) {
@@ -35,6 +37,8 @@ function intercept_out(collection, container, callback) {
         callback && callback();
     }
 }
+
+// decrypt incoming data
 function intercept_in(collection, id, container, callback) {
     if (Meteor.isClient && Mongo.Collection && Mongo.Collection.intercept && Mongo.Collection.intercept.incoming) {
         Mongo.Collection.intercept.incoming(collection, id, container, callback);
@@ -537,6 +541,7 @@ _.each(["insert", "update", "remove"], function (name) {
                 }
                 // --- MYLAR START
                 Mylar_meta['doc'] = args[1]['$set'];
+//                Mylar_meta['doc']['_id'] = options.insertedId;
                 // --- MYLAR END
             }
         }

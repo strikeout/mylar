@@ -42,8 +42,9 @@ Luckily this is easy with the new package system.
     // copy
     cp -R packages/* /your/project/packages/
 
-    // symlink
-    find packages/* -type d -maxdepth 0 -mindepth 0 -exec ln -s '{}' /your/project/packages/ \;
+    // symlink - go into your projects package dir, then do this:
+    // of course replace "../../packages" with a path to the mylar package dir
+     find ../../packages -type d -mindepth 0 -maxdepth 1 -exec ln -s '{}' . \;
 
 ````
 
