@@ -14,10 +14,7 @@ Simply encrypting each user's data with a user key does not suffice, and Mylar a
 
 ## Info
 
-The original version was a completely customised meteor installation (for meteor v0.6.3!) including modified core packages to contain the data interception hooks. After a whole saturday and sunday had passed, I had finally fleshed out the changes of the core-packages (Accounts, DDP and Mongo), collected all necessary mylar-packages to run the app with an of-the-shelf meteor installation and merged the core changes into the latest (METEOR @0.9.2.2) release. 
-You can now just drop the /packages dir into your meteor project without much hassle and get going with the encryption from there. 
-
-I marked all mylar-changes with to the modifications in the packages ddp and mongo with START/END comments. Can we wrap this into a single package overriding the core packages by any chance?
+I marked all mylar-changes with to the modifications in the core packages ddp and mongo with START/END comments. Can we wrap this into a single package overriding the core packages by any chance?
 
 ## Check it out
 
