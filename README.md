@@ -1,4 +1,5 @@
 # Mylar - ported to Meteor v0.9.3
+[![Gitter](https://badges.gitter.im/Join Chat.svg)](https://gitter.im/strikeout/mylar?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 ## About
 Web applications rely on servers to store and process confidential information. However, anyone who gains access to the server (e.g., an attacker, a curious administrator, or a government) can obtain all of the data stored there.
