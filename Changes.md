@@ -1,6 +1,10 @@
 ## v.NEXT
 
-## v0.9.3 - new
+## v1.0 - new
+* Merged Mylar changes to latest Meteor release v1.0
+* fixed "Mod on _id not allowed" bug when executing serverside update
+
+## v0.9.3
 * Merged Mylar changes to latest Meteor release v0.9.3
 * we can finally update a document if "_id" is in the immutable declaration (it almost always is)
 * made some functions check if callback exists before executing and throwing an error if it doesnt

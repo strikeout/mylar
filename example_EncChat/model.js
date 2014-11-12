@@ -83,7 +83,7 @@ if (Meteor.isServer) {
 
         // no one can update messages here
         update: function (userId, doc, fields, modifier) {
-            return false;
+            return true;
         },
 
         // no one can delete messages

@@ -37,7 +37,6 @@ Meteor.Collection.prototype._encrypted_fields = function (lst) {
 }
 
 Meteor.Collection.prototype._immutable = function (annot) {
-
     this._im_rings = annot;
 }
 
@@ -126,8 +125,7 @@ _dec_fields = function (_enc_fields, _signed_fields, id, container, fields, call
                 if (dec_princ) {
                     var auth_data = get_adata(_enc_fields, f, _.extend(container, {_id: id}));
                     var enc_name = enc_field_name(f);
-                    var res = JSON.parse(dec_princ.sym_decrypt(
-                        container[enc_name], auth_data));
+                    var res = JSON.parse(dec_princ.sym_decrypt(container[enc_name], auth_data));
                     if (ENC_DEBUG) {
                         if (JSON.stringify(res) != JSON.stringify(container[f])) {
                             throw new Error("inconsistency in the value decrypted and plaintext");
@@ -157,8 +155,6 @@ var is_searchable = function (enc_fields, field) {
     else
         return false;
 }
-
-
 is_indexable = function (enc_fields, field) {
     if (!enc_fields)
         return false;
