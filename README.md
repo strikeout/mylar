@@ -12,11 +12,6 @@ Simply encrypting each user's data with a user key does not suffice, and Mylar a
 - Second, Mylar allows the server to perform keyword search over encrypted documents
 - Finally, Mylar ensures that client-side application code is authentic, even if the server is malicious.
 
-
-## Info
-
-I marked all mylar-changes with to the modifications in the core packages ddp and mongo with START/END comments. Can we wrap this into a single package overriding the core packages by any chance?
-
 ## Check it out
 
 Just start and examine the example chat
@@ -92,6 +87,12 @@ important for the IDP, we need to publish explicitly the _wrapped_pk fields of t
 
 Then go to /docs and also check out /enc_modules for (partially outdated) implementation details.
 
+
+
+## Contribution Info
+
+I marked all mylar-related modifications to the core packages ddp and mongo with MYLAR START/END comments for easier merging.
+Can we wrap this into a single package overriding the core packages by any chance?
 
 
 ## Enable search & building the enc_server
