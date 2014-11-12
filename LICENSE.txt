@@ -95,6 +95,8 @@ css-parse: https://github.com/reworkcss/css-parse
 css-stringify: https://github.com/reworkcss/css-stringify
 callsite: https://github.com/visionmedia/callsite
 indexof: https://registry.npmjs.org/indexof/-/indexof-0.0.1.tgz
+escape-html: https://github.com/component/escape-html
+express: https://github.com/strongloop/express
 ----------
 
 Copyright (c) 2010 TJ Holowaychuk <tj@vision-media.ca>
@@ -102,6 +104,7 @@ Copyright (c) 2011 TJ Holowaychuk <tj@vision-media.ca>
 Copyright (c) 2012 TJ Holowaychuk <tj@vision-media.ca>
 Copyright (c) 2013 TJ Holowaychuk <tj@vision-media.ca>
 Copyright (c) 2011, 2013 TJ Holowaychuk <tj@vision-media.ca>
+Copyright (c) 2009-2014 TJ Holowaychuk <tj@vision-media.ca>
 
 
 ----------
@@ -328,6 +331,7 @@ tty-browserify: https://github.com/substack/tty-browserify
 typedarray: https://github.com/substack/typedarray
 vm-browserify: https://github.com/substack/vm-browserify
 wordwrap: https://github.com/substack/node-wordwrap
+yargs: https://github.com/chevex/yargs
 ----------
 
 Copyright 2010, 2011, 2012, 2013 James Halliday (mail@substack.net)
@@ -795,7 +799,15 @@ Copyright 2012 Irakli Gozalishvili. All rights reserved.
 
 
 ----------
-strip-json-comments: https://github.com/sindresorhus/strip-json-comments
+ansi-regex:             https://github.com/sindresorhus/ansi-regex
+ansi-styles:            https://github.com/sindresorhus/ansi-styles
+escape-string-regexp:   https://github.com/sindresorhus/escape-string-regexp
+chalk:                  https://github.com/sindresorhus/chalk
+get-stdin:              https://github.com/sindresorhus/get-stdin
+has-ansi:               https://github.com/sindresorhus/has-ansi
+strip-ansi:             https://github.com/sindresorhus/strip-ansi
+strip-json-comments:    https://github.com/sindresorhus/strip-json-comments
+supports-color:         https://github.com/sindresorhus/supports-color
 ----------
 
 Copyright (c) Sindre Sorhus <sindresorhus@gmail.com> (sindresorhus.com)
@@ -867,6 +879,104 @@ Modifications made by the following entities are licensed as above:
 - http://pivotallabs.com/users/scoward/blog
 - Eloy Duran, Fingertips <eloy@fngtps.com>
 
+
+----------
+accepts: https://github.com/jshttp/accepts
+merge-descriptors: https://github.com/component/merge-descriptors
+type-is: https://github.com/jshttp/type-is
+mime-types: https://github.com/jshttp/mime-types
+----------
+
+Copyright (c) 2013 Jonathan Ong me@jongleberry.com
+Copyright (c) 2014 Jonathan Ong <me@jongleberry.com>
+
+
+----------
+parseurl: https://github.com/expressjs/parseurl
+----------
+
+Copyright (c) 2014 Jonathan Ong <me@jongleberry.com>
+Copyright (c) 2014 Douglas Christopher Wilson <doug@somethingdoug.com>
+
+
+----------
+serve-static: https://github.com/expressjs/serve-static
+----------
+
+Copyright (c) 2010 Sencha Inc.
+Copyright (c) 2011 LearnBoost
+Copyright (c) 2011 TJ Holowaychuk
+Copyright (c) 2014 Douglas Christopher Wilson
+
+
+----------
+negotiator: https://github.com/jshttp/negotiator
+----------
+
+Original "Negotiator" program Copyright Federico Romero
+Port to JavaScript Copyright Isaac Z. Schlueter
+
+
+----------
+options: https://github.com/einaros/options.js
+tinycolor: https://github.com/einaros/tinycolor
+ws: https://github.com/einaros/ws
+----------
+
+Copyright (c) 2011 Einar Otto Stangvik <einaros@gmail.com>
+Copyright (c) 2012 Einar Otto Stangvik <einaros@gmail.com>
+
+
+----------
+path-to-regexp: https://github.com/component/path-to-regexp
+----------
+
+Copyright (c) 2014 Blake Embrey (hello@blakeembrey.com)
+
+
+----------
+truncate: https://github.com/FGRibreau/node-truncate
+----------
+
+Copyright (c) 2013 Francois-Guillaume Ribreau
+
+
+----------
+utils-merge: https://github.com/jaredhanson/utils-merge
+----------
+
+Copyright (c) 2013 Jared Hanson
+
+
+----------
+bl: https://github.com/rvagg/bl
+----------
+
+Copyright (c) 2014 bl contributors
+bl contributors listed at https://github.com/rvagg/bl#contributors
+
+
+----------
+lodash-node: https://github.com/lodash/lodash-node
+----------
+
+Copyright 2012-2014 The Dojo Foundation <http://dojofoundation.org/>
+Based on Underscore.js 1.6.0, copyright 2009-2014 Jeremy Ashkenas,
+DocumentCloud and Investigative Reporters & Editors <http://underscorejs.org/>
+
+
+----------
+netroute: https://github.com/indutny/node-netroute
+----------
+
+Copyright Fedor Indutny, 2012.
+
+
+----------
+stringstream: https://github.com/mhart/StringStream
+----------
+
+Copyright 2012 Michael Hart (michael.hart.au@gmail.com)
 
 
 ==============
@@ -1007,6 +1117,14 @@ browserstack-webdriver: https://github.com/browserstack/selenium-webdriver-nodej
 
 Copyright 2009-2014 Software Freedom Conservancy
 
+
+----------
+node-inspector: https://github.com/node-inspector/node-inspector
+----------
+
+Copyright (c) 2011, Danny Coates
+
+
 ----------
 phantomjs: https://github.com/Medium/phantomjs (npm installer)
 ----------
@@ -1040,6 +1158,13 @@ Copyright 2012 The Apache Software Foundation
 
 This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
+
+
+----------
+ip: https://github.com/indutny/node-ip
+----------
+
+Copyright Fedor Indutny, 2012
 
 
 
@@ -1133,6 +1258,99 @@ Copyright (C) 2013 David Nolen and contributors
 ============
 BSD Licenses
 ============
+
+----------
+tar-pack: https://github.com/ForbesLindesay/tar-pack
+----------
+
+Copyright (c) 2014, Forbes Lindesay
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+* Redistributions of source code must retain the above copyright notice, this
+  list of conditions and the following disclaimer.
+
+* Redistributions in binary form must reproduce the above copyright notice,
+  this list of conditions and the following disclaimer in the documentation
+  and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+----------
+sqlite3: https://github.com/mapbox/node-sqlite3
+----------
+
+Copyright (c) MapBox
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification,
+are permitted provided that the following conditions are met:
+
+- Redistributions of source code must retain the above copyright notice, this
+  list of conditions and the following disclaimer.
+- Redistributions in binary form must reproduce the above copyright notice, this
+  list of conditions and the following disclaimer in the documentation and/or
+  other materials provided with the distribution.
+- Neither the name "MapBox" nor the names of its contributors may be
+  used to endorse or promote products derived from this software without
+  specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+----------
+node-pre-gyp: https://github.com/mapbox/node-pre-gyp
+----------
+
+Copyright (c), Mapbox
+
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification,
+are permitted provided that the following conditions are met:
+
+    * Redistributions of source code must retain the above copyright notice,
+      this list of conditions and the following disclaimer.
+    * Redistributions in binary form must reproduce the above copyright notice,
+      this list of conditions and the following disclaimer in the documentation
+      and/or other materials provided with the distribution.
+    * Neither the name of node-pre-gyp nor the names of its contributors
+      may be used to endorse or promote products derived from this software
+      without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 
 ----------
 uglify-js: https://github.com/mishoo/UglifyJS2
@@ -1886,6 +2104,29 @@ Other
 =====
 
 ----------
+Intel HAXM
+----------
+
+Intel® Hardware Accelerated Execution Manager End-User License Agreement
+
+Last Updated April 15, 2014
+
+Copyright© 2013 Intel Corporation.
+All rights reserved.
+
+Redistribution. Redistribution and use in binary form, without modification, are permitted provided that the following conditions are met:
+
+1. Redistributions must reproduce the above copyright notice and the following disclaimer in the documentation and/or other materials provided with the distribution.
+
+2. Neither the name of Intel Corporation nor the names of its suppliers may be used to endorse or promote products derived from this software without specific prior written permission.
+
+3. No reverse engineering, de-compilation, or disassembly of this software is permitted. Limited patent license. Intel Corporation grants a world-wide, royalty-free, non-exclusive license under patents it now or hereafter owns or controls to make, have made, use, import, offer to sell and sell ("Utilize") this software, but solely to the extent that any such patent is necessary to Utilize the software alone. The patent license shall not apply to any combinations which include this software. No hardware per se is licensed hereunder.
+
+DISCLAIMER.
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+----------
 nan: https://github.com/rvagg/nan
 ----------
 
@@ -1980,6 +2221,14 @@ OTHER DEALINGS IN THE SOFTWARE.
 Except where noted, this license applies to any and all software
 programs and associated documentation files created by the
 Original Author, when distributed with the Software.
+
+----------
+strong-data-uri: https://github.com/strongloop/strong-data-uri
+----------
+
+Redistributed under the terms of the Artistic License, version 2.0.
+
+http://opensource.org/licenses/Artistic-2.0
 
 
 ----------

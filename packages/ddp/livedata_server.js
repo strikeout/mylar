@@ -901,7 +901,7 @@ var Subscription = function (
   self._ready = false;
 
   // Part of the public API: the user of this sub.
-  
+
   /**
    * @summary Access inside the publish function. The id of the logged-in user, or `null` if no user is logged in.
    * @locus Server
@@ -1082,7 +1082,7 @@ _.extend(Subscription.prototype, {
   // server (and clean up its _subscriptions table) we don't actually provide a
   // mechanism for an app to notice this (the subscribe onError callback only
   // triggers if there is an error).
-  
+
   /**
    * @summary Call inside the publish function.  Stops this client's subscription; the `onError` callback is *not* invoked on the client.
    * @locus Server
@@ -1203,6 +1203,9 @@ Server = function (options) {
   // seconds on the client.  Since the client doesn't need to send a
   // ping as long as it is receiving pings, this means that pings
   // normally go from the server to the client.
+  //
+  // Note: Troposphere depends on the ability to mutate
+  // Meteor.server.options.heartbeatTimeout! This is a hack, but it's life.
   self.options = _.defaults(options || {}, {
     heartbeatInterval: 30000,
     heartbeatTimeout: 15000,
@@ -1329,6 +1332,8 @@ _.extend(Server.prototype, {
     }
 
     // Yay, version matches! Create a new session.
+    // Note: Troposphere depends on the ability to mutate
+    // Meteor.server.options.heartbeatTimeout! This is a hack, but it's life.
     socket._meteorSession = new Session(self, version, socket, self.options);
     self.sessions[socket._meteorSession.id] = socket._meteorSession;
     self.onConnectionHook.each(function (callback) {
@@ -1359,7 +1364,7 @@ _.extend(Server.prototype, {
    *    (it lets us determine whether to print a warning suggesting
    *    that you turn off autopublish.)
    */
-  
+
   /**
    * @summary Publish a record set.
    * @memberOf Meteor
