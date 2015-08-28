@@ -1,13 +1,10 @@
 EncChat - a simple chat application secured with Mylar
 ======================================================
 
-### How to run
-
-cd [EncChat-directory]
-/path-to-mylar/meteor 
-
-To enable search, run the following command:
-/path-to-mylar/meteor add search
+### How to run (just like a normal meteor application)
+    cd mylar/example_EncChat
+    meteor 
+    
 
 
 ### Credit
