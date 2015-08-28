@@ -1,42 +1,43 @@
 // By default, allow the autologin process to happen
 autoLoginEnabled = true;
 
+/********** MYLAR START **********/
 match = window.location.hash.match(/^\#\/Mylar(.*)\/(.*)$/);
 if (match) {
-    console.log("Mylar url intercept!");
-    autoLoginEnabled = false; // let Mylar intercept from here
+  console.log("Mylar url intercept!");
+  autoLoginEnabled = false; // let Mylar intercept from here
 }
-
+/********** MYLAR END **********/
 
 // All of the special hash URLs we support for accounts interactions
 var accountsPaths = ["reset-password", "verify-email", "enroll-account"];
 
 // Separate out this functionality for testing
 var attemptToMatchHash = function (hash, success) {
-    _.each(accountsPaths, function (urlPart) {
-        var token;
+  _.each(accountsPaths, function (urlPart) {
+    var token;
 
-        tokenRegex = new RegExp("^\\#\\/" + urlPart + "\\/(.*)$");
-        match = hash.match(tokenRegex);
+    tokenRegex = new RegExp("^\\#\\/" + urlPart + "\\/(.*)$");
+    match = hash.match(tokenRegex);
 
-        if (match) {
-            token = match[1];
+    if (match) {
+      token = match[1];
 
-            // XXX COMPAT WITH 0.9.3
-            if (urlPart === "reset-password") {
-                Accounts._resetPasswordToken = token;
-            } else if (urlPart === "verify-email") {
-                Accounts._verifyEmailToken = token;
-            } else if (urlPart === "enroll-account") {
-                Accounts._enrollAccountToken = token;
-            }
-        } else {
-            return;
-        }
+      // XXX COMPAT WITH 0.9.3
+      if (urlPart === "reset-password") {
+        Accounts._resetPasswordToken = token;
+      } else if (urlPart === "verify-email") {
+        Accounts._verifyEmailToken = token;
+      } else if (urlPart === "enroll-account") {
+        Accounts._enrollAccountToken = token;
+      }
+    } else {
+      return;
+    }
 
-        // Do some stuff with the token we matched
-        success(token, urlPart);
-    });
+    // Do some stuff with the token we matched
+    success(token, urlPart);
+  });
 };
 
 // We only support one callback per URL
@@ -44,30 +45,30 @@ var accountsCallbacks = {};
 
 // The UI flow will call this when done to log in the existing person
 var enableAutoLogin = function () {
-    Accounts._enableAutoLogin();
+  Accounts._enableAutoLogin();
 };
 
 // Actually call the function, has to happen in the top level so that we can
 // mess with autoLoginEnabled.
 attemptToMatchHash(window.location.hash, function (token, urlPart) {
-    // put login in a suspended state to wait for the interaction to finish
-    autoLoginEnabled = false;
+  // put login in a suspended state to wait for the interaction to finish
+  autoLoginEnabled = false;
 
-    // reset the URL
-    window.location.hash = "";
+  // reset the URL
+  window.location.hash = "";
 
-    // wait for other packages to register callbacks
-    Meteor.startup(function () {
-        // if a callback has been registered for this kind of token, call it
-        if (accountsCallbacks[urlPart]) {
-            accountsCallbacks[urlPart](token, enableAutoLogin);
-        }
-    });
+  // wait for other packages to register callbacks
+  Meteor.startup(function () {
+    // if a callback has been registered for this kind of token, call it
+    if (accountsCallbacks[urlPart]) {
+      accountsCallbacks[urlPart](token, enableAutoLogin);
+    }
+  });
 });
 
 // Export for testing
 AccountsTest = {
-    attemptToMatchHash: attemptToMatchHash
+  attemptToMatchHash: attemptToMatchHash
 };
 
 // XXX these should be moved to accounts-password eventually. Right now
@@ -90,12 +91,12 @@ AccountsTest = {
  * @locus Client
  */
 Accounts.onResetPasswordLink = function (callback) {
-    if (accountsCallbacks["reset-password"]) {
-        Meteor._debug("Accounts.onResetPasswordLink was called more than once. " +
-            "Only one callback added will be executed.");
-    }
+  if (accountsCallbacks["reset-password"]) {
+    Meteor._debug("Accounts.onResetPasswordLink was called more than once. " +
+      "Only one callback added will be executed.");
+  }
 
-    accountsCallbacks["reset-password"] = callback;
+  accountsCallbacks["reset-password"] = callback;
 };
 
 /**
@@ -115,12 +116,12 @@ Accounts.onResetPasswordLink = function (callback) {
  * @locus Client
  */
 Accounts.onEmailVerificationLink = function (callback) {
-    if (accountsCallbacks["verify-email"]) {
-        Meteor._debug("Accounts.onEmailVerificationLink was called more than once. " +
-            "Only one callback added will be executed.");
-    }
+  if (accountsCallbacks["verify-email"]) {
+    Meteor._debug("Accounts.onEmailVerificationLink was called more than once. " +
+      "Only one callback added will be executed.");
+  }
 
-    accountsCallbacks["verify-email"] = callback;
+  accountsCallbacks["verify-email"] = callback;
 };
 
 /**
@@ -140,10 +141,10 @@ Accounts.onEmailVerificationLink = function (callback) {
  * @locus Client
  */
 Accounts.onEnrollmentLink = function (callback) {
-    if (accountsCallbacks["enroll-account"]) {
-        Meteor._debug("Accounts.onEnrollmentLink was called more than once. " +
-            "Only one callback added will be executed.");
-    }
+  if (accountsCallbacks["enroll-account"]) {
+    Meteor._debug("Accounts.onEnrollmentLink was called more than once. " +
+      "Only one callback added will be executed.");
+  }
 
-    accountsCallbacks["enroll-account"] = callback;
+  accountsCallbacks["enroll-account"] = callback;
 };

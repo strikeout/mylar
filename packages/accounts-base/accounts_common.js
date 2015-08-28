@@ -149,8 +149,8 @@ Meteor.users = new Mongo.Collection("users", {
 Meteor.startup(function () {
   var ServiceConfiguration =
     Package['service-configuration'].ServiceConfiguration;
-Accounts.loginServiceConfiguration = ServiceConfiguration.configurations;
-Accounts.ConfigError = ServiceConfiguration.ConfigError;
+  Accounts.loginServiceConfiguration = ServiceConfiguration.configurations;
+  Accounts.ConfigError = ServiceConfiguration.ConfigError;
 });
 
 // Thrown when the user cancels the login process (eg, closes an oauth
@@ -183,4 +183,31 @@ Accounts._tokenExpiresSoon = function (when) {
   if (minLifetimeMs > minLifetimeCapMs)
     minLifetimeMs = minLifetimeCapMs;
   return new Date() > (new Date(when) - minLifetimeMs);
+};
+
+// Callback exceptions are printed with Meteor._debug and ignored.
+onLoginHook = new Hook({
+  debugPrintExceptions: "onLogin callback"
+});
+onLoginFailureHook = new Hook({
+  debugPrintExceptions: "onLoginFailure callback"
+});
+
+
+/**
+ * @summary Register a callback to be called after a login attempt succeeds.
+ * @locus Anywhere
+ * @param {Function} func The callback to be called when login is successful.
+ */
+Accounts.onLogin = function (func) {
+  return onLoginHook.register(func);
+};
+
+/**
+ * @summary Register a callback to be called after a login attempt fails.
+ * @locus Anywhere
+ * @param {Function} func The callback to be called after the login has failed.
+ */
+Accounts.onLoginFailure = function (func) {
+  return onLoginFailureHook.register(func);
 };
