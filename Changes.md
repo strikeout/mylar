@@ -1,6 +1,9 @@
 ## v.NEXT
 
-## v1.0 - new
+## v1.1 - new
+* Merged Mylar changes to latest Meteor release v1.1 - thanks @sunny-g 
+
+## v1.0 
 * Merged Mylar changes to latest Meteor release v1.0
 * fixed "Mod on _id not allowed" bug when executing serverside update
 
